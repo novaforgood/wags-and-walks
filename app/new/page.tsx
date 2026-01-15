@@ -1,4 +1,5 @@
 import styles from '../page.module.css'
+import EmailModal from '../components/EmailModal'
 
 export default function NewPage() {
   return (
@@ -8,6 +9,7 @@ export default function NewPage() {
         <p className={styles.description}>
           This is the New page content.
         </p>
+        <EmailModal />
       </div>
     </main>
   )
