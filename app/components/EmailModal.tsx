@@ -40,7 +40,7 @@ export default function EmailModal() {
           emailContent: emailText,
           subject: 'Test Email',
           testEmail: 'ja.thapar@gmail.com',
-          sendEmails: true
+          sendEmails: false
         })
       })
 
