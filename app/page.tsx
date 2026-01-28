@@ -11,6 +11,7 @@ type Person = {
   email: string
   phone: string
   age: string
+  status: 'new' | 'in-progress' | 'approved' | 'current'
 }
 
 export default function Home() {
@@ -30,9 +31,18 @@ export default function Home() {
               email: row['Email'],
               phone: row['Phone'],
               age: row['How old are you?'],
+              status: 'new'
             }))
 
-            setPeople(data)
+            const saved = JSON.parse(localStorage.getItem('people') || 'null')
+
+            if (saved) {
+              setPeople(saved)
+            } else {
+              setPeople(data)
+              localStorage.setItem('people', JSON.stringify(data))
+            }
+
           },
         })
       })
