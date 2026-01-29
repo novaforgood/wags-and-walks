@@ -4,10 +4,12 @@ import { useRef, useState } from 'react'
 import styles from './EmailModal.module.css'
 
 interface Recipient {
+  rowIndex: number
   email: string
   firstName: string
   lastName: string
   fullName: string
+  isFlagged: boolean
 }
 
 export default function EmailModal() {
@@ -16,36 +18,45 @@ export default function EmailModal() {
     'Hi [insert]! thanks for your interest in fostering...'
   )
   const [recipients, setRecipients] = useState<Recipient[]>([])
-  const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set())
+  const [selectedRowIds, setSelectedRowIds] = useState<Set<number>>(new Set())
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [debugInfo, setDebugInfo] = useState<string | null>(null)
   const [isDragging, setIsDragging] = useState(false)
   const [position, setPosition] = useState({ x: 0, y: 0 })
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
+  const clearedRecipients = recipients.filter(recipient => !recipient.isFlagged)
+  const flaggedRecipients = recipients.filter(recipient => recipient.isFlagged)
+  const allFlaggedSelected =
+    flaggedRecipients.length > 0 && selectedRowIds.size === flaggedRecipients.length
 
   const handleOpen = async () => {
     // Show modal immediately
     dialogRef.current?.showModal()
+    setPosition({ x: 0, y: 0 })
     
     // Fetch emails in the background
     setIsLoading(true)
     setError(null)
+    setDebugInfo(null)
     try {
-      const response = await fetch('/api/send-email', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          emailContent: emailText,
-          subject: 'Test Email',
-          testEmail: 'ja.thapar@gmail.com',
-          sendEmails: false
-        })
-      })
+      const fields = [
+        'Timestamp',
+        'First Name',
+        'Last Name',
+        'Email',
+        'Flags',
+        'Review Status'
+      ].join(',')
+      const response = await fetch(
+        `/api/send-email?mode=ok&fields=${encodeURIComponent(fields)}`,
+        { method: 'GET' }
+      )
 
       const rawText = await response.text()
-      let data: { success?: boolean; recipients?: Recipient[]; emails?: string[]; error?: string } | null = null
+      let data:
+        | { success?: boolean; rows?: Record<string, unknown>[]; error?: string }
+        | null = null
       try {
         data = JSON.parse(rawText)
       } catch (parseError) {
@@ -56,22 +67,35 @@ export default function EmailModal() {
 
       console.log('API Response:', data)
       if (data?.success) {
-        if (Array.isArray(data.recipients)) {
-          setRecipients(data.recipients)
-        } else if (Array.isArray(data.emails)) {
-          setRecipients(
-            data.emails.map(email => ({
+        const rows = Array.isArray(data.rows) ? data.rows : []
+        const mapped = rows
+          .map(row => {
+            const firstName = String(row['First Name'] || '').trim()
+            const lastName = String(row['Last Name'] || '').trim()
+            const email = String(row['Email'] || '').trim()
+            const flags = String(row['Flags'] || '').trim()
+            const rowIndex = Number(row.rowIndex)
+            return {
+              rowIndex,
               email,
-              firstName: '',
-              lastName: '',
-              fullName: ''
-            }))
-          )
-        } else {
-          setRecipients([])
-        }
+              firstName,
+              lastName,
+              fullName: `${firstName} ${lastName}`.trim(),
+              isFlagged: Boolean(flags)
+            }
+          })
+          .filter(r => Number.isFinite(r.rowIndex) && r.email)
+        setRecipients(mapped)
+        setSelectedRowIds(new Set())
       } else {
         setError(data?.error || 'Failed to fetch emails')
+        try {
+          const debugResponse = await fetch('/api/send-email?debug=1')
+          const debugData = await debugResponse.json()
+          setDebugInfo(JSON.stringify(debugData, null, 2))
+        } catch (debugErr) {
+          console.error('Debug fetch error:', debugErr)
+        }
       }
     } catch (err) {
       setError('Error connecting to Google Sheets')
@@ -108,29 +132,65 @@ export default function EmailModal() {
     setIsDragging(false)
   }
 
-  const toggleEmail = (index: number) => {
-    const newSelected = new Set(selectedIndices)
-    if (newSelected.has(index)) {
-      newSelected.delete(index)
+  const toggleEmail = (rowId: number) => {
+    if (!Number.isFinite(rowId)) return
+    const newSelected = new Set(selectedRowIds)
+    if (newSelected.has(rowId)) {
+      newSelected.delete(rowId)
     } else {
-      newSelected.add(index)
+      newSelected.add(rowId)
     }
-    setSelectedIndices(newSelected)
+    setSelectedRowIds(newSelected)
   }
 
   const toggleSelectAll = () => {
-    if (selectedIndices.size === recipients.length) {
-      setSelectedIndices(new Set())
+    if (flaggedRecipients.length === 0) return
+    if (selectedRowIds.size === flaggedRecipients.length) {
+      setSelectedRowIds(new Set())
     } else {
-      setSelectedIndices(new Set(recipients.map((_, i) => i)))
+      setSelectedRowIds(new Set(flaggedRecipients.map(r => r.rowIndex)))
     }
   }
 
-  const handleSend = () => {
-    const selectedRecipients = recipients.filter((_, i) => selectedIndices.has(i))
-    console.log('Email content:', emailText)
-    console.log('Selected recipients:', selectedRecipients)
-    handleClose()
+  const handleSend = async () => {
+    const rowIndices = flaggedRecipients
+      .filter(r => selectedRowIds.has(r.rowIndex))
+      .map(r => r.rowIndex)
+
+    if (rowIndices.length === 0) {
+      setError('Select at least one recipient')
+      return
+    }
+
+    setIsLoading(true)
+    setError(null)
+    try {
+      const response = await fetch('/api/send-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          subject: 'Foster Interest',
+          emailContent: emailText,
+          sendEmails: true,
+          mode: 'ok',
+          rowIndices
+        })
+      })
+
+      const data = await response.json()
+      if (!data?.success) {
+        setError(data?.error || 'Failed to send emails')
+        return
+      }
+      handleClose()
+    } catch (err) {
+      setError('Error sending emails')
+      console.error('Send error:', err)
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -139,7 +199,16 @@ export default function EmailModal() {
         Send Email
       </button>
 
-      <dialog ref={dialogRef} className={styles.dialog} style={{ transform: `translate(${position.x}px, ${position.y}px)` }} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp}>
+      <dialog
+        ref={dialogRef}
+        className={styles.dialog}
+        style={{
+          transform: `translate(calc(-50% + ${position.x}px), ${position.y}px)`
+        }}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+      >
         <div className={styles.modalContent}>
           <div className={styles.modalHeader} onMouseDown={handleMouseDown}>
             <h2>Send Foster Interest Email</h2>
@@ -157,36 +226,66 @@ export default function EmailModal() {
               Error: {error}
             </div>
           )}
+          {debugInfo && (
+            <pre className={styles.error}>
+              {debugInfo}
+            </pre>
+          )}
 
           <div className={styles.emailsList}>
-            <p className={styles.emailsLabel}>
-              {isLoading ? 'Loading recipients...' : `Recipients (${recipients.length}):`}
-            </p>
-            <button 
-              className={styles.selectAllButton}
-              onClick={toggleSelectAll}
-              disabled={recipients.length === 0}
-            >
-              {selectedIndices.size === recipients.length ? 'Deselect All' : 'Select All'}
-            </button>
-            <ul className={styles.emailsListItems}>
-              {recipients.map((recipient, index) => (
-                <li key={index} className={selectedIndices.has(index) ? styles.emailItemSelected : ''}>
-                  <input
-                    type="checkbox"
-                    checked={selectedIndices.has(index)}
-                    onChange={() => toggleEmail(index)}
-                    className={styles.emailCheckbox}
-                  />
-                  <div className={styles.recipientInfo}>
-                    <span className={styles.recipientName}>
-                      {recipient.fullName || 'Unknown'}
-                    </span>
-                    <span className={styles.recipientEmail}>{recipient.email}</span>
-                  </div>
-                </li>
-              ))}
-            </ul>
+            <div className={styles.listSection}>
+              <p className={styles.emailsLabel}>
+                {isLoading ? 'Loading recipients...' : `Cleared (${clearedRecipients.length}):`}
+              </p>
+              <ul className={styles.emailsListItems}>
+                {clearedRecipients.map(recipient => (
+                  <li
+                    key={recipient.rowIndex}
+                    className={`${styles.emailItemSelected} ${styles.emailItemMuted} ${styles.emailItemNoCheckbox}`}
+                  >
+                    <div className={styles.recipientInfo}>
+                      <span className={styles.recipientName}>
+                        {recipient.fullName || 'Unknown'}
+                      </span>
+                      <span className={styles.recipientEmail}>{recipient.email}</span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className={styles.listSection}>
+              <p className={styles.emailsLabel}>
+                {isLoading ? 'Loading recipients...' : `Flagged (${flaggedRecipients.length}):`}
+              </p>
+              <button 
+                className={styles.selectAllButton}
+                onClick={toggleSelectAll}
+                disabled={flaggedRecipients.length === 0}
+              >
+                {allFlaggedSelected ? 'Deselect All' : 'Select All'}
+              </button>
+              <ul className={styles.emailsListItems}>
+                {flaggedRecipients.map(recipient => (
+                  <li
+                    key={recipient.rowIndex}
+                    className={selectedRowIds.has(recipient.rowIndex) ? styles.emailItemSelected : ''}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedRowIds.has(recipient.rowIndex)}
+                      onChange={() => toggleEmail(recipient.rowIndex)}
+                      className={styles.emailCheckbox}
+                    />
+                    <div className={styles.recipientInfo}>
+                      <span className={styles.recipientName}>
+                        {recipient.fullName || 'Unknown'}
+                      </span>
+                      <span className={styles.recipientEmail}>{recipient.email}</span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
           </div>
 
           <textarea

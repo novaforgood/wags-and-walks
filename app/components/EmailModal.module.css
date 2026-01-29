@@ -28,12 +28,13 @@
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
   max-width: 700px;
   width: 90%;
+  max-height: 90vh;
+  overflow: auto;
   transition: transform 0.1s ease-out;
-  margin: auto;
+  margin: 0;
   position: fixed;
-  top: 50%;
+  top: 0;
   left: 50%;
-  translate: -50% -50%;
 }
 
 .dialog::backdrop {
@@ -132,6 +133,9 @@
   background-color: #f5f5f5;
   border-radius: 4px;
   border: 1px solid #ddd;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -146,6 +150,12 @@
   font-weight: 700;
   font-size: 15px;
   letter-spacing: 0.2px;
+}
+
+.listSection {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .selectAllButton {
@@ -209,6 +219,18 @@
 .emailItemSelected {
   background-color: rgba(128, 128, 128, 0.2) !important;
   border-left-color: #666 !important;
+}
+
+.emailItemMuted .recipientName {
+  color: #888;
+}
+
+.emailItemMuted .recipientEmail {
+  color: #777;
+}
+
+.emailsListItems li.emailItemNoCheckbox {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .emailCheckbox {
