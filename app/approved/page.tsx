@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import styles from '../page.module.css'
+import { promoteClearedToApproved } from '../components/clearedRecipients'
 
 type Person = {
   firstName: string
@@ -16,8 +17,19 @@ export default function ApprovedPage() {
   const [people, setPeople] = useState<Person[]>([])
 
   useEffect(() => {
-    const data = JSON.parse(localStorage.getItem('people') || '[]')
-    setPeople(data)
+    const load = async () => {
+      const data = JSON.parse(localStorage.getItem('people') || '[]') as Person[]
+      try {
+        const updated = await promoteClearedToApproved(data)
+        setPeople(updated)
+        if (updated !== data) {
+          localStorage.setItem('people', JSON.stringify(updated))
+        }
+      } catch {
+        setPeople(data)
+      }
+    }
+    load()
   }, [])
 
   const movePerson = (email: string, newStatus: Person['status']) => {

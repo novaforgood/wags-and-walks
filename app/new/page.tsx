@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import styles from '../page.module.css'
 import EmailModal from '../components/EmailModal'
+import { promoteClearedToApproved } from '../components/clearedRecipients'
 
 type Person = {
   firstName: string
@@ -17,8 +18,19 @@ export default function NewPage() {
   const [people, setPeople] = useState<Person[]>([])
 
   useEffect(() => {
-    const data = JSON.parse(localStorage.getItem('people') || '[]')
-    setPeople(data)
+    const load = async () => {
+      const data = JSON.parse(localStorage.getItem('people') || '[]') as Person[]
+      try {
+        const updated = await promoteClearedToApproved(data)
+        setPeople(updated)
+        if (updated !== data) {
+          localStorage.setItem('people', JSON.stringify(updated))
+        }
+      } catch {
+        setPeople(data)
+      }
+    }
+    load()
   }, [])
 
   const movePerson = (email: string, newStatus: Person['status']) => {
@@ -54,7 +66,20 @@ export default function NewPage() {
         <p className={styles.description}>
           This is the New page content.
         </p>
-        <EmailModal />
+        <EmailModal
+          onApprovedEmails={(emails) => {
+            const approvedSet = new Set(emails.map(e => e.trim().toLowerCase()))
+            setPeople(prev =>
+              prev.map(p => {
+                const emailKey = String(p.email || '').trim().toLowerCase()
+                if (emailKey && approvedSet.has(emailKey) && p.status === 'new') {
+                  return { ...p, status: 'approved' }
+                }
+                return p
+              })
+            )
+          }}
+        />
       </div>
     </main>
   )

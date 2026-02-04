@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import styles from './page.module.css'
 import Papa from 'papaparse'
+import type { ParseResult } from 'papaparse'
 
 type Person = {
   firstName?: string
@@ -92,7 +93,7 @@ export default function Home() {
         Papa.parse(csv, {
           header: true,
           skipEmptyLines: true,
-          complete: results => {
+          complete: (results: ParseResult<Record<string, string>>) => {
             const parsed: Person[] = (results.data as any[]).map(row => {
               const rawTimestamp =
                 row['Timestamp'] ||
