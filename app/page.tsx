@@ -308,7 +308,7 @@ export default function Home() {
               <strong style={{ cursor: 'pointer', fontSize: 16 }} onClick={() => setShowFilters(s => !s)}>
                 Applicant Filters
               </strong>
-              <span style={{ marginLeft: 4, color: '#666', fontSize: 13 }}>
+              <span style={{ marginLeft: 4, color: '#000', fontSize: 13 }}>
                 {selectedNeeds.length > 0 ? `(${selectedNeeds.length} selected)` : '(no filters applied)'}
               </span>
             </div>
@@ -346,7 +346,7 @@ export default function Home() {
           {showFilters && (
             <div style={{ marginTop: 14 }}>
               <div style={{ marginBottom: 10 }}>
-                <em style={{ color: '#444' }}>
+                <em style={{ color: '#000' }}>
                   Filter applicants by which special needs they indicated they can foster.
                 </em>
               </div>
@@ -384,12 +384,12 @@ export default function Home() {
               </div>
 
               <div style={{ marginTop: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ color: '#666', fontSize: 14 }}>
-                  <strong style={{ color: '#222' }}>{displayPeople.length}</strong>{' '}
+                <div style={{ color: '#000', fontSize: 14 }}>
+                  <strong style={{ color: '#000' }}>{displayPeople.length}</strong>{' '}
                   {displayPeople.length === 1 ? 'applicant' : 'applicants'}
                 </div>
 
-                <div style={{ color: '#999', fontSize: 12 }}>
+                <div style={{ color: '#000', fontSize: 12 }}>
                   Selecting multiple options will show applicants who indicated all selected needs.
                 </div>
               </div>

@@ -32,12 +32,6 @@
   border-radius: 0.25rem;
 }
 
-@media (prefers-color-scheme: dark) {
-  .code {
-    background-color: #1a1a1a;
-  }
-}
-
 .cardGrid {
   margin-top: 3rem;
   display: grid;
