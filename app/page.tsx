@@ -1,23 +1,9 @@
 ﻿'use client'
 
-import { useEffect, useMemo, useState } from 'react'
-import Link from 'next/link'
+import { useMemo, useState } from 'react'
 import styles from './page.module.css'
-import Papa from 'papaparse'
-import type { ParseResult } from 'papaparse'
-
-type Person = {
-  firstName?: string
-  lastName?: string
-  email?: string
-  phone?: string
-  age?: string
-  status?: 'new' | 'in-progress' | 'approved' | 'current'
-  appliedAt?: string // ISO timestamp string parsed from CSV "Timestamp" column
-  availability?: string // raw availability text from CSV
-  specialNeeds?: string[] // parsed multi-select for special needs
-  raw?: Record<string, string> // original CSV row (kept for fallback display)
-}
+import { usePeople } from './components/PeopleProvider'
+import type { Person } from './lib/peopleTypes'
 
 const KNOWN_SPECIAL_NEEDS = [
   'Puppies',
@@ -43,39 +29,8 @@ const availabilityRank = (text?: string) => {
   return 3
 }
 
-// Robust parser for "M/D/YYYY HH:mm" style timestamps (e.g. "1/14/2026 21:26")
-// Falls back to Date constructor if pattern doesn't match.
-const parseTimestamp = (raw?: string): string | undefined => {
-  if (!raw) return undefined
-  const s = String(raw).trim()
-  // Match formats like "1/14/2026 21:26" or "01/14/2026 09:05"
-  const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2})$/)
-  if (m) {
-    const month = parseInt(m[1], 10)
-    const day = parseInt(m[2], 10)
-    const year = parseInt(m[3], 10)
-    const hour = parseInt(m[4], 10)
-    const minute = parseInt(m[5], 10)
-    const d = new Date(year, month - 1, day, hour, minute)
-    if (!isNaN(d.getTime())) return d.toISOString()
-  }
-  const fallback = new Date(s)
-  return isNaN(fallback.getTime()) ? undefined : fallback.toISOString()
-}
-
-const normalizeOptions = (raw?: string): string[] => {
-  if (!raw) return []
-  // split on commas, trim, dedupe
-  const parts = String(raw)
-    .split(',')
-    .map(p => p.trim())
-    .filter(p => p.length > 0)
-  const unique = Array.from(new Set(parts))
-  return unique
-}
-
 export default function Home() {
-  const [people, setPeople] = useState<Person[]>([])
+  const { people, isLoading, error, refresh } = usePeople()
   const [sortOption, setSortOption] = useState<
     'none' | 'name-asc' | 'name-desc' | 'date-asc' | 'date-desc' | 'availability-asc'
   >('none')
@@ -83,120 +38,6 @@ export default function Home() {
   // filter UI state
   const [showFilters, setShowFilters] = useState(true)
   const [selectedNeeds, setSelectedNeeds] = useState<string[]>([])
-
-  useEffect(() => {
-    fetch(
-      'https://docs.google.com/spreadsheets/d/e/2PACX-1vSn3Y4D4iYl7m8-ngX53udfHy-dwlv7TF9EsJsl960jG98hnk2FRXy6wtClk0abbWlZz6AL49eR4ULa/pub?output=csv'
-    )
-      .then(res => res.text())
-      .then(csv => {
-        Papa.parse(csv, {
-          header: true,
-          skipEmptyLines: true,
-          complete: (results: ParseResult<Record<string, string>>) => {
-            const parsed: Person[] = (results.data as any[]).map(row => {
-              const rawTimestamp =
-                row['Timestamp'] ||
-                row['timestamp'] ||
-                row['Time Stamp'] ||
-                row['TimeStamp'] ||
-                ''
-              const parsedIso = parseTimestamp(rawTimestamp)
-
-              const availability =
-                row['When would you like to take your foster dog home?'] ||
-                row['When would you like to take your foster dog home'] ||
-                row['Availability'] ||
-                ''
-
-              const specialRaw =
-                row['Are you willing to foster dogs with special needs? If so, please check all that apply below.'] ||
-                row['Are you willing to foster dogs with special needs?'] ||
-                row['Special needs'] ||
-                ''
-
-              return {
-                firstName: row['First Name'],
-                lastName: row['Last Name'],
-                email: row['Email'],
-                phone: row['Phone'],
-                age: row['How old are you?'],
-                status: 'new',
-                appliedAt: parsedIso,
-                availability,
-                specialNeeds: normalizeOptions(specialRaw),
-                raw: row
-              } as Person
-            })
-
-            const savedRaw = localStorage.getItem('people')
-            let result: Person[] = parsed
-
-            if (savedRaw) {
-              try {
-                const saved = JSON.parse(savedRaw) as Person[]
-                // build lookup maps for parsed rows (prefer email)
-                const byEmail = new Map<string, Person>()
-                const byName = new Map<string, Person>()
-                for (const p of parsed) {
-                  if (p.email) byEmail.set(String(p.email).trim().toLowerCase(), p)
-                  const nameKey = `${p.firstName ?? ''} ${p.lastName ?? ''}`.trim().toLowerCase()
-                  if (nameKey) byName.set(nameKey, p)
-                }
-
-                // Merge parsed fields (appliedAt, availability, raw, specialNeeds) into saved entries when possible.
-                const merged = saved.map(s => {
-                  const emailKey = s.email ? String(s.email).trim().toLowerCase() : ''
-                  const nameKey = `${s.firstName ?? ''} ${s.lastName ?? ''}`.trim().toLowerCase()
-                  const match = (emailKey && byEmail.get(emailKey)) || byName.get(nameKey)
-
-                  if (match) {
-                    return {
-                      ...s,
-                      appliedAt: match.appliedAt ?? s.appliedAt,
-                      availability: match.availability ?? s.availability,
-                      specialNeeds: match.specialNeeds ?? s.specialNeeds,
-                      raw: match.raw ?? s.raw
-                    } as Person
-                  }
-                  return s
-                })
-
-                // Add any parsed rows not present in saved (new submissions)
-                const existingKeys = new Set(
-                  merged.map(m =>
-                    m.email
-                      ? String(m.email).trim().toLowerCase()
-                      : `${m.firstName ?? ''} ${m.lastName ?? ''}`.trim().toLowerCase()
-                  )
-                )
-                const newOnes = parsed.filter(p => {
-                  const key = p.email
-                    ? String(p.email).trim().toLowerCase()
-                    : `${p.firstName ?? ''} ${p.lastName ?? ''}`.trim().toLowerCase()
-                  return !existingKeys.has(key)
-                })
-
-                result = merged.concat(newOnes)
-
-                // persist the merged result so future loads include parsed timestamps/availability
-                localStorage.setItem('people', JSON.stringify(result))
-              } catch (e) {
-                // if parsing saved data fails for any reason, fall back to parsed
-                console.error('Failed to merge saved people:', e)
-                result = parsed
-                localStorage.setItem('people', JSON.stringify(parsed))
-              }
-            } else {
-              // first time - store parsed
-              localStorage.setItem('people', JSON.stringify(parsed))
-            }
-
-            setPeople(result)
-          }
-        })
-      })
-  }, [])
 
   // helper to toggle a special needs selection
   const toggleNeed = (need: string) => {
@@ -292,6 +133,24 @@ export default function Home() {
         <p className={styles.description}>
           Navigate using the tabs above to view different pages.
         </p>
+
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 10 }}>
+          <button
+            type="button"
+            onClick={refresh}
+            style={{
+              padding: '8px 12px',
+              borderRadius: 8,
+              border: '1px solid #d6d6d6',
+              background: '#fff',
+              cursor: 'pointer'
+            }}
+          >
+            Refresh from Sheet
+          </button>
+          {isLoading && <span style={{ alignSelf: 'center' }}>Loading…</span>}
+          {error && <span style={{ alignSelf: 'center', color: '#b00020' }}>{error}</span>}
+        </div>
 
         {/* FILTER BOX */}
         <div
@@ -449,6 +308,10 @@ export default function Home() {
                 {/* show parsed special needs summary (small) */}
                 {person.specialNeeds && person.specialNeeds.length > 0 && (
                   <p style={{ marginTop: 6 }}><strong>Special needs:</strong> {person.specialNeeds.join(', ')}</p>
+                )}
+
+                {person.status && (
+                  <p style={{ marginTop: 6 }}><strong>Status:</strong> {person.status}</p>
                 )}
               </div>
             )

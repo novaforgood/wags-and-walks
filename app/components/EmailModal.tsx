@@ -2,6 +2,7 @@
 
 import { useRef, useState } from 'react'
 import styles from './EmailModal.module.css'
+import { usePeople } from './PeopleProvider'
 
 interface Recipient {
   rowIndex: number
@@ -16,12 +17,8 @@ type EmailModalProps = {
   onApprovedEmails?: (emails: string[]) => void
 }
 
-type Person = {
-  email?: string
-  status?: 'new' | 'in-progress' | 'approved' | 'current'
-}
-
 export default function EmailModal({ onApprovedEmails }: EmailModalProps) {
+  const { setStatus } = usePeople()
   const dialogRef = useRef<HTMLDialogElement>(null)
   const [emailText, setEmailText] = useState(
     'Hi [insert]! thanks for your interest in fostering...'
@@ -198,29 +195,12 @@ export default function EmailModal({ onApprovedEmails }: EmailModalProps) {
         return
       }
 
-      // Locally move successfully-sent recipients from "new" -> "approved"
-      try {
-        const approvedEmails = selectedRecipients
-          .map(r => String(r.email || '').trim().toLowerCase())
-          .filter(Boolean)
-
-        if (approvedEmails.length > 0) {
-          const approvedSet = new Set(approvedEmails)
-          const raw = localStorage.getItem('people') || '[]'
-          const people = JSON.parse(raw) as Person[]
-          const updated = people.map(p => {
-            const emailKey = String(p?.email || '').trim().toLowerCase()
-            if (emailKey && approvedSet.has(emailKey) && p?.status === 'new') {
-              return { ...p, status: 'approved' }
-            }
-            return p
-          })
-          localStorage.setItem('people', JSON.stringify(updated))
-          onApprovedEmails?.(approvedEmails)
-        }
-      } catch (e) {
-        console.error('Failed to update local people status after send:', e)
-      }
+      // Optimistically update UI immediately; background sync to Sheets is handled by PeopleProvider.
+      const approvedEmails = selectedRecipients
+        .map(r => String(r.email || '').trim())
+        .filter(Boolean)
+      for (const email of approvedEmails) setStatus(email, 'approved')
+      onApprovedEmails?.(approvedEmails)
 
       handleClose()
     } catch (err) {

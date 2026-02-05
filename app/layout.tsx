@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import './globals.css'
 import Navigation from './components/Navigation'
+import { PeopleProvider } from './components/PeopleProvider'
 
 export const metadata: Metadata = {
   title: 'Wags and Walks',
@@ -15,8 +16,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <Navigation />
-        {children}
+        <PeopleProvider>
+          <Navigation />
+          {children}
+        </PeopleProvider>
       </body>
     </html>
   )

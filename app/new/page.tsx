@@ -1,83 +1,59 @@
 'use client'
 
-import { useEffect, useState } from 'react'
 import styles from '../page.module.css'
 import EmailModal from '../components/EmailModal'
-import { promoteClearedToApproved } from '../components/clearedRecipients'
-
-type Person = {
-  firstName: string
-  lastName: string
-  email: string
-  phone: string
-  age: string
-  status: 'new' | 'in-progress' | 'approved' | 'current'
-}
+import { usePeople } from '../components/PeopleProvider'
 
 export default function NewPage() {
-  const [people, setPeople] = useState<Person[]>([])
-
-  useEffect(() => {
-    const load = async () => {
-      const data = JSON.parse(localStorage.getItem('people') || '[]') as Person[]
-      try {
-        const updated = await promoteClearedToApproved(data)
-        setPeople(updated)
-        if (updated !== data) {
-          localStorage.setItem('people', JSON.stringify(updated))
-        }
-      } catch {
-        setPeople(data)
-      }
-    }
-    load()
-  }, [])
-
-  const movePerson = (email: string, newStatus: Person['status']) => {
-    const updated = people.map(p =>
-      p.email === email ? { ...p, status: newStatus } : p
-    )
-
-    setPeople(updated)
-    localStorage.setItem('people', JSON.stringify(updated))
-  }
-
-  const filtered = people.filter(p => p.status === 'new')
+  const { people, isLoading, error, setStatus, refresh } = usePeople()
+  const filtered = people.filter(p => (p.status || 'new') === 'new')
 
   return (
     <main className={styles.main}>
       <div className={styles.container}>
         <h1 className={styles.title}>New</h1>
 
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 10 }}>
+          <button
+            type="button"
+            onClick={refresh}
+            style={{
+              padding: '8px 12px',
+              borderRadius: 8,
+              border: '1px solid #d6d6d6',
+              background: '#fff',
+              cursor: 'pointer'
+            }}
+          >
+            Refresh from Sheet
+          </button>
+          {isLoading && <span style={{ alignSelf: 'center' }}>Loading…</span>}
+          {error && <span style={{ alignSelf: 'center', color: '#b00020' }}>{error}</span>}
+        </div>
+
         <div className={styles.cardGrid}>
           {filtered.map((person, i) => (
             <div className={styles.card} key={i}>
-              <h3>{person.firstName} {person.lastName}</h3>
-              <p><strong>Age:</strong> {person.age}</p>
-              <p><strong>Email:</strong> {person.email}</p>
-              <p><strong>Phone:</strong> {person.phone}</p>
+              <h3>{person.firstName ?? ''} {person.lastName ?? ''}</h3>
+              <p><strong>Age:</strong> {person.age ?? '—'}</p>
+              <p><strong>Email:</strong> {person.email ?? '—'}</p>
+              <p><strong>Phone:</strong> {person.phone ?? '—'}</p>
 
-              <button onClick={() => movePerson(person.email, 'approved')}>
+              <button
+                onClick={() => person.email && setStatus(person.email, 'approved')}
+                disabled={!person.email}
+              >
                 Move to Approved
               </button>
             </div>
           ))}
         </div>
-        <p className={styles.description}>
-          This is the New page content.
-        </p>
         <EmailModal
           onApprovedEmails={(emails) => {
-            const approvedSet = new Set(emails.map(e => e.trim().toLowerCase()))
-            setPeople(prev =>
-              prev.map(p => {
-                const emailKey = String(p.email || '').trim().toLowerCase()
-                if (emailKey && approvedSet.has(emailKey) && p.status === 'new') {
-                  return { ...p, status: 'approved' }
-                }
-                return p
-              })
-            )
+            for (const email of emails) {
+              const key = String(email || '').trim()
+              if (key) setStatus(key, 'approved')
+            }
           }}
         />
       </div>
