@@ -13,6 +13,8 @@ type Props = {
   moveButtonLabel?: string
   toolbarCenter?: React.ReactNode
   highlightEmails?: Set<string>
+  selectedEmails?: Set<string>
+  onSelectedEmailsChange?: (next: Set<string>) => void
 }
 
 function formatAppliedAt(appliedAt?: string, raw?: Record<string, string>) {
@@ -93,10 +95,15 @@ export default function ApplicantsSheet({
   moveToStatus,
   moveButtonLabel,
   toolbarCenter,
-  highlightEmails
+  highlightEmails,
+  selectedEmails: controlledSelectedEmails,
+  onSelectedEmailsChange
 }: Props) {
   const { people, isLoading, error, setStatus, refresh } = usePeople()
-  const [selectedEmails, setSelectedEmails] = useState<Set<string>>(new Set())
+  const [internalSelectedEmails, setInternalSelectedEmails] = useState<Set<string>>(
+    new Set()
+  )
+  const selectedEmails = controlledSelectedEmails ?? internalSelectedEmails
 
   const filtered = useMemo(
     () => people.filter(p => (p.status || 'new') === status),
@@ -106,21 +113,28 @@ export default function ApplicantsSheet({
   const selectedCount = selectedEmails.size
   const canMove = Boolean(moveToStatus)
 
+  const setSelected = (next: Set<string>) => {
+    if (controlledSelectedEmails) {
+      onSelectedEmailsChange?.(next)
+      return
+    }
+    setInternalSelectedEmails(next)
+    onSelectedEmailsChange?.(next)
+  }
+
   const toggleSelected = (email?: string) => {
     const key = normalizeEmailKey(email)
     if (!key) return
-    setSelectedEmails(prev => {
-      const next = new Set(prev)
-      if (next.has(key)) next.delete(key)
-      else next.add(key)
-      return next
-    })
+    const next = new Set(selectedEmails)
+    if (next.has(key)) next.delete(key)
+    else next.add(key)
+    setSelected(next)
   }
 
   const moveSelected = () => {
     if (!moveToStatus || selectedEmails.size === 0) return
     for (const email of selectedEmails) setStatus(email, moveToStatus)
-    setSelectedEmails(new Set())
+    setSelected(new Set())
   }
 
   const highlighted = highlightEmails || new Set<string>()

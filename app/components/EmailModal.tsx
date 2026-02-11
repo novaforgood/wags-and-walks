@@ -19,12 +19,14 @@ type EmailModalProps = {
   onSentEmails?: (emails: string[]) => void
   sendToStatus?: PersonStatus
   onSelectedEmailsChange?: (emails: string[]) => void
+  preselectedEmailKeys?: string[]
 }
 
 export default function EmailModal({
   onSentEmails,
   sendToStatus = 'in-progress',
-  onSelectedEmailsChange
+  onSelectedEmailsChange,
+  preselectedEmailKeys
 }: EmailModalProps) {
   const { setStatus, people } = usePeople()
   const dialogRef = useRef<HTMLDialogElement>(null)
@@ -69,12 +71,26 @@ export default function EmailModal({
     return mapped
   }, [people])
 
-  const emitSelectedEmails = (nextSelected: Set<number>) => {
-    const emails = flaggedRecipients
+  const preselectedKeys = useMemo(() => {
+    const keys = Array.isArray(preselectedEmailKeys) ? preselectedEmailKeys : []
+    return new Set(keys.map(k => normalizeEmailKey(k)).filter(Boolean))
+  }, [preselectedEmailKeys])
+
+  const emitSelectedEmails = (nextSelected: Set<number>, flaggedList = flaggedRecipients) => {
+    const emails = flaggedList
       .filter(r => nextSelected.has(r.rowIndex))
       .map(r => String(r.email || '').trim())
       .filter(Boolean)
     onSelectedEmailsChange?.(emails)
+  }
+
+  const buildPreselectedRowIds = (flaggedList: Recipient[]) => {
+    if (preselectedKeys.size === 0) return new Set<number>()
+    return new Set(
+      flaggedList
+        .filter(r => preselectedKeys.has(normalizeEmailKey(r.email)))
+        .map(r => r.rowIndex)
+    )
   }
 
   const handleOpen = async () => {
@@ -85,9 +101,10 @@ export default function EmailModal({
     // Use already-fetched people data when available (avoids extra round trip / wait time).
     if (localRecipients.length > 0) {
       setRecipients(localRecipients)
-      const empty = new Set<number>()
-      setSelectedRowIds(empty)
-      onSelectedEmailsChange?.([])
+      const flaggedLocal = localRecipients.filter(r => r.isFlagged)
+      const preselected = buildPreselectedRowIds(flaggedLocal)
+      setSelectedRowIds(preselected)
+      emitSelectedEmails(preselected, flaggedLocal)
       setIsLoading(false)
       setError(null)
       setDebugInfo(null)
@@ -145,9 +162,10 @@ export default function EmailModal({
           })
           .filter(r => Number.isFinite(r.rowIndex) && r.email)
         setRecipients(mapped)
-        const empty = new Set<number>()
-        setSelectedRowIds(empty)
-        onSelectedEmailsChange?.([])
+        const flaggedMapped = mapped.filter(r => r.isFlagged)
+        const preselected = buildPreselectedRowIds(flaggedMapped)
+        setSelectedRowIds(preselected)
+        emitSelectedEmails(preselected, flaggedMapped)
       } else {
         setError(data?.error || 'Failed to fetch emails')
         try {
@@ -250,9 +268,23 @@ export default function EmailModal({
         })
       })
 
-      const data = await response.json()
-      if (!data?.success) {
-        setError(data?.error || 'Failed to send emails')
+      const rawText = await response.text()
+      let data: { success?: boolean; error?: unknown } | null = null
+      try {
+        data = rawText ? (JSON.parse(rawText) as any) : null
+      } catch {
+        setError(`Send failed (${response.status}): ${rawText || 'Invalid response from server'}`)
+        return
+      }
+
+      if (!response.ok || !data?.success) {
+        const message =
+          typeof data?.error === 'string'
+            ? data.error
+            : data?.error
+            ? JSON.stringify(data.error)
+            : rawText
+        setError(`Send failed (${response.status}): ${message || 'Unknown error'}`)
         return
       }
 
@@ -266,7 +298,7 @@ export default function EmailModal({
 
       handleClose()
     } catch (err) {
-      setError('Error sending emails')
+      setError('Error sending emails (network or server error)')
       console.error('Send error:', err)
     } finally {
       setIsLoading(false)
