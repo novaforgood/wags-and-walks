@@ -1,8 +1,10 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import styles from './EmailModal.module.css'
 import { usePeople } from './PeopleProvider'
+import type { PersonStatus } from '@/app/lib/peopleTypes'
+import { normalizeEmailKey } from '@/app/lib/peopleTypes'
 
 interface Recipient {
   rowIndex: number
@@ -14,11 +16,17 @@ interface Recipient {
 }
 
 type EmailModalProps = {
-  onApprovedEmails?: (emails: string[]) => void
+  onSentEmails?: (emails: string[]) => void
+  sendToStatus?: PersonStatus
+  onSelectedEmailsChange?: (emails: string[]) => void
 }
 
-export default function EmailModal({ onApprovedEmails }: EmailModalProps) {
-  const { setStatus } = usePeople()
+export default function EmailModal({
+  onSentEmails,
+  sendToStatus = 'in-progress',
+  onSelectedEmailsChange
+}: EmailModalProps) {
+  const { setStatus, people } = usePeople()
   const dialogRef = useRef<HTMLDialogElement>(null)
   const [emailText, setEmailText] = useState(
     'Hi [insert]! thanks for your interest in fostering...'
@@ -36,12 +44,57 @@ export default function EmailModal({ onApprovedEmails }: EmailModalProps) {
   const allFlaggedSelected =
     flaggedRecipients.length > 0 && selectedRowIds.size === flaggedRecipients.length
 
+  const localRecipients = useMemo<Recipient[]>(() => {
+    const mapped = people
+      .map(p => {
+        const rowIndex = Number(p.rowIndex)
+        const email = String(p.email || '').trim()
+        const firstName = String(p.firstName || '').trim()
+        const lastName = String(p.lastName || '').trim()
+        const flags = String(p.raw?.['Flags'] || '').trim()
+        if (!Number.isFinite(rowIndex) || !email) return null
+        return {
+          rowIndex,
+          email,
+          firstName,
+          lastName,
+          fullName: `${firstName} ${lastName}`.trim(),
+          isFlagged: Boolean(flags)
+        } satisfies Recipient
+      })
+      .filter(Boolean) as Recipient[]
+
+    // Prefer stable ordering by rowIndex (sheet order)
+    mapped.sort((a, b) => a.rowIndex - b.rowIndex)
+    return mapped
+  }, [people])
+
+  const emitSelectedEmails = (nextSelected: Set<number>) => {
+    const emails = flaggedRecipients
+      .filter(r => nextSelected.has(r.rowIndex))
+      .map(r => String(r.email || '').trim())
+      .filter(Boolean)
+    onSelectedEmailsChange?.(emails)
+  }
+
   const handleOpen = async () => {
     // Show modal immediately
     dialogRef.current?.showModal()
     setPosition({ x: 0, y: 0 })
     
-    // Fetch emails in the background
+    // Use already-fetched people data when available (avoids extra round trip / wait time).
+    if (localRecipients.length > 0) {
+      setRecipients(localRecipients)
+      const empty = new Set<number>()
+      setSelectedRowIds(empty)
+      onSelectedEmailsChange?.([])
+      setIsLoading(false)
+      setError(null)
+      setDebugInfo(null)
+      return
+    }
+
+    // Fallback: fetch emails in the background (legacy path).
     setIsLoading(true)
     setError(null)
     setDebugInfo(null)
@@ -92,7 +145,9 @@ export default function EmailModal({ onApprovedEmails }: EmailModalProps) {
           })
           .filter(r => Number.isFinite(r.rowIndex) && r.email)
         setRecipients(mapped)
-        setSelectedRowIds(new Set())
+        const empty = new Set<number>()
+        setSelectedRowIds(empty)
+        onSelectedEmailsChange?.([])
       } else {
         setError(data?.error || 'Failed to fetch emails')
         try {
@@ -114,6 +169,7 @@ export default function EmailModal({ onApprovedEmails }: EmailModalProps) {
   const handleClose = () => {
     dialogRef.current?.close()
     setPosition({ x: 0, y: 0 })
+    onSelectedEmailsChange?.([])
   }
 
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -147,14 +203,19 @@ export default function EmailModal({ onApprovedEmails }: EmailModalProps) {
       newSelected.add(rowId)
     }
     setSelectedRowIds(newSelected)
+    emitSelectedEmails(newSelected)
   }
 
   const toggleSelectAll = () => {
     if (flaggedRecipients.length === 0) return
     if (selectedRowIds.size === flaggedRecipients.length) {
-      setSelectedRowIds(new Set())
+      const empty = new Set<number>()
+      setSelectedRowIds(empty)
+      onSelectedEmailsChange?.([])
     } else {
-      setSelectedRowIds(new Set(flaggedRecipients.map(r => r.rowIndex)))
+      const next = new Set(flaggedRecipients.map(r => r.rowIndex))
+      setSelectedRowIds(next)
+      emitSelectedEmails(next)
     }
   }
 
@@ -197,10 +258,11 @@ export default function EmailModal({ onApprovedEmails }: EmailModalProps) {
 
       // Optimistically update UI immediately; background sync to Sheets is handled by PeopleProvider.
       const approvedEmails = selectedRecipients
-        .map(r => String(r.email || '').trim())
+        .map(r => normalizeEmailKey(r.email))
         .filter(Boolean)
-      for (const email of approvedEmails) setStatus(email, 'approved')
-      onApprovedEmails?.(approvedEmails)
+      for (const email of approvedEmails) setStatus(email, sendToStatus)
+      onSentEmails?.(approvedEmails)
+      onSelectedEmailsChange?.([])
 
       handleClose()
     } catch (err) {

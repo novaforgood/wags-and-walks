@@ -100,6 +100,7 @@ export async function GET() {
         : []
 
       return {
+        rowIndex: Number.isFinite(Number(row.rowIndex)) ? Number(row.rowIndex) : undefined,
         firstName: String(row['First Name'] || '').trim() || undefined,
         lastName: String(row['Last Name'] || '').trim() || undefined,
         email: String(row['Email'] || '').trim() || undefined,
@@ -131,4 +132,3 @@ export async function GET() {
     )
   }
 }
-
