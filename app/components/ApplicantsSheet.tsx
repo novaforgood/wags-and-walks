@@ -1,38 +1,31 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import type { PersonStatus } from '@/app/lib/peopleTypes'
+import type { PersonStatus, Person } from '@/app/lib/peopleTypes'
 import { normalizeEmailKey } from '@/app/lib/peopleTypes'
 import { usePeople } from '@/app/components/PeopleProvider'
 import styles from './ApplicantsSheet.module.css'
+import ApplicantCard from './ApplicantCard'
 
 type Props = {
   title: string
-  status: PersonStatus
+  status: PersonStatus | PersonStatus[]
   moveToStatus?: PersonStatus
   moveButtonLabel?: string
   toolbarCenter?: React.ReactNode
   highlightEmails?: Set<string>
   selectedEmails?: Set<string>
   onSelectedEmailsChange?: (next: Set<string>) => void
-}
-
-function formatAppliedAt(appliedAt?: string, raw?: Record<string, string>) {
-  if (appliedAt) {
-    const d = new Date(appliedAt)
-    return isNaN(d.getTime()) ? appliedAt : d.toLocaleString()
-  }
-  const rawTs = raw && (raw['Timestamp'] || raw['timestamp'])
-  return rawTs ? String(rawTs) : ''
+  splitFlagged?: boolean
 }
 
 function renderFlags(rawFlags: string) {
   const normalized = String(rawFlags || '').trim()
   const parts = normalized
     ? normalized
-        .split(',')
-        .map(s => s.trim())
-        .filter(Boolean)
+      .split(',')
+      .map(s => s.trim())
+      .filter(Boolean)
     : ['OK']
 
   const badgeClass = (flag: string) => {
@@ -97,7 +90,8 @@ export default function ApplicantsSheet({
   toolbarCenter,
   highlightEmails,
   selectedEmails: controlledSelectedEmails,
-  onSelectedEmailsChange
+  onSelectedEmailsChange,
+  splitFlagged = false
 }: Props) {
   const { people, isLoading, error, setStatus, refresh } = usePeople()
   const [internalSelectedEmails, setInternalSelectedEmails] = useState<Set<string>>(
@@ -106,9 +100,42 @@ export default function ApplicantsSheet({
   const selectedEmails = controlledSelectedEmails ?? internalSelectedEmails
 
   const filtered = useMemo(
-    () => people.filter(p => (p.status || 'new') === status),
+    () => {
+      const targetStatuses = Array.isArray(status) ? status : [status]
+      return people.filter(p => targetStatuses.includes(p.status || 'new'))
+    },
     [people, status]
   )
+
+  // Split logic for Onboarding
+  const { mainList, flaggedList } = useMemo(() => {
+    // If not split, just return filtered as mainList, but sorted by flagged status
+    const sortFlaggedFirst = (list: Person[]) => {
+      return [...list].sort((a, b) => {
+        const aFlagged = (String(a.raw?.['Flags'] || '').trim().toLowerCase() !== 'ok' && String(a.raw?.['Flags'] || '').trim() !== '')
+        const bFlagged = (String(b.raw?.['Flags'] || '').trim().toLowerCase() !== 'ok' && String(b.raw?.['Flags'] || '').trim() !== '')
+        if (aFlagged === bFlagged) return 0
+        return aFlagged ? -1 : 1
+      })
+    }
+
+    if (!splitFlagged) {
+      return { mainList: sortFlaggedFirst(filtered), flaggedList: [] }
+    }
+
+    // For split view (Onboarding), user wants ALL applicants in the left column (sorted),
+    // AND flagged applicants in the right column.
+
+    const flagged: Person[] = []
+    // We want the main list to be EVERYONE from 'filtered', just sorted.
+    const main = sortFlaggedFirst(filtered)
+
+    for (const p of filtered) {
+      const rawFlags = String(p.raw?.['Flags'] || '').trim()
+      if (rawFlags && rawFlags.toLowerCase() !== 'ok') flagged.push(p)
+    }
+    return { mainList: main, flaggedList: flagged }
+  }, [filtered, splitFlagged])
 
   const selectedCount = selectedEmails.size
   const canMove = Boolean(moveToStatus)
@@ -139,11 +166,36 @@ export default function ApplicantsSheet({
 
   const highlighted = highlightEmails || new Set<string>()
 
+  const renderCardList = (list: Person[]) => (
+    <div className={styles.cardList}>
+      {list.map((person, i) => {
+        const emailKey = normalizeEmailKey(person.email)
+        const isSelected = Boolean(emailKey && selectedEmails.has(emailKey))
+        const rawFlags = String(person.raw?.['Flags'] || '').trim()
+        const isFlagged = rawFlags && rawFlags.toLowerCase() !== 'ok'
+
+        return (
+          <ApplicantCard
+            key={emailKey || i}
+            person={person}
+            selected={isSelected}
+            onToggleSelect={() => toggleSelected(person.email)}
+            actionLabel="View"
+            onAction={() => { }}
+            isFlagged={!!isFlagged}
+          />
+        )
+      })}
+    </div>
+  )
+
+  // Determine which list(s) to show
+  // If splitFlagged is false, we just show "mainList" which is actually "filtered" (if logic above holds)
+  // Logic fix: if !splitFlagged, mainList = filtered.
+
   return (
     <main className={styles.pageMain}>
       <div className={styles.pageContainer}>
-        <h1 className={styles.pageTitle}>{title}</h1>
-
         <div className={styles.toolbar}>
           <div className={styles.toolbarLeft}>
             <button
@@ -155,13 +207,7 @@ export default function ApplicantsSheet({
               {moveButtonLabel || (moveToStatus ? `Move to ${moveToStatus}` : 'Move')}
             </button>
             <div className={styles.selectionMeta}>
-              {selectedCount === 0 ? (
-                <span className={styles.muted}>
-                  {canMove ? 'Select applicants to move' : 'Selection disabled'}
-                </span>
-              ) : (
-                <span>{selectedCount} selected</span>
-              )}
+              {selectedCount > 0 && <span>{selectedCount} selected</span>}
             </div>
           </div>
 
@@ -169,91 +215,44 @@ export default function ApplicantsSheet({
 
           <div className={styles.toolbarRight}>
             <button type="button" onClick={refresh} className={styles.refreshButton}>
-              Refresh from Sheet
+              Refresh
             </button>
-            {isLoading && <span className={styles.selectionMeta}>Loading…</span>}
-            {error && (
-              <span className={styles.selectionMeta} style={{ color: '#b00020' }}>
-                {error}
-              </span>
-            )}
+            {isLoading && <span>Loading…</span>}
+            {error && <span style={{ color: '#b00020' }}>{error}</span>}
           </div>
         </div>
 
-        <div className={styles.tableViewport} role="region" aria-label={`${title} applicants table`}>
-          <table className={styles.sheet}>
-            <thead>
-              <tr>
-                <th
-                  className={`${styles.th} ${styles.stickyCheckbox} ${styles.stickyHeaderCheckbox}`}
-                  aria-label="Select"
-                />
-                <th className={`${styles.th} ${styles.stickyName} ${styles.stickyHeaderName}`}>
-                  Applicant
-                </th>
-                <th className={styles.th}>Age</th>
-                <th className={styles.th}>Email</th>
-                <th className={styles.th}>Phone</th>
-                <th className={styles.th}>Applied</th>
-                <th className={styles.th}>Availability</th>
-                <th className={styles.th}>Special needs</th>
-                <th className={styles.th}>Flags</th>
-                <th className={styles.th}>Review status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((person, i) => {
-                const emailKey = normalizeEmailKey(person.email)
-                const highlight = Boolean(
-                  emailKey && (selectedEmails.has(emailKey) || highlighted.has(emailKey))
-                )
-
-                const name =
-                  `${person.firstName ?? ''} ${person.lastName ?? ''}`.trim() || 'Unknown'
-                const email = String(person.email || '').trim()
-                const applied = formatAppliedAt(person.appliedAt, person.raw)
-                const availability = String(person.availability || '').trim()
-                const needs = (person.specialNeeds || []).filter(Boolean)
-                const flags = String(person.raw?.['Flags'] || '').trim()
-                const reviewStatus = String(person.raw?.['Review Status'] || '').trim()
-
-                return (
-                  <tr
-                    key={emailKey || `${name}-${i}`}
-                    className={`${styles.row} ${highlight ? styles.rowHighlight : ''}`}
-                  >
-                    <td className={`${styles.td} ${styles.stickyCheckbox}`}>
-                      <input
-                        type="checkbox"
-                        aria-label={`Select ${name}`}
-                        checked={Boolean(emailKey && selectedEmails.has(emailKey))}
-                        onChange={() => toggleSelected(person.email)}
-                        disabled={!canMove || !emailKey}
-                      />
-                    </td>
-                    <td className={`${styles.td} ${styles.stickyName}`}>
-                      <div className={styles.nameCell}>
-                        <div className={styles.namePrimary}>{name}</div>
-                        {email && <div className={styles.nameSecondary}>{email}</div>}
-                      </div>
-                    </td>
-                    <td className={styles.td}>{person.age ?? '—'}</td>
-                    <td className={styles.td}>{email || '—'}</td>
-                    <td className={styles.td}>{person.phone ?? '—'}</td>
-                    <td className={styles.td}>{applied || '—'}</td>
-                    <td className={`${styles.td} ${styles.wrap}`}>{availability || '—'}</td>
-                    <td className={`${styles.td} ${styles.wrap}`}>
-                      {needs.length > 0 ? needs.join(', ') : '—'}
-                    </td>
-                    <td className={`${styles.td} ${styles.wrap}`}>{renderFlags(flags)}</td>
-                    <td className={styles.td}>{renderReviewStatus(reviewStatus)}</td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
+        {splitFlagged ? (
+          <div className={styles.splitLayout}>
+            <div className={styles.mainColumn}>
+              <div className={styles.columnHeader}>
+                <div className={styles.recentGroup}>
+                  <h2 className={styles.columnTitle}>Recent</h2>
+                  <div className={styles.viewToggle}>
+                    <button className={`${styles.toggleOption} ${styles.activeToggle}`}>List</button>
+                    <button className={styles.toggleOption}>Grid</button>
+                  </div>
+                </div>
+              </div>
+              {renderCardList(mainList)}
+            </div>
+            <div className={styles.flaggedColumn}>
+              <h3 className={styles.flaggedTitle}>▲ Red Flags</h3>
+              {renderCardList(flaggedList)}
+            </div>
+          </div>
+        ) : (
+          renderCardList(filtered)
+        )}
       </div>
     </main>
   )
+}
+function formatAppliedAt(appliedAt: string | undefined, raw: Record<string, string> | undefined) {
+  if (appliedAt) {
+    const d = new Date(appliedAt)
+    return isNaN(d.getTime()) ? appliedAt : d.toLocaleString()
+  }
+  const rawTs = raw && (raw['Timestamp'] || raw['timestamp'])
+  return rawTs ? String(rawTs) : ''
 }

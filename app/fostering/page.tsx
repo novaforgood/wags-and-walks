@@ -2,13 +2,13 @@
 
 import ApplicantsSheet from '../components/ApplicantsSheet'
 
-export default function CurrentPage() {
+export default function FosteringPage() {
   return (
     <ApplicantsSheet
-      title="Current"
+      title="Fostering"
       status="current"
       moveToStatus="in-progress"
-      moveButtonLabel="Move to In Progress"
+      moveButtonLabel="Move to Selecting"
     />
   )
 }

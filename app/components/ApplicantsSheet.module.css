@@ -281,7 +281,86 @@
   background: #10b981;
 }
 
-.reviewIcon {
-  font-size: 12px;
-  font-weight: 800;
+.splitLayout {
+  display: grid;
+  grid-template-columns: 65fr 35fr;
+  gap: 24px;
+  align-items: start;
+}
+
+.mainColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.flaggedColumn {
+  background: rgba(255, 0, 0, 0.05);
+  /* Light red tint */
+  border-radius: 12px;
+  padding: 16px;
+  border: 1px solid rgba(255, 0, 0, 0.1);
+  /* The Lofi shows this stickied or just a box. sticky might be nice if list is long */
+  position: sticky;
+  top: 20px;
+}
+
+.flaggedTitle {
+  color: #b91c1c;
+  /* Dark red */
+  margin: 0 0 16px 0;
+  font-size: 1.1rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cardList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.columnHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.recentGroup {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.columnTitle {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #374151;
+  margin: 0;
+}
+
+.viewToggle {
+  display: flex;
+  background: #e5e5e5;
+  border-radius: 999px;
+  padding: 2px;
+}
+
+.toggleOption {
+  border: none;
+  background: transparent;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #6b7280;
+  cursor: pointer;
+}
+
+.activeToggle {
+  background: #fff;
+  color: #000;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }

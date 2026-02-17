@@ -5,7 +5,7 @@ import EmailModal from '../components/EmailModal'
 import ApplicantsSheet from '../components/ApplicantsSheet'
 import { normalizeEmailKey } from '../lib/peopleTypes'
 
-export default function NewPage() {
+export default function OnboardingPage() {
   const [sheetManualSelectedEmails, setSheetManualSelectedEmails] = useState<Set<string>>(
     new Set()
   )
@@ -20,10 +20,11 @@ export default function NewPage() {
   return (
     <>
       <ApplicantsSheet
-        title="New"
+        title="Onboarding"
         status="new"
         moveToStatus="in-progress"
-        moveButtonLabel="Move to In Progress"
+        moveButtonLabel="Move to Selecting"
+        splitFlagged={true}
         highlightEmails={emailModalSelectedEmails}
         selectedEmails={sheetSelectedEmails}
         onSelectedEmailsChange={(next) => {
