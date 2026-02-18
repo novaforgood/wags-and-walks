@@ -1,0 +1,85 @@
+.card {
+  display: flex;
+  align-items: center;
+  background: #E5E5E5;
+  /* Light gray from Lo-Fi */
+  border-radius: 999px;
+  /* Pill shape */
+  padding: 12px 24px;
+  gap: 16px;
+  margin-bottom: 8px;
+  transition: all 0.2s ease;
+}
+
+.flagged {
+  background: #C4C4C4;
+  /* Darker gray for flagged items */
+}
+
+.card:hover {
+  background: #d4d4d4;
+}
+
+.card.selected {
+  outline: 2px solid #0070f3;
+  background: #dceefb;
+}
+
+.checkboxWrapper {
+  display: flex;
+  align-items: center;
+}
+
+.checkbox {
+  width: 24px;
+  height: 24px;
+  cursor: pointer;
+}
+
+.avatar {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background-color: #757575;
+  /* Dark dot from Lo-Fi */
+}
+
+.info {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  overflow: hidden;
+}
+
+.name {
+  font-weight: 600;
+  font-size: 16px;
+  /* Larger font */
+  color: #333;
+  white-space: nowrap;
+}
+
+.details {
+  flex: 1;
+  height: 12px;
+  background-color: #cccccc;
+  /* The "Bar" from Lo-Fi */
+  border-radius: 6px;
+  text-indent: -9999px;
+  /* Hide text, just show visual bar for now as per Lo-Fi */
+}
+
+.actionButton {
+  background: #757575;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 4px 12px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.actionButton:hover {
+  background: #555;
+}

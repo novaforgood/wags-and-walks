@@ -9,8 +9,9 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "next": "^16.1.6",
     "googleapis": "^121.0.0",
+    "next": "^14.2.5",
+    "node-fetch": "^3.3.2",
     "papaparse": "^5.5.3",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
@@ -19,8 +20,8 @@
     "@types/node": "^20.14.10",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
-    "eslint": "^9.39.2",
-    "eslint-config-next": "^16.1.6",
+    "eslint": "^8.57.1",
+    "eslint-config-next": "^14.2.5",
     "typescript": "^5.5.3"
   }
 }
