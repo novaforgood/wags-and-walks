@@ -9,6 +9,7 @@ type Props = {
     selected?: boolean
     onToggleSelect?: () => void
     onAction?: () => void
+    onReject?: () => void
     actionLabel?: string
     isFlagged?: boolean
     variant?: 'list' | 'grid'
@@ -19,6 +20,7 @@ export default function ApplicantCard({
     selected,
     onToggleSelect,
     onAction,
+    onReject,
     actionLabel = 'View',
     isFlagged = false,
     variant = 'list'
@@ -28,9 +30,12 @@ export default function ApplicantCard({
         ? person.specialNeeds.join(', ')
         : 'No special needs'
 
+    const isRejected = person.status === 'rejected'
+
     const containerClass = `${styles.card} ${variant === 'grid' ? styles.grid : ''
         } ${selected ? styles.selected : ''
         } ${isFlagged ? styles.flagged : ''
+        } ${isRejected ? styles.rejected : ''
         }`
 
     const content = (
@@ -54,15 +59,30 @@ export default function ApplicantCard({
                 <div className={styles.details}>{needs}</div>
             </div>
 
-            <button
-                className={styles.actionButton}
-                onClick={(e) => {
-                    e.stopPropagation()
-                    onAction?.()
-                }}
-            >
-                {actionLabel}
-            </button>
+            <div className={styles.actions}>
+                {!isRejected && (
+                    <button
+                        className={styles.rejectButton}
+                        title="Reject Applicant"
+                        onClick={(e) => {
+                            e.stopPropagation()
+                            e.preventDefault()
+                            onReject?.()
+                        }}
+                    >
+                        ✕
+                    </button>
+                )}
+                <button
+                    className={styles.actionButton}
+                    onClick={(e) => {
+                        e.stopPropagation()
+                        onAction?.()
+                    }}
+                >
+                    {actionLabel}
+                </button>
+            </div>
         </div>
     )
 

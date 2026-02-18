@@ -37,7 +37,7 @@ function parseTimestampToIso(raw: unknown): string | undefined {
 
 function normalizeStatus(raw: unknown): PersonStatus {
   const s = String(raw || '').trim()
-  if (s === 'new' || s === 'in-progress' || s === 'approved' || s === 'current') return s
+  if (s === 'new' || s === 'in-progress' || s === 'approved' || s === 'current' || s === 'rejected') return s
   return 'new'
 }
 
