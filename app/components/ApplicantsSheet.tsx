@@ -225,7 +225,11 @@ export default function ApplicantsSheet({
           </div>
         </div>
 
-        {splitFlagged ? (
+        {isLoading && people.length === 0 ? (
+          <div className={styles.loadingContainer}>
+            Loading applicants...
+          </div>
+        ) : splitFlagged ? (
           <div className={styles.splitLayout}>
             <div className={styles.mainColumn}>
               <div className={styles.columnHeader}>

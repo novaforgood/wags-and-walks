@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import styles from './ApplicantCard.module.css'
 import type { Person } from '../lib/peopleTypes'
 
@@ -32,9 +33,12 @@ export default function ApplicantCard({
         } ${isFlagged ? styles.flagged : ''
         }`
 
-    return (
+    const content = (
         <div className={containerClass}>
-            <div className={styles.checkboxWrapper}>
+            <div
+                className={styles.checkboxWrapper}
+                onClick={(e) => e.stopPropagation()}
+            >
                 <input
                     type="checkbox"
                     checked={selected}
@@ -50,9 +54,25 @@ export default function ApplicantCard({
                 <div className={styles.details}>{needs}</div>
             </div>
 
-            <button className={styles.actionButton} onClick={onAction}>
+            <button
+                className={styles.actionButton}
+                onClick={(e) => {
+                    e.stopPropagation()
+                    onAction?.()
+                }}
+            >
                 {actionLabel}
             </button>
         </div>
     )
+
+    if (person.email) {
+        return (
+            <Link href={`/applicants/${encodeURIComponent(person.email)}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+                {content}
+            </Link>
+        )
+    }
+
+    return content
 }

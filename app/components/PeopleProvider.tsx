@@ -83,19 +83,27 @@ export function PeopleProvider({ children }: { children: React.ReactNode }) {
       }
       if (!data?.success || !Array.isArray(data.people)) {
         setError(data?.error || 'Failed to load people')
-        setPeople([])
+        // Don't clear people on error if we have cached data
         return
       }
 
       setPeople(applyPendingOptimistic(data.people))
+
+      // Cache the fresh data
+      try {
+        localStorage.setItem('people_v2', JSON.stringify(data.people))
+      } catch (e) {
+        console.error('Failed to cache people', e)
+      }
     } catch (e: any) {
       if (e?.name === 'AbortError') return
-      setError('Failed to load people')
-      setPeople([])
+      console.error('Fetch error:', e)
+      // Only set error if we have NO people (even from cache)
+      if (people.length === 0) setError('Failed to load people')
     } finally {
       setIsLoading(false)
     }
-  }, [applyPendingOptimistic])
+  }, [applyPendingOptimistic, people.length])
 
   const flushQueue = useCallback(async () => {
     const updates: PendingUpdate[] = Array.from(pendingRef.current.entries()).map(
@@ -187,13 +195,33 @@ export function PeopleProvider({ children }: { children: React.ReactNode }) {
       pendingRef.current.set(email, status)
     }
 
+    // Attempt to load cached people first (instant load)
+    try {
+      const cachedRaw = localStorage.getItem('people_v2')
+      if (cachedRaw) {
+        const cachedPeople = JSON.parse(cachedRaw) as Person[]
+        if (Array.isArray(cachedPeople) && cachedPeople.length > 0) {
+          setPeople(applyPendingOptimistic(cachedPeople))
+          // We have data, so we don't need to show full page loading spinner
+          // The background refresh will update if needed
+          // setIsLoading(false) // Optional: If we want to show loading spinner for refresh, keep it true. 
+          // If we want instant feel, set false immediately.
+          // Let's set false so user sees data instantly, but toolbar shows loading indicator if implemented.
+          setIsLoading(true) // Keep true so "refreshing" indicator shows, but data is visible. 
+          // Actually, if data is visible, we shouldn't show full page loader.
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load cached people', e)
+    }
+
     refresh()
 
     return () => {
       abortRef.current?.abort()
       if (flushTimerRef.current != null) window.clearTimeout(flushTimerRef.current)
     }
-  }, [refresh])
+  }, [refresh, applyPendingOptimistic])
 
   const value = useMemo<PeopleContextValue>(
     () => ({ people, isLoading, error, setStatus, refresh }),
