@@ -164,10 +164,16 @@ export default function ApplicantsSheet({
     setSelected(new Set())
   }
 
-  const highlighted = highlightEmails || new Set<string>()
+  // View toggle state
+  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list')
+
+  // Determine which list(s) to show
+  // If splitFlagged is false, just show "mainList" (sorted/filtered)
+  const isGrid = viewMode === 'grid'
+  const containerClass = isGrid ? styles.gridContainer : styles.cardList
 
   const renderCardList = (list: Person[]) => (
-    <div className={styles.cardList}>
+    <div className={containerClass}>
       {list.map((person, i) => {
         const emailKey = normalizeEmailKey(person.email)
         const isSelected = Boolean(emailKey && selectedEmails.has(emailKey))
@@ -183,15 +189,12 @@ export default function ApplicantsSheet({
             actionLabel="View"
             onAction={() => { }}
             isFlagged={!!isFlagged}
+            variant={viewMode}
           />
         )
       })}
     </div>
   )
-
-  // Determine which list(s) to show
-  // If splitFlagged is false, we just show "mainList" which is actually "filtered" (if logic above holds)
-  // Logic fix: if !splitFlagged, mainList = filtered.
 
   return (
     <main className={styles.pageMain}>
@@ -229,8 +232,18 @@ export default function ApplicantsSheet({
                 <div className={styles.recentGroup}>
                   <h2 className={styles.columnTitle}>Recent</h2>
                   <div className={styles.viewToggle}>
-                    <button className={`${styles.toggleOption} ${styles.activeToggle}`}>List</button>
-                    <button className={styles.toggleOption}>Grid</button>
+                    <button
+                      className={`${styles.toggleOption} ${viewMode === 'list' ? styles.activeToggle : ''}`}
+                      onClick={() => setViewMode('list')}
+                    >
+                      List
+                    </button>
+                    <button
+                      className={`${styles.toggleOption} ${viewMode === 'grid' ? styles.activeToggle : ''}`}
+                      onClick={() => setViewMode('grid')}
+                    >
+                      Grid
+                    </button>
                   </div>
                 </div>
               </div>

@@ -10,6 +10,7 @@ type Props = {
     onAction?: () => void
     actionLabel?: string
     isFlagged?: boolean
+    variant?: 'list' | 'grid'
 }
 
 export default function ApplicantCard({
@@ -18,15 +19,21 @@ export default function ApplicantCard({
     onToggleSelect,
     onAction,
     actionLabel = 'View',
-    isFlagged = false
+    isFlagged = false,
+    variant = 'list'
 }: Props) {
     const name = `${person.firstName ?? ''} ${person.lastName ?? ''}`.trim() || 'Unknown'
     const needs = person.specialNeeds && person.specialNeeds.length > 0
         ? person.specialNeeds.join(', ')
         : 'No special needs'
 
+    const containerClass = `${styles.card} ${variant === 'grid' ? styles.grid : ''
+        } ${selected ? styles.selected : ''
+        } ${isFlagged ? styles.flagged : ''
+        }`
+
     return (
-        <div className={`${styles.card} ${selected ? styles.selected : ''} ${isFlagged ? styles.flagged : ''}`}>
+        <div className={containerClass}>
             <div className={styles.checkboxWrapper}>
                 <input
                     type="checkbox"

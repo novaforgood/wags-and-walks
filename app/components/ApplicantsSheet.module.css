@@ -321,6 +321,13 @@
   gap: 8px;
 }
 
+.gridContainer {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+  align-items: stretch;
+}
+
 .columnHeader {
   display: flex;
   justify-content: space-between;

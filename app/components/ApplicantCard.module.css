@@ -83,3 +83,51 @@
 .actionButton:hover {
   background: #555;
 }
+
+/* --- GRID VARIANT --- */
+.grid {
+  flex-direction: column;
+  align-items: flex-start;
+  border-radius: 16px;
+  padding: 20px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  height: 100%;
+}
+
+.grid .checkboxWrapper {
+  align-self: flex-end;
+  margin-bottom: -24px;
+  z-index: 2;
+}
+
+.grid .avatar {
+  width: 48px;
+  height: 48px;
+  margin-bottom: 8px;
+}
+
+.grid .info {
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+}
+
+.grid .name {
+  font-size: 1.125rem;
+  margin-bottom: 4px;
+}
+
+.grid .details {
+  width: 100%;
+  height: 8px;
+  margin-top: 8px;
+}
+
+.grid .actionButton {
+  width: 100%;
+  margin-top: auto;
+  text-align: center;
+  padding: 8px;
+}
