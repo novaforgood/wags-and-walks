@@ -284,6 +284,26 @@ export default function Home() {
     setSelectedNeeds([])
   }
 
+ const addApprovedToGroup = async (email?: string) => {
+  if (!email) return
+
+  try {
+    await fetch(
+  'https://script.google.com/macros/s/AKfycbzU2k4tlSAGwxz6G2zqx_seW0-ZQWZLbMsnzfP5MBdYXDoe49JlcRuuu5KtPuqrL-3E/exec',
+  {
+    method: 'POST',
+    mode: 'no-cors',   // ✅ THIS FIXES IT
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  }
+)
+
+  } catch (err) {
+    console.error('Failed to add to Google Group:', err)
+  }
+}
+
+
   return (
     <main className={styles.main}>
       <div className={styles.container}>
@@ -427,30 +447,37 @@ export default function Home() {
                 : undefined
 
             return (
-              <div className={styles.card} key={i}>
-                <h3>
-                  {person.firstName ?? ''} {person.lastName ?? ''}
-                </h3>
+  <Link
+    key={person.email ?? i}
+    href={`/applicants/${encodeURIComponent(person.email ?? '')}`}
+    style={{ textDecoration: 'none', color: 'inherit' }}
+  >
+    <div className={styles.card} style={{ cursor: 'pointer' }}>
+      <h3>
+        {person.firstName ?? ''} {person.lastName ?? ''}
+      </h3>
 
-                {/* Primary fields */}
-                <p><strong>Age:</strong> {person.age ?? '—'}</p>
-                <p><strong>Email:</strong> {person.email ?? '—'}</p>
-                <p><strong>Phone:</strong> {person.phone ?? '—'}</p>
+      <p><strong>Age:</strong> {person.age ?? '—'}</p>
+      <p><strong>Email:</strong> {person.email ?? '—'}</p>
+      <p><strong>Phone:</strong> {person.phone ?? '—'}</p>
 
-                {/* Applied timestamp and availability */}
-                {appliedDisplay && (
-                  <p><strong>Applied:</strong> {appliedDisplay}</p>
-                )}
-                {person.availability && (
-                  <p><strong>Availability:</strong> {person.availability}</p>
-                )}
+      {appliedDisplay && (
+        <p><strong>Applied:</strong> {appliedDisplay}</p>
+      )}
 
-                {/* show parsed special needs summary (small) */}
-                {person.specialNeeds && person.specialNeeds.length > 0 && (
-                  <p style={{ marginTop: 6 }}><strong>Special needs:</strong> {person.specialNeeds.join(', ')}</p>
-                )}
-              </div>
-            )
+      {person.availability && (
+        <p><strong>Availability:</strong> {person.availability}</p>
+      )}
+
+      {person.specialNeeds && person.specialNeeds.length > 0 && (
+        <p style={{ marginTop: 6 }}>
+          <strong>Special needs:</strong> {person.specialNeeds.join(', ')}
+        </p>
+      )}
+    </div>
+  </Link>
+)
+
           })}
         </div>
       </div>

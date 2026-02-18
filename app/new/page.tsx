@@ -21,13 +21,40 @@ export default function NewPage() {
     setPeople(data)
   }, [])
 
-  const movePerson = (email: string, newStatus: Person['status']) => {
+ const addApprovedToGroup = async (email: string) => {
+  try {
+    console.log('Sending approval for:', email)
+
+    await fetch(
+      'https://script.google.com/macros/s/AKfycbzU2k4tlSAGwxz6G2zqx_seW0-ZQWZLbMsnzfP5MBdYXDoe49JlcRuuu5KtPuqrL-3E/exec',
+      {
+        method: 'POST',
+        mode: 'no-cors', // ✅ important
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      }
+    )
+
+    console.log('Request sent successfully')
+  } catch (err) {
+    console.error('Failed to add to Google Group:', err)
+  }
+}
+
+
+
+  const movePerson = async (email: string, newStatus: Person['status']) => {
     const updated = people.map(p =>
       p.email === email ? { ...p, status: newStatus } : p
     )
 
     setPeople(updated)
     localStorage.setItem('people', JSON.stringify(updated))
+
+    if (newStatus === 'approved') {
+    await addApprovedToGroup(email)
+    }
+
   }
 
   const filtered = people.filter(p => p.status === 'new')
@@ -51,9 +78,8 @@ export default function NewPage() {
             </div>
           ))}
         </div>
-        <p className={styles.description}>
-          This is the New page content.
-        </p>
+
+        <p className={styles.description}>This is the New page content.</p>
         <EmailModal />
       </div>
     </main>
