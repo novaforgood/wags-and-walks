@@ -163,6 +163,20 @@ export function PeopleProvider({ children }: { children: React.ReactNode }) {
       }
       writePendingQueue(persisted)
       scheduleFlush()
+
+      // SIDE EFFECT: If moving to 'approved', trigger the Google Script.
+      if (status === 'approved') {
+        // Fire and forget - don't block UI
+        fetch(
+          'https://script.google.com/macros/s/AKfycbzU2k4tlSAGwxz6G2zqx_seW0-ZQWZLbMsnzfP5MBdYXDoe49JlcRuuu5KtPuqrL-3E/exec',
+          {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email }),
+          }
+        ).catch(err => console.error('Failed to add to Google Group:', err))
+      }
     },
     [scheduleFlush]
   )
