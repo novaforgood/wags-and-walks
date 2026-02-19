@@ -110,7 +110,13 @@ export default function ApplicantsSheet({
       const targetStatuses = Array.isArray(status) ? status : [status]
       return people.filter(p => {
         const s = p.status || 'new'
-        const matchesStatus = targetStatuses.includes(s) || s === 'rejected'
+        const isRejected = s === 'rejected' || s.startsWith('rejected_')
+
+        // If person IS rejected, hide them from EVERYTHING
+        if (isRejected) return false
+
+        // Otherwise, only show if they match the current tab's status
+        const matchesStatus = targetStatuses.includes(s)
         if (!matchesStatus) return false
 
         if (selectedNeeds.length > 0) {
@@ -132,8 +138,10 @@ export default function ApplicantsSheet({
     // If not split, just return filtered as mainList, but sorted by flagged status
     const sortApplicants = (list: Person[]) => {
       return [...list].sort((a, b) => {
-        const aRejected = a.status === 'rejected'
-        const bRejected = b.status === 'rejected'
+        const aStatus = a.status || 'new'
+        const bStatus = b.status || 'new'
+        const aRejected = aStatus === 'rejected' || aStatus.startsWith('rejected_')
+        const bRejected = bStatus === 'rejected' || bStatus.startsWith('rejected_')
 
         // Priority 1: Rejected people always at bottom
         if (aRejected !== bRejected) return aRejected ? 1 : -1
@@ -144,7 +152,8 @@ export default function ApplicantsSheet({
         // Priority 2: Flagged people at the top (of their respective rejected/non-rejected group)
         if (aFlagged !== bFlagged) return aFlagged ? -1 : 1
 
-        return 0
+        // Priority 3: Newest to oldest (higher rowIndex = newer)
+        return (b.rowIndex || 0) - (a.rowIndex || 0)
       })
     }
 
@@ -232,7 +241,11 @@ export default function ApplicantsSheet({
             person={person}
             selected={isSelected}
             onToggleSelect={() => toggleSelected(person.email)}
-            onReject={() => person.email && setStatus(person.email, 'rejected')}
+            onReject={() => {
+              if (person.email) {
+                setStatus(person.email, 'rejected')
+              }
+            }}
             actionLabel="View"
             onAction={() => { }}
             isFlagged={!!isFlagged}

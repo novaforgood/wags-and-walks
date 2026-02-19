@@ -76,8 +76,8 @@ export default function EmailModal({
     return new Set(keys.map(k => normalizeEmailKey(k)).filter(Boolean))
   }, [preselectedEmailKeys])
 
-  const emitSelectedEmails = (nextSelected: Set<number>, flaggedList = flaggedRecipients) => {
-    const emails = flaggedList
+  const emitSelectedEmails = (nextSelected: Set<number>, allList = recipients) => {
+    const emails = allList
       .filter(r => nextSelected.has(r.rowIndex))
       .map(r => String(r.email || '').trim())
       .filter(Boolean)
@@ -97,14 +97,14 @@ export default function EmailModal({
     // Show modal immediately
     dialogRef.current?.showModal()
     setPosition({ x: 0, y: 0 })
-    
+
     // Use already-fetched people data when available (avoids extra round trip / wait time).
     if (localRecipients.length > 0) {
       setRecipients(localRecipients)
       const flaggedLocal = localRecipients.filter(r => r.isFlagged)
       const preselected = buildPreselectedRowIds(flaggedLocal)
       setSelectedRowIds(preselected)
-      emitSelectedEmails(preselected, flaggedLocal)
+      emitSelectedEmails(preselected, localRecipients)
       setIsLoading(false)
       setError(null)
       setDebugInfo(null)
@@ -165,7 +165,7 @@ export default function EmailModal({
         const flaggedMapped = mapped.filter(r => r.isFlagged)
         const preselected = buildPreselectedRowIds(flaggedMapped)
         setSelectedRowIds(preselected)
-        emitSelectedEmails(preselected, flaggedMapped)
+        emitSelectedEmails(preselected, mapped)
       } else {
         setError(data?.error || 'Failed to fetch emails')
         try {
@@ -193,15 +193,15 @@ export default function EmailModal({
   const handleMouseDown = (e: React.MouseEvent) => {
     if ((e.target as HTMLElement).closest('button')) return
     setIsDragging(true)
-    setDragStart({ 
-      x: e.clientX - position.x, 
-      y: e.clientY - position.y 
+    setDragStart({
+      x: e.clientX - position.x,
+      y: e.clientY - position.y
     })
   }
 
   const handleMouseMove = (e: React.MouseEvent) => {
     if (!isDragging) return
-    
+
     setPosition({
       x: e.clientX - dragStart.x,
       y: Math.max(0, e.clientY - dragStart.y)
@@ -238,7 +238,7 @@ export default function EmailModal({
   }
 
   const handleSend = async () => {
-    const rowIndices = flaggedRecipients
+    const rowIndices = recipients
       .filter(r => selectedRowIds.has(r.rowIndex))
       .map(r => r.rowIndex)
 
@@ -250,7 +250,7 @@ export default function EmailModal({
     setIsLoading(true)
     setError(null)
     try {
-      const selectedRecipients = flaggedRecipients.filter(r =>
+      const selectedRecipients = recipients.filter(r =>
         selectedRowIds.has(r.rowIndex)
       )
 
@@ -263,7 +263,7 @@ export default function EmailModal({
           subject: 'Foster Interest',
           emailContent: emailText,
           sendEmails: true,
-          mode: 'ok',
+          mode: 'all',
           rowIndices
         })
       })
@@ -282,8 +282,8 @@ export default function EmailModal({
           typeof data?.error === 'string'
             ? data.error
             : data?.error
-            ? JSON.stringify(data.error)
-            : rawText
+              ? JSON.stringify(data.error)
+              : rawText
         setError(`Send failed (${response.status}): ${message || 'Unknown error'}`)
         return
       }
@@ -349,12 +349,36 @@ export default function EmailModal({
               <p className={styles.emailsLabel}>
                 {isLoading ? 'Loading recipients...' : `Cleared (${clearedRecipients.length}):`}
               </p>
+              <button
+                className={styles.selectAllButton}
+                onClick={() => {
+                  if (clearedRecipients.length === 0) return
+                  const allClearedSelected = clearedRecipients.every(r => selectedRowIds.has(r.rowIndex))
+                  const next = new Set(selectedRowIds)
+                  if (allClearedSelected) {
+                    clearedRecipients.forEach(r => next.delete(r.rowIndex))
+                  } else {
+                    clearedRecipients.forEach(r => next.add(r.rowIndex))
+                  }
+                  setSelectedRowIds(next)
+                  emitSelectedEmails(next)
+                }}
+                disabled={clearedRecipients.length === 0}
+              >
+                {clearedRecipients.length > 0 && clearedRecipients.every(r => selectedRowIds.has(r.rowIndex)) ? 'Deselect All' : 'Select All'}
+              </button>
               <ul className={styles.emailsListItems}>
                 {clearedRecipients.map(recipient => (
                   <li
                     key={recipient.rowIndex}
-                    className={`${styles.emailItemSelected} ${styles.emailItemMuted} ${styles.emailItemNoCheckbox}`}
+                    className={selectedRowIds.has(recipient.rowIndex) ? styles.emailItemSelected : ''}
                   >
+                    <input
+                      type="checkbox"
+                      checked={selectedRowIds.has(recipient.rowIndex)}
+                      onChange={() => toggleEmail(recipient.rowIndex)}
+                      className={styles.emailCheckbox}
+                    />
                     <div className={styles.recipientInfo}>
                       <span className={styles.recipientName}>
                         {recipient.fullName || 'Unknown'}
@@ -369,7 +393,7 @@ export default function EmailModal({
               <p className={styles.emailsLabel}>
                 {isLoading ? 'Loading recipients...' : `Flagged (${flaggedRecipients.length}):`}
               </p>
-              <button 
+              <button
                 className={styles.selectAllButton}
                 onClick={toggleSelectAll}
                 disabled={flaggedRecipients.length === 0}

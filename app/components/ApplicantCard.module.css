@@ -146,6 +146,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  position: relative;
 }
 
 .rejectButton {
@@ -161,6 +162,65 @@
   cursor: pointer;
   transition: color 0.2s ease;
   line-height: 1;
+  position: relative;
+}
+
+.confirmBox {
+  position: absolute;
+  bottom: 120%;
+  right: 0;
+  background: #fee2e2;
+  border: 4px solid #f87171;
+  border-radius: 12px;
+  padding: 24px;
+  width: 440px;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  z-index: 100;
+  cursor: default;
+}
+
+.confirmText {
+  color: #991b1b;
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: 16px;
+  line-height: 1.4;
+  white-space: normal;
+}
+
+.confirmActions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.confirmYes,
+.confirmNo {
+  padding: 10px 20px;
+  font-size: 16px;
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+  border: 2px solid transparent;
+}
+
+.confirmYes {
+  background: #f87171;
+  color: white;
+}
+
+.confirmYes:hover {
+  background: #ef4444;
+}
+
+.confirmNo {
+  background: white;
+  border-color: #fca5a5;
+  color: #b91c1c;
+}
+
+.confirmNo:hover {
+  background: #fef2f2;
 }
 
 .rejectButton:hover {

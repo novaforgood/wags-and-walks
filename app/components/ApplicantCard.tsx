@@ -1,5 +1,6 @@
 'use client'
 
+import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import styles from './ApplicantCard.module.css'
 import type { Person } from '../lib/peopleTypes'
@@ -25,12 +26,28 @@ export default function ApplicantCard({
     isFlagged = false,
     variant = 'list'
 }: Props) {
+    const [showConfirm, setShowConfirm] = useState(false)
+    const confirmBoxRef = useRef<HTMLDivElement>(null)
+
     const name = `${person.firstName ?? ''} ${person.lastName ?? ''}`.trim() || 'Unknown'
     const needs = person.specialNeeds && person.specialNeeds.length > 0
         ? person.specialNeeds.join(', ')
         : 'No special needs'
 
     const isRejected = person.status === 'rejected'
+
+    useEffect(() => {
+        if (!showConfirm) return
+
+        const handleClickOutside = (event: MouseEvent) => {
+            if (confirmBoxRef.current && !confirmBoxRef.current.contains(event.target as Node)) {
+                setShowConfirm(false)
+            }
+        }
+
+        document.addEventListener('mousedown', handleClickOutside)
+        return () => document.removeEventListener('mousedown', handleClickOutside)
+    }, [showConfirm])
 
     const containerClass = `${styles.card} ${variant === 'grid' ? styles.grid : ''
         } ${selected ? styles.selected : ''
@@ -61,17 +78,50 @@ export default function ApplicantCard({
 
             <div className={styles.actions}>
                 {!isRejected && (
-                    <button
-                        className={styles.rejectButton}
-                        title="Reject Applicant"
-                        onClick={(e) => {
-                            e.stopPropagation()
-                            e.preventDefault()
-                            onReject?.()
-                        }}
-                    >
-                        ✕
-                    </button>
+                    <>
+                        <button
+                            className={styles.rejectButton}
+                            title="Reject Applicant"
+                            onClick={(e) => {
+                                e.stopPropagation()
+                                e.preventDefault()
+                                setShowConfirm(!showConfirm)
+                            }}
+                        >
+                            ✕
+                        </button>
+                        {showConfirm && (
+                            <div
+                                ref={confirmBoxRef}
+                                className={styles.confirmBox}
+                                onClick={(e) => {
+                                    e.stopPropagation()
+                                    e.preventDefault()
+                                }}
+                            >
+                                <div className={styles.confirmText}>
+                                    Are you sure you want to reject and delete this applicant from the view?
+                                </div>
+                                <div className={styles.confirmActions}>
+                                    <button
+                                        className={styles.confirmNo}
+                                        onClick={() => setShowConfirm(false)}
+                                    >
+                                        No
+                                    </button>
+                                    <button
+                                        className={styles.confirmYes}
+                                        onClick={() => {
+                                            onReject?.()
+                                            setShowConfirm(false)
+                                        }}
+                                    >
+                                        Yes
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </>
                 )}
                 <button
                     className={styles.actionButton}

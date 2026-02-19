@@ -1,4 +1,12 @@
-export type PersonStatus = 'new' | 'in-progress' | 'approved' | 'current' | 'rejected'
+export type PersonStatus =
+  | 'new'
+  | 'in-progress'
+  | 'approved'
+  | 'current'
+  | 'rejected'
+  | 'rejected_new'
+  | 'rejected_in-progress'
+  | 'rejected_approved'
 
 export type Person = {
   rowIndex?: number
