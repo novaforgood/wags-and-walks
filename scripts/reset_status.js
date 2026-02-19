@@ -3,7 +3,7 @@ const fetch = (...args) => import('node-fetch').then(({ default: fetch }) => fet
 async function resetAllToNew() {
     try {
         console.log('Fetching all people...');
-        const listRes = await fetch('http://localhost:3000/api/people');
+        const listRes = await fetch('http://localhost:3001/api/people');
         const listData = await listRes.json();
 
         if (!listData.success || !Array.isArray(listData.people)) {
@@ -19,7 +19,7 @@ async function resetAllToNew() {
 
             console.log(`Resetting ${person.firstName} ${person.lastName} (${person.email})...`);
 
-            const updateRes = await fetch('http://localhost:3000/api/send-email', {
+            const updateRes = await fetch('http://localhost:3001/api/send-email', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

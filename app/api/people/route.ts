@@ -37,7 +37,8 @@ function parseTimestampToIso(raw: unknown): string | undefined {
 
 function normalizeStatus(raw: unknown): PersonStatus {
   const s = String(raw || '').trim()
-  if (s === 'new' || s === 'in-progress' || s === 'approved' || s === 'current') return s
+  const allowed: PersonStatus[] = ['new', 'in-progress', 'approved', 'current', 'rejected', 'rejected_new', 'rejected_in-progress', 'rejected_approved']
+  if (allowed.includes(s as PersonStatus)) return s as PersonStatus
   return 'new'
 }
 
@@ -66,7 +67,7 @@ export async function GET() {
 
     const response = await fetch(url.toString(), {
       method: 'GET',
-      next: { revalidate: 60 }
+      cache: 'no-store'
     })
 
     const data = (await response.json()) as {
@@ -85,18 +86,18 @@ export async function GET() {
     const people: Person[] = data.rows.map(row => {
       const specialRaw = String(
         row[
-          'Are you willing to foster dogs with special needs? If so, please check all that apply below.'
+        'Are you willing to foster dogs with special needs? If so, please check all that apply below.'
         ] || ''
       )
       const specialNeeds = specialRaw
         ? Array.from(
-            new Set(
-              specialRaw
-                .split(',')
-                .map(s => s.trim())
-                .filter(Boolean)
-            )
+          new Set(
+            specialRaw
+              .split(',')
+              .map(s => s.trim())
+              .filter(Boolean)
           )
+        )
         : []
 
       return {
@@ -120,7 +121,7 @@ export async function GET() {
       { success: true, people },
       {
         headers: {
-          'Cache-Control': 's-maxage=60, stale-while-revalidate=300'
+          'Cache-Control': 'no-store, max-age=0'
         }
       }
     )

@@ -5,19 +5,11 @@ import styles from './page.module.css'
 import { usePeople } from './components/PeopleProvider'
 import type { Person } from './lib/peopleTypes'
 
-const KNOWN_SPECIAL_NEEDS = [
-  'Puppies',
-  'Pregnant Dogs',
-  'Sick Dogs',
-  'Injured / Recovering Dogs',
-  'Litters of Puppies Still Feeding From Mom',
-  'Dogs that Need Training / Rehabilitation for Behavioral',
-  'None of the Above'
-]
-
-const NONE_OF_THE_ABOVE = 'None of the Above'
-// Expose the selectable set that ignores "None of the Above"
-const SELECTABLE_SPECIAL_NEEDS = KNOWN_SPECIAL_NEEDS.filter(n => n !== NONE_OF_THE_ABOVE)
+import {
+  KNOWN_SPECIAL_NEEDS,
+  NONE_OF_THE_ABOVE,
+  SELECTABLE_SPECIAL_NEEDS
+} from './lib/peopleTypes'
 
 const availabilityRank = (text?: string) => {
   if (!text) return 99
@@ -283,8 +275,8 @@ export default function Home() {
               person.appliedAt
                 ? new Date(person.appliedAt).toLocaleString()
                 : person.raw && (person.raw['Timestamp'] || person.raw['timestamp'])
-                ? (person.raw['Timestamp'] || person.raw['timestamp'])
-                : undefined
+                  ? (person.raw['Timestamp'] || person.raw['timestamp'])
+                  : undefined
 
             return (
               <div className={styles.card} key={i}>

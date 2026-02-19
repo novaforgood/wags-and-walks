@@ -2,7 +2,12 @@
 
 import { useMemo, useState } from 'react'
 import type { PersonStatus, Person } from '@/app/lib/peopleTypes'
-import { normalizeEmailKey } from '@/app/lib/peopleTypes'
+import {
+  normalizeEmailKey,
+  KNOWN_SPECIAL_NEEDS,
+  NONE_OF_THE_ABOVE,
+  SELECTABLE_SPECIAL_NEEDS
+} from '@/app/lib/peopleTypes'
 import { usePeople } from '@/app/components/PeopleProvider'
 import styles from './ApplicantsSheet.module.css'
 import ApplicantCard from './ApplicantCard'
@@ -98,44 +103,94 @@ export default function ApplicantsSheet({
     new Set()
   )
   const selectedEmails = controlledSelectedEmails ?? internalSelectedEmails
+  const [selectedNeeds, setSelectedNeeds] = useState<string[]>([])
 
   const filtered = useMemo(
     () => {
       const targetStatuses = Array.isArray(status) ? status : [status]
-      return people.filter(p => targetStatuses.includes(p.status || 'new'))
+      return people.filter(p => {
+        const s = p.status || 'new'
+        const isRejected = s === 'rejected' || s.startsWith('rejected_')
+
+        // If person IS rejected, hide them from EVERYTHING
+        if (isRejected) return false
+
+        // Otherwise, only show if they match the current tab's status
+        const matchesStatus = targetStatuses.includes(s)
+        if (!matchesStatus) return false
+
+        if (selectedNeeds.length > 0) {
+          const personNeeds = p.specialNeeds ?? []
+          if (personNeeds.includes(NONE_OF_THE_ABOVE)) {
+            return selectedNeeds.length === 1 && selectedNeeds[0] === NONE_OF_THE_ABOVE
+          }
+          if (!selectedNeeds.every(n => personNeeds.includes(n))) return false
+        }
+
+        return true
+      })
     },
-    [people, status]
+    [people, status, selectedNeeds]
   )
 
   // Split logic for Onboarding
   const { mainList, flaggedList } = useMemo(() => {
     // If not split, just return filtered as mainList, but sorted by flagged status
-    const sortFlaggedFirst = (list: Person[]) => {
+    const sortApplicants = (list: Person[]) => {
       return [...list].sort((a, b) => {
+        const aStatus = a.status || 'new'
+        const bStatus = b.status || 'new'
+        const aRejected = aStatus === 'rejected' || aStatus.startsWith('rejected_')
+        const bRejected = bStatus === 'rejected' || bStatus.startsWith('rejected_')
+
+        // Priority 1: Rejected people always at bottom
+        if (aRejected !== bRejected) return aRejected ? 1 : -1
+
         const aFlagged = (String(a.raw?.['Flags'] || '').trim().toLowerCase() !== 'ok' && String(a.raw?.['Flags'] || '').trim() !== '')
         const bFlagged = (String(b.raw?.['Flags'] || '').trim().toLowerCase() !== 'ok' && String(b.raw?.['Flags'] || '').trim() !== '')
-        if (aFlagged === bFlagged) return 0
-        return aFlagged ? -1 : 1
+
+        // Priority 2: Flagged people at the top (of their respective rejected/non-rejected group)
+        if (aFlagged !== bFlagged) return aFlagged ? -1 : 1
+
+        // Priority 3: Newest to oldest (higher rowIndex = newer)
+        return (b.rowIndex || 0) - (a.rowIndex || 0)
       })
     }
 
     if (!splitFlagged) {
-      return { mainList: sortFlaggedFirst(filtered), flaggedList: [] }
+      return { mainList: sortApplicants(filtered), flaggedList: [] }
     }
 
     // For split view (Onboarding), user wants ALL applicants in the left column (sorted),
-    // AND flagged applicants in the right column.
+    // AND flagged applicants in the right column (sorted).
 
-    const flagged: Person[] = []
-    // We want the main list to be EVERYONE from 'filtered', just sorted.
-    const main = sortFlaggedFirst(filtered)
+    const main = sortApplicants(filtered)
 
-    for (const p of filtered) {
+    // Flagged list should also have rejected at bottom
+    const flagged = sortApplicants(filtered.filter(p => {
       const rawFlags = String(p.raw?.['Flags'] || '').trim()
-      if (rawFlags && rawFlags.toLowerCase() !== 'ok') flagged.push(p)
-    }
+      return rawFlags && rawFlags.toLowerCase() !== 'ok'
+    }))
+
     return { mainList: main, flaggedList: flagged }
   }, [filtered, splitFlagged])
+
+  const toggleNeed = (need: string) => {
+    setSelectedNeeds(prev => {
+      if (prev.includes(need)) return prev.filter(p => p !== need)
+      if (need === NONE_OF_THE_ABOVE) return [NONE_OF_THE_ABOVE]
+      return [...prev.filter(p => p !== NONE_OF_THE_ABOVE), need]
+    })
+  }
+
+  const toggleSelectAll = () => {
+    const allSelected = SELECTABLE_SPECIAL_NEEDS.every(a => selectedNeeds.includes(a))
+    if (allSelected) {
+      setSelectedNeeds(prev => prev.filter(n => n === NONE_OF_THE_ABOVE))
+    } else {
+      setSelectedNeeds([...SELECTABLE_SPECIAL_NEEDS])
+    }
+  }
 
   const selectedCount = selectedEmails.size
   const canMove = Boolean(moveToStatus)
@@ -164,10 +219,16 @@ export default function ApplicantsSheet({
     setSelected(new Set())
   }
 
-  const highlighted = highlightEmails || new Set<string>()
+  // View toggle state
+  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list')
+
+  // Determine which list(s) to show
+  // If splitFlagged is false, just show "mainList" (sorted/filtered)
+  const isGrid = viewMode === 'grid'
+  const containerClass = isGrid ? styles.gridContainer : styles.cardList
 
   const renderCardList = (list: Person[]) => (
-    <div className={styles.cardList}>
+    <div className={containerClass}>
       {list.map((person, i) => {
         const emailKey = normalizeEmailKey(person.email)
         const isSelected = Boolean(emailKey && selectedEmails.has(emailKey))
@@ -180,18 +241,20 @@ export default function ApplicantsSheet({
             person={person}
             selected={isSelected}
             onToggleSelect={() => toggleSelected(person.email)}
+            onReject={() => {
+              if (person.email) {
+                setStatus(person.email, 'rejected')
+              }
+            }}
             actionLabel="View"
             onAction={() => { }}
             isFlagged={!!isFlagged}
+            variant={viewMode}
           />
         )
       })}
     </div>
   )
-
-  // Determine which list(s) to show
-  // If splitFlagged is false, we just show "mainList" which is actually "filtered" (if logic above holds)
-  // Logic fix: if !splitFlagged, mainList = filtered.
 
   return (
     <main className={styles.pageMain}>
@@ -222,27 +285,89 @@ export default function ApplicantsSheet({
           </div>
         </div>
 
-        {splitFlagged ? (
-          <div className={styles.splitLayout}>
-            <div className={styles.mainColumn}>
+        {isLoading && people.length === 0 ? (
+          <div className={styles.loadingContainer}>
+            Loading applicants...
+          </div>
+        ) : (
+          <div className={splitFlagged ? styles.splitLayout : ''}>
+            <div className={splitFlagged ? styles.mainColumn : ''}>
+              {/* HEADER & TOGGLE */}
               <div className={styles.columnHeader}>
                 <div className={styles.recentGroup}>
-                  <h2 className={styles.columnTitle}>Recent</h2>
+                  {splitFlagged && <h2 className={styles.columnTitle}>Recent</h2>}
                   <div className={styles.viewToggle}>
-                    <button className={`${styles.toggleOption} ${styles.activeToggle}`}>List</button>
-                    <button className={styles.toggleOption}>Grid</button>
+                    <button
+                      className={`${styles.toggleOption} ${viewMode === 'list' ? styles.activeToggle : ''}`}
+                      onClick={() => setViewMode('list')}
+                    >
+                      List
+                    </button>
+                    <button
+                      className={`${styles.toggleOption} ${viewMode === 'grid' ? styles.activeToggle : ''}`}
+                      onClick={() => setViewMode('grid')}
+                    >
+                      Grid
+                    </button>
                   </div>
                 </div>
               </div>
-              {renderCardList(mainList)}
+
+              {/* FILTERS */}
+              <div className={styles.filterBox}>
+                <div className={styles.filterHeader}>
+                  <div className={styles.filterInfo}>
+                    <span className={styles.filterLabel}>Special Needs Filters</span>
+                    <span className={styles.filterCount}>
+                      {selectedNeeds.length > 0 ? `(${selectedNeeds.length} selected)` : '(no filters applied)'}
+                    </span>
+                  </div>
+                  <div className={styles.filterActions}>
+                    <button
+                      onClick={toggleSelectAll}
+                      type="button"
+                      className={styles.filterSecondaryButton}
+                    >
+                      {SELECTABLE_SPECIAL_NEEDS.every(a => selectedNeeds.includes(a)) ? 'Clear All' : 'Select all needs'}
+                    </button>
+                    <button
+                      onClick={() => setSelectedNeeds([])}
+                      type="button"
+                      className={styles.filterSecondaryButton}
+                    >
+                      Clear filters
+                    </button>
+                  </div>
+                </div>
+
+                <div className={styles.filterGrid}>
+                  {KNOWN_SPECIAL_NEEDS.map(need => (
+                    <label
+                      key={need}
+                      className={`${styles.filterItem} ${selectedNeeds.includes(need) ? styles.filterItemSelected : ''}`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedNeeds.includes(need)}
+                        onChange={() => toggleNeed(need)}
+                      />
+                      <span>{need}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* MAIN LIST */}
+              {renderCardList(splitFlagged ? mainList : filtered)}
             </div>
-            <div className={styles.flaggedColumn}>
-              <h3 className={styles.flaggedTitle}>▲ Red Flags</h3>
-              {renderCardList(flaggedList)}
-            </div>
+
+            {splitFlagged && (
+              <div className={styles.flaggedColumn}>
+                <h3 className={styles.flaggedTitle}>▲ Red Flags</h3>
+                {renderCardList(flaggedList)}
+              </div>
+            )}
           </div>
-        ) : (
-          renderCardList(filtered)
         )}
       </div>
     </main>

@@ -38,7 +38,6 @@
   border-radius: 16px 16px 0 0;
   /* More rounded */
   background-color: transparent;
-  transition: all 0.2s ease;
   font-size: 1.25rem;
   /* Larger font */
 }
