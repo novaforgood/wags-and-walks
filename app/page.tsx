@@ -447,12 +447,10 @@ export default function Home() {
                 : undefined
 
             return (
-  <Link
-    key={person.email ?? i}
-    href={`/applicants/${encodeURIComponent(person.email ?? '')}`}
-    style={{ textDecoration: 'none', color: 'inherit' }}
-  >
-    <div className={styles.card} style={{ cursor: 'pointer' }}>
+  <div
+  key={person.email ?? i}
+  className={styles.card}
+>
       <h3>
         {person.firstName ?? ''} {person.lastName ?? ''}
       </h3>
@@ -475,7 +473,6 @@ export default function Home() {
         </p>
       )}
     </div>
-  </Link>
 )
 
           })}

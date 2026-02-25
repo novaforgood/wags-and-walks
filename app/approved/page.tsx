@@ -44,8 +44,8 @@ export default function ApprovedPage() {
               <p><strong>Email:</strong> {person.email}</p>
               <p><strong>Phone:</strong> {person.phone}</p>
 
-              <button onClick={() => movePerson(person.email, 'new')}>
-                Move to New
+              <button onClick={() => movePerson(person.email, 'current')}>
+                Move to Current
               </button>
             </div>
           ))}
