@@ -279,7 +279,7 @@ export default function Home() {
                   : undefined
 
             return (
-              <div className={styles.card} key={i}>
+              <div className={styles.card} key={person.email ?? i}>
                 <h3>
                   {person.firstName ?? ''} {person.lastName ?? ''}
                 </h3>
@@ -303,7 +303,7 @@ export default function Home() {
                 )}
 
                 {person.status && (
-                  <p style={{ marginTop: 6 }}><strong>Status:</strong> {person.status}</p>
+                  <p style={{ margin: '6px 0' }}><strong>Status:</strong> {person.status}</p>
                 )}
               </div>
             )
