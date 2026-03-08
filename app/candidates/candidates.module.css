@@ -1,0 +1,736 @@
+/* ---- Icon / Logo Placeholders ---- */
+.iconPlaceholder {
+    width: 20px;
+    height: 20px;
+    background: #ccc;
+    border-radius: 4px;
+    flex-shrink: 0;
+}
+
+.iconPlaceholderSmall {
+    width: 14px;
+    height: 14px;
+    background: #ccc;
+    border-radius: 3px;
+    flex-shrink: 0;
+}
+
+.topBarIcon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.logoPlaceholder {
+    width: 180px;
+    height: 83px;
+    background: #a0d4d5;
+    border-radius: 6px;
+}
+
+/* ---- Layout ---- */
+.pageWrapper {
+    display: flex;
+    min-height: 100vh;
+    background: #f3f7f7;
+    font-family: 'Inter', sans-serif;
+}
+
+/* ---- Sidebar ---- */
+.sidebar {
+    width: 208px;
+    min-width: 208px;
+    background: #b2e5e6;
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+    overflow: clip;
+}
+
+.sidebarLogo {
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 83px;
+    flex-shrink: 0;
+}
+
+.sidebarNav {
+    flex: 1;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.navItem {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 8px 12px;
+    margin: 0 12px;
+    font-size: 16px;
+    color: #414141;
+    text-decoration: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.15s;
+    font-weight: 500;
+}
+
+.navItem:hover {
+    background: rgba(5, 170, 175, 0.08);
+}
+
+.navItemActive {
+    background: #05aaaf;
+    color: #fbfbfb;
+    font-weight: 500;
+    margin: 0;
+    padding: 8px 24px;
+    border-radius: 0;
+}
+
+.navItemActive:hover {
+    background: #05999e;
+}
+
+.navIcon {
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+}
+
+/* ---- Profile ---- */
+.sidebarProfile {
+    padding: 16px 12px 20px;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+}
+
+.profileAvatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #05aaaf;
+    flex-shrink: 0;
+}
+
+.profileInfo {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.profileName {
+    font-size: 14px;
+    font-weight: 400;
+    color: #324054;
+}
+
+.profileEmail {
+    font-size: 11px;
+    color: #414141;
+    text-decoration: underline;
+}
+
+.profileLogout {
+    font-size: 11px;
+    color: #414141;
+    text-decoration: underline;
+    cursor: pointer;
+    background: none;
+    border: none;
+    padding: 0;
+    font-family: inherit;
+    text-align: left;
+}
+
+/* ---- Main Content ---- */
+.mainContent {
+    flex: 1;
+    background: #f3f7f7;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.topBar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 40px;
+    background: #fbfbfb;
+    border-bottom: 1px solid #fbfbfb;
+}
+
+.topBarTitle {
+    font-size: 24px;
+    font-weight: 700;
+    color: black;
+    margin: 0;
+    font-family: 'Inter', sans-serif;
+}
+
+.bellIcon {
+    font-size: 20px;
+    color: #888;
+    cursor: pointer;
+}
+
+/* ---- Tabs ---- */
+.tabSection {
+    padding: 24px 40px 0;
+}
+
+.tabRow {
+    display: flex;
+    align-items: flex-end;
+    gap: 0;
+    border-bottom: none;
+    position: relative;
+}
+
+.tabUnderlineFull {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: #adadad;
+}
+
+.tab {
+    padding: 8px 24px;
+    font-size: 20px;
+    font-weight: 400;
+    color: #adadad;
+    cursor: pointer;
+    background: none;
+    border: none;
+    border-bottom: 3px solid transparent;
+    margin-bottom: -1px;
+    transition: color 0.15s, border-color 0.15s;
+    font-family: 'Inter', sans-serif;
+    position: relative;
+    z-index: 1;
+}
+
+.tab:hover {
+    color: #666;
+}
+
+.tabActive {
+    color: black;
+    font-weight: 500;
+    border-bottom-color: #05aaaf;
+}
+
+/* ---- Toolbar ---- */
+.toolbar {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px 40px 16px;
+    max-width: 1056px;
+}
+
+.searchWrapper {
+    position: relative;
+}
+
+.searchInput {
+    padding: 8px 36px 8px 16px;
+    border: 1px solid #c4c4c4;
+    border-radius: 30px;
+    font-size: 14px;
+    width: 340px;
+    height: 37px;
+    outline: none;
+    background: #fff;
+    font-family: 'Inter', sans-serif;
+    transition: border-color 0.15s;
+    box-sizing: border-box;
+}
+
+.searchInput:focus {
+    border-color: #05aaaf;
+}
+
+.searchIconWrap {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    opacity: 0.5;
+}
+
+.toolbarRight {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+}
+
+.toolbarBtn {
+    padding: 8px 19px;
+    border: 1px solid #c4c4c4;
+    border-radius: 30px;
+    background: #fff;
+    font-size: 14px;
+    color: black;
+    cursor: pointer;
+    font-family: 'Inter', sans-serif;
+    transition: background 0.15s, border-color 0.15s;
+    height: 37px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
+}
+
+.toolbarBtnStarred {
+    background: #fbfbfb;
+    border-color: #bbcacb;
+}
+
+.toolbarBtn:hover {
+    background: #f0f0f0;
+    border-color: #aaa;
+}
+
+.filterByBtn {
+    padding: 8px 16px;
+    border: 1px solid #adadad;
+    border-radius: 8px;
+    background: #fbfbfb;
+    font-size: 14px;
+    color: #808080;
+    cursor: pointer;
+    font-family: 'Inter', sans-serif;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    width: 177px;
+    height: 37px;
+    box-sizing: border-box;
+}
+
+.filterByBtn:hover {
+    background: #f0f0f0;
+}
+
+.filterChevron {
+    font-size: 10px;
+    color: #808080;
+}
+
+/* ---- Table ---- */
+.tableWrapper {
+    padding: 0 40px 40px;
+    overflow-x: auto;
+    flex: 1;
+}
+
+.tableContainer {
+    background: white;
+    border-radius: 8px;
+    overflow: hidden;
+    max-width: 1118px;
+}
+
+/* .tableContainerNarrow: Red Flags tab uses flex proportions instead of a fixed max-width */
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+    font-family: 'Inter', sans-serif;
+}
+
+.table thead tr {
+    background: #e0eaea;
+    border-bottom: 2px solid #bbcacb;
+}
+
+.table th {
+    text-align: left;
+    font-weight: 400;
+    font-size: 14px;
+    color: black;
+    padding: 16px 16px;
+    white-space: nowrap;
+}
+
+.table th:first-child,
+.table td:first-child {
+    padding-left: 30px;
+}
+
+.table td:last-child {
+    text-align: right;
+    padding-right: 30px;
+}
+
+.table td {
+    padding: 8px 16px;
+    color: black;
+    vertical-align: middle;
+}
+
+.nameCell {
+    cursor: pointer;
+    color: #05aaaf;
+    font-weight: 400;
+}
+
+.nameCell:hover {
+    text-decoration: underline;
+    text-decoration-color: #d1d5db;
+    /* Light grey underline */
+}
+
+.table tbody tr {
+    background: #fbfbfb;
+    transition: background 0.12s;
+}
+
+.table tbody tr:hover {
+    background: #f0f5f5;
+}
+
+.rowSelected {
+    background: #d4eeee !important;
+}
+
+/* ---- Select Button ---- */
+.selectBtn {
+    width: 128px;
+    height: 32px;
+    border: none;
+    border-radius: 8px;
+    background: #05aaaf;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 400;
+    cursor: pointer;
+    transition: background 0.15s;
+    font-family: 'Inter', sans-serif;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.rowActions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 16px;
+}
+
+.actionRejectBtn {
+    background: none;
+    border: none;
+    color: #adadad;
+    font-size: 16px;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    transition: background 0.15s, color 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.actionRejectBtn:hover {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+.selectBtn:hover {
+    background: #05999e;
+}
+
+.tableSelectBtn {
+    background: #05aaaf;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 6px 20px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background 0.15s;
+    width: 90px;
+}
+
+.tableSelectBtn:hover {
+    background: #049397;
+}
+
+.flagNone {
+    color: black;
+}
+
+.flagYes {
+    color: black;
+}
+
+.flagText {
+    color: black;
+}
+
+.muted {
+    color: black;
+}
+
+/* ---- Red Flags Expanded Side Panel (static, always visible) ---- */
+.redFlagsLayout {
+    display: flex;
+    align-items: flex-start;
+    gap: 24px;
+    flex: 1;
+    padding: 0 40px 40px;
+}
+
+.redFlagsTableCol {
+    flex: 1;
+    min-width: 0;
+}
+
+/* Wrapper inside redFlagsLayout — no extra tableWrapper padding needed */
+.redFlagsTableCol .tableWrapper {
+    padding: 0;
+}
+
+.sidePanel {
+    width: 280px;
+    min-width: 280px;
+    min-height: 320px;
+    background: #f0f0f0;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 32px 24px;
+    gap: 12px;
+    flex-shrink: 0;
+}
+
+.sidePanelTitle {
+    font-size: 16px;
+    font-weight: 700;
+    color: #222;
+    text-align: center;
+}
+
+.sidePanelNameTitle {
+    font-size: 18px;
+    font-weight: 600;
+    color: #222;
+    margin-bottom: 0;
+    text-align: center;
+    width: 100%;
+}
+
+.sidePanelTopBlock {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    margin-bottom: 12px;
+}
+
+.viewMoreBtn {
+    background: none;
+    border: none;
+    color: #05aaaf;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    text-decoration: underline;
+    transition: color 0.15s;
+    margin-top: 24px;
+}
+
+.viewMoreBtn:hover {
+    color: #038a8d;
+}
+
+.actionButtons {
+    display: flex;
+    gap: 12px;
+    margin-top: auto;
+    width: 100%;
+    padding-top: 24px;
+}
+
+.acceptBtn {
+    background: #e3f4f4;
+    /* light teal */
+    color: #038a8d;
+    border: none;
+    border-radius: 6px;
+    padding: 10px 16px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    flex: 1;
+    transition: background 0.15s;
+}
+
+.acceptBtn:hover {
+    background: #d3eded;
+}
+
+.rejectBtn {
+    background: #fee2e2;
+    /* light red */
+    color: #dc2626;
+    border: none;
+    border-radius: 6px;
+    padding: 10px 16px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    flex: 1;
+    transition: background 0.15s;
+}
+
+.rejectBtn:hover {
+    background: #fecaca;
+}
+
+.sidePanelContent {
+    font-size: 14px;
+    color: #414141;
+    line-height: 1.5;
+    text-align: center;
+}
+
+.sidePanelClose {
+    display: none;
+    /* not used in static layout */
+}
+
+/* ---- Confirm Action Modal Popover ---- */
+.modalOverlayTransparent {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 999;
+}
+
+.confirmModalPopover {
+    position: fixed;
+    background: white;
+    padding: 16px 24px;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+    width: max-content;
+    text-align: center;
+    transform: translate(-50%, -100%);
+    margin-top: -8px;
+    z-index: 1000;
+}
+
+.confirmTitlePopover {
+    font-size: 15px;
+    font-weight: 600;
+    color: #222;
+    margin-bottom: 20px;
+    line-height: 1.4;
+}
+
+.confirmActions {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+}
+
+.confirmCancelBtn {
+    padding: 10px 24px;
+    border-radius: 8px;
+    border: 1px solid #ddd;
+    background: white;
+    color: #666;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s;
+    flex: 1;
+}
+
+.confirmCancelBtn:hover {
+    background: #f5f5f5;
+}
+
+.confirmAcceptBtn {
+    padding: 10px 24px;
+    border-radius: 8px;
+    border: none;
+    background: #e3f4f4;
+    /* light blue/teal */
+    color: #038a8d;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s;
+    flex: 1;
+}
+
+.confirmAcceptBtn:hover {
+    background: #d3eded;
+}
+
+.confirmRejectBtn {
+    padding: 10px 24px;
+    border-radius: 8px;
+    border: none;
+    background: #fee2e2;
+    /* light red */
+    color: #dc2626;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s;
+    flex: 1;
+}
+
+.confirmRejectBtn:hover {
+    background: #fecaca;
+}
+
+/* ---- Loading / Error ---- */
+.loadingContainer {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 80px 0;
+    color: #888;
+    font-size: 16px;
+}
+
+.errorText {
+    color: #b00020;
+    font-size: 14px;
+    padding: 16px 40px;
+}

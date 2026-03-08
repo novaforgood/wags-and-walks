@@ -1,3 +1,5 @@
+// @deprecated - This page should be deleted in the future as routing has moved to /candidates and /fosters
+
 'use client'
 
 import { useState } from 'react'

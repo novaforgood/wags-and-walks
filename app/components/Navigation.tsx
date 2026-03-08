@@ -9,6 +9,11 @@ export default function Navigation() {
   const pathname = usePathname()
   const { people } = usePeople()
 
+  // Hide old top nav on pages that use the new sidebar layout
+  if (pathname === '/candidates' || pathname === '/fosters') {
+    return null
+  }
+
   const counts: Record<string, number> = {
     '/onboarding': people.filter(p => (p.status || 'new') === 'new').length,
     '/selecting': people.filter(p => ['in-progress', 'approved'].includes(p.status || 'new')).length,

@@ -118,6 +118,7 @@ export default function ApplicantDetail() {
           </h1>
 
           {/* Large top placeholder section */}
+
           <div style={{ background: '#f9f9f9', borderRadius: 8, padding: 20, marginBottom: 30 }}>
             <p><strong>City:</strong> {getVal('City') || '—'}</p>
             <p><strong>Living Arrangement:</strong> {getVal('What is your living arrangement?') || '—'}</p>

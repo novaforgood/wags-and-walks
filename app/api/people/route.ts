@@ -44,25 +44,8 @@ function normalizeStatus(raw: unknown): PersonStatus {
 
 export async function GET() {
   try {
-    const fields = [
-      'Timestamp',
-      'First Name',
-      'Last Name',
-      'Email',
-      'Phone',
-      'How old are you?',
-      'When would you like to take your foster dog home?',
-      'Are you willing to foster dogs with special needs? If so, please check all that apply below.',
-      'Flags',
-      'Review Status',
-      'Applicant Status',
-      'Status Updated At',
-      'Status Updated By'
-    ].join(',')
-
     const url = buildAppsScriptUrl({
-      limit: '5000',
-      fields
+      limit: '5000'
     })
 
     const response = await fetch(url.toString(), {
@@ -100,6 +83,15 @@ export async function GET() {
         )
         : []
 
+      const rawFlags = String(row['Flags'] || '').trim()
+      let status = normalizeStatus(row['Applicant Status'])
+
+      // Auto-route: If an applicant has no flags and is currently in the "new" (Onboarding) state,
+      // skip them straight to "in-progress" (Selecting).
+      if (status === 'new' && !rawFlags) {
+        status = 'in-progress'
+      }
+
       return {
         rowIndex: Number.isFinite(Number(row.rowIndex)) ? Number(row.rowIndex) : undefined,
         firstName: String(row['First Name'] || '').trim() || undefined,
@@ -107,7 +99,7 @@ export async function GET() {
         email: String(row['Email'] || '').trim() || undefined,
         phone: String(row['Phone'] || '').trim() || undefined,
         age: String(row['How old are you?'] || '').trim() || undefined,
-        status: normalizeStatus(row['Applicant Status']),
+        status,
         appliedAt: parseTimestampToIso(row['Timestamp']),
         availability: String(row['When would you like to take your foster dog home?'] || '').trim() || undefined,
         specialNeeds,
