@@ -84,3 +84,15 @@
 .logoutButton:hover {
   background-color: #333;
 }
+
+.logo {
+  padding: 20px 24px;
+  display: flex;
+  align-items: center;
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
