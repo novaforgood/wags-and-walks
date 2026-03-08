@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
 import type { Person } from '@/app/lib/peopleTypes'
 import { KNOWN_SPECIAL_NEEDS } from '@/app/lib/peopleTypes'
-import Image from 'next/image'
+
 import styles from './FilterDropdown.module.css'
 
 export type FilterState = {
@@ -76,7 +76,7 @@ export default function FilterDropdown({ people, filters, setFilters }: Props) {
             >
                 Filter by {activeCount > 0 && <span className={styles.badge}>{activeCount}</span>}
                 <div className={`${styles.chevronImgWrapBtn} ${isOpen ? styles.chevronRotatedBtn : ''}`}>
-                    <Image src="/assets/dropdown-arrow.png" alt="Toggle" width={11} height={7} />
+                    <img src="/assets/Arrow.svg" alt="Toggle" width={11} height={7} />
                 </div>
             </button>
 
@@ -163,7 +163,7 @@ function Category({
                 <div className={styles.categoryRight}>
                     {activeCount > 0 && <span className={styles.catBadge}>{activeCount}</span>}
                     <div className={`${styles.chevronImgWrap} ${isExpanded ? styles.chevronRotated : ''}`}>
-                        <Image src="/assets/dropdown-arrow.png" alt="Toggle" width={11} height={7} />
+                        <img src="/assets/Arrow.svg" alt="Toggle" width={11} height={7} />
                     </div>
                 </div>
             </button>

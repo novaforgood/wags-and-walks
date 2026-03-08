@@ -1,0 +1,194 @@
+/* ---- Bell Wrapper (positioning anchor) ---- */
+.bellWrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.bellButton {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* ---- Panel Container ---- */
+.panel {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    width: 380px;
+    max-height: 520px;
+    background: #e8e8e8;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+    z-index: 500;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    font-family: 'Inter', sans-serif;
+}
+
+/* ---- Header ---- */
+.header {
+    display: flex;
+    flex-direction: column;
+    padding: 16px 20px 0;
+}
+
+.closeRow {
+    display: flex;
+    justify-content: flex-start;
+    margin-bottom: 4px;
+}
+
+.closeButton {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    color: #888;
+    padding: 0;
+    line-height: 1;
+}
+
+.closeButton:hover {
+    color: #333;
+}
+
+.titleRow {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+}
+
+.title {
+    font-size: 24px;
+    font-weight: 700;
+    color: #000;
+    margin: 0;
+}
+
+.markAllRead {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 13px;
+    color: #000;
+    text-decoration: underline;
+    font-family: 'Inter', sans-serif;
+    padding: 0;
+    white-space: nowrap;
+}
+
+.markAllRead:hover {
+    color: #05aaaf;
+}
+
+/* ---- Tabs ---- */
+.tabs {
+    display: flex;
+    gap: 0;
+    padding: 8px 20px 0;
+}
+
+.tab {
+    padding: 8px 14px;
+    font-size: 15px;
+    font-weight: 500;
+    color: #888;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: 'Inter', sans-serif;
+    border-bottom: 2px solid transparent;
+    transition: color 0.15s;
+}
+
+.tab:first-child {
+    padding-left: 0;
+}
+
+.tab:hover {
+    color: #333;
+}
+
+.tabActive {
+    color: #000;
+    font-weight: 700;
+    border-bottom-color: #000;
+}
+
+/* ---- Notification List ---- */
+.list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 10px 0 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+/* ---- Notification Card ---- */
+.card {
+    padding: 20px 24px;
+    background: #fff;
+    border-bottom: 1px solid #d9d9d9;
+    transition: background 0.15s;
+}
+
+.card:last-child {
+    border-bottom: none;
+}
+
+.cardUnread {
+    background: #c8e6e7;
+}
+
+.cardText {
+    font-size: 15px;
+    color: #000;
+    line-height: 1.5;
+    margin: 0;
+}
+
+.cardText strong {
+    font-weight: 700;
+}
+
+.cardTimestamp {
+    font-size: 13px;
+    color: #777;
+    margin-top: 4px;
+}
+
+.cardAction {
+    display: inline-block;
+    margin-top: 12px;
+    padding: 10px 24px;
+    background: #05aaaf;
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    font-family: 'Inter', sans-serif;
+    transition: background 0.15s;
+}
+
+.cardAction:hover {
+    background: #049397;
+}
+
+/* ---- Empty State ---- */
+.empty {
+    padding: 32px 20px;
+    text-align: center;
+    color: #888;
+    font-size: 14px;
+}

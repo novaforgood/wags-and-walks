@@ -22,9 +22,9 @@ export default function Navigation() {
   }
 
   const tabs = [
-    { name: 'Onboarding', path: '/onboarding', icon: '/assets/overview.png' },
-    { name: 'Selecting', path: '/selecting', icon: '/assets/candidates.png' },
-    { name: 'Fostering', path: '/fostering', icon: '/assets/fosters.png' },
+    { name: 'Onboarding', path: '/onboarding', icon: '/assets/Overview.svg' },
+    { name: 'Selecting', path: '/selecting', icon: '/assets/candidates.svg' },
+    { name: 'Fostering', path: '/fostering', icon: '/assets/fosters.svg' },
   ]
 
   return (
@@ -52,7 +52,7 @@ export default function Navigation() {
             href={tab.path}
             className={`${styles.tab} ${isActive ? styles.active : ''}`}
           >
-            <Image src={tab.icon} alt={tab.name} width={18} height={18} />
+            <img src={tab.icon} alt={tab.name} width={18} height={18} />
             <span className={styles.tabName}>{tab.name}</span>
             <span className={styles.badge}>{count}</span>
           </Link>

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import Image from 'next/image'
+
 import type { Person } from '@/app/lib/peopleTypes'
 import styles from './PersonModal.module.css'
 
@@ -47,7 +47,7 @@ export default function PersonModal({ person, onClose }: Props) {
                 </div>
                 {/* Notification bell */}
                 <div className={styles.topBarIcon}>
-                    <Image src="/assets/bell.png" alt="Notifications" width={24} height={24} />
+                    <img src="/assets/Notif.svg" alt="Notifications" width={24} height={24} />
                 </div>
             </div>
 

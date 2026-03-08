@@ -7,6 +7,7 @@ import { usePeople } from '@/app/components/PeopleProvider'
 import FilterDropdown, { FilterState } from '@/app/components/FilterDropdown'
 import PersonModal from '@/app/components/PersonModal'
 import type { Person } from '@/app/lib/peopleTypes'
+import NotificationPanel from '@/app/components/NotificationPanel'
 import styles from '../candidates/candidates.module.css'
 
 export default function FostersPage() {
@@ -100,24 +101,24 @@ export default function FostersPage() {
             {/* ---- Left Sidebar ---- */}
             <aside className={styles.sidebar}>
                 <div className={styles.sidebarLogo}>
-                    <div className={styles.logoPlaceholder} />
+                    <Image src="/assets/logo.png" alt="Wags & Walks" width={160} height={60} priority />
                 </div>
 
                 <nav className={styles.sidebarNav}>
                     <div className={styles.navItem}>
-                        <div className={styles.iconPlaceholder} />
+                        <img src="/assets/Overview.svg" alt="Overview" width={18} height={18} />
                         Overview
                     </div>
                     <Link href="/candidates" className={styles.navItem}>
-                        <div className={styles.iconPlaceholder} />
+                        <img src="/assets/candidates.svg" alt="Candidates" width={18} height={18} />
                         Candidates
                     </Link>
                     <Link href="/fosters" className={`${styles.navItem} ${styles.navItemActive}`}>
-                        <div className={styles.iconPlaceholder} />
+                        <img src="/assets/fosters.svg" alt="Fosters" width={18} height={18} />
                         Fosters
                     </Link>
                     <div className={styles.navItem}>
-                        <div className={styles.iconPlaceholder} />
+                        <img src="/assets/Notif.svg" alt="Notifications" width={18} height={18} />
                         Notifications
                     </div>
                 </nav>
@@ -137,9 +138,7 @@ export default function FostersPage() {
                 {/* Top bar */}
                 <div className={styles.topBar}>
                     <h1 className={styles.topBarTitle}>Onboarded fosters</h1>
-                    <div className={styles.topBarIcon}>
-                        <Image src="/assets/bell.png" alt="Notifications" width={24} height={24} />
-                    </div>
+                    <NotificationPanel />
                 </div>
 
                 {/* Title area (matching Candidates tab spacing) */}
@@ -166,7 +165,7 @@ export default function FostersPage() {
                             onChange={e => setSearchQuery(e.target.value)}
                         />
                         <div className={styles.searchIconWrap}>
-                            <Image src="/assets/search.png" alt="Search" width={16} height={16} />
+                            <img src="/assets/Search.svg" alt="Search" width={16} height={16} />
                         </div>
                     </div>
                     <div className={styles.toolbarRight}>

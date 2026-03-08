@@ -94,6 +94,10 @@
     border-radius: 0;
 }
 
+.navItemActive img {
+    filter: brightness(0) invert(1);
+}
+
 .navItemActive:hover {
     background: #05999e;
 }
