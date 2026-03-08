@@ -38,21 +38,13 @@ The API auto-promotes `new` applicants with no flags to `in-progress` (see `app/
 
 Two layout patterns coexist:
 - **`/candidates` and `/fosters`** — New sidebar layout (these pages render their own sidebar; `Navigation` component hides itself)
-- **`/onboarding`, `/selecting`, `/fostering`** — Older top-nav layout using `app/components/Navigation.tsx` and `ApplicantsSheet` component
-
-Key pages:
-- `/` — Redirects to `/candidates`
-- `/candidates` — Main triage view with Candidates and Red Flags tabs, search, filters, accept/reject actions
 - `/fosters` — Active fosters list (status = `current`)
-- `/onboarding`, `/selecting`, `/fostering` — Older pipeline stage views using `ApplicantsSheet`
 - `/applicants/[email]` — Individual applicant detail
 
 ### Shared Components
 
-- `ApplicantsSheet` — Reusable table/grid for pipeline stage pages; supports split flagged view, special needs filters, list/grid toggle
 - `PersonModal` — Detail modal for viewing full applicant info
 - `FilterDropdown` — Multi-category filter dropdown (living situation, experience, children, dog types, pet history)
-- `EmailModal` — For sending emails to applicants
 
 ### Styling
 
