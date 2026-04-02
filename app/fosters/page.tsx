@@ -14,7 +14,7 @@ import styles from '../candidates/candidates.module.css'
 
 export default function FostersPage() {
     const { people, isLoading, error } = usePeople()
-    const { signOut } = useAuth()
+    const { user, signOut } = useAuth()
     const [searchQuery, setSearchQuery] = useState('')
     const [selectedPerson, setSelectedPerson] = useState<Person | null>(null)
     const [filters, setFilters] = useState<FilterState>({
@@ -128,10 +128,14 @@ export default function FostersPage() {
                 </nav>
 
                 <div className={styles.sidebarProfile}>
-                    <div className={styles.profileAvatar} />
+                    <div className={styles.profileAvatar}>
+                        {user?.email && user.email.charAt(0).toUpperCase()}
+                    </div>
                     <div className={styles.profileInfo}>
-                        <span className={styles.profileName}>Olivia Qi</span>
-                        <a href="#" className={styles.profileEmail}>oliviaqi@ww.com</a>
+                        <span className={styles.profileName}>
+                            {user?.displayName || user?.email?.split('@')[0] || 'User'}
+                        </span>
+                        <a href="#" className={styles.profileEmail}>{user?.email}</a>
                         <button className={styles.profileLogout} onClick={signOut}>Log Out</button>
                     </div>
                 </div>

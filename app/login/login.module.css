@@ -1,39 +1,132 @@
 /* Design tokens are defined in app/globals.css */
 
-/* Container - Full viewport with patterned background */
+/* Container - Full viewport with solid background */
 .container {
     min-height: 100vh;
     width: 100%;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
     padding: 24px;
     background-color: #E5E7EB;
     position: relative;
+    overflow: hidden;
 }
 
-/* Background pattern using pseudo-elements for better visibility */
-.container::before,
+/* Background Decorations - Dogs (bottom corners only) */
+.container::before {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 160px;
+    height: 180px;
+    background-image: url("data:image/svg+xml,%3Csvg width='160' height='180' viewBox='0 0 160 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' stroke='%23A0A0A0' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M50 120c0-10 8-18 18-18 3 0 6 1 8 2 2-7 8-12 15-12s13 5 15 12c2-1 5-2 8-2 10 0 18 8 18 18v6l-9 25c-1 4-5 7-9 7H68c-4 0-8-3-9-7l-9-25v-6z'/%3E%3Ccircle cx='72' cy='95' r='7'/%3E%3Ccircle cx='102' cy='95' r='7'/%3E%3Cpath d='M55 158h64v8c0 4-3 7-7 7H62c-4 0-7-3-7-7v-8z'/%3E%3Cpath d='M70 158v10'/%3E%3Cpath d='M104 158v10'/%3E%3C/g%3E%3C/svg%3E");
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: bottom left;
+    pointer-events: none;
+    opacity: 0.15;
+    z-index: 0;
+}
+
 .container::after {
     content: '';
     position: absolute;
-    inset: 0;
-    opacity: 0.06;
+    bottom: 0;
+    right: 0;
+    width: 150px;
+    height: 170px;
+    background-image: url("data:image/svg+xml,%3Csvg width='150' height='170' viewBox='0 0 150 170' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' stroke='%23A0A0A0' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M35 90c0-10 7-17 17-17 3 0 6 1 8 3 3-6 9-11 16-11s13 5 16 11c2-2 5-3 8-3 10 0 17 7 17 17l-7 40c-1 5-5 8-10 8H52c-5 0-9-3-10-8l-7-40z'/%3E%3Ccircle cx='57' cy='65' r='7'/%3E%3Ccircle cx='87' cy='65' r='7'/%3E%3Cpath d='M40 138h64v24c0 5-4 9-9 9H49c-5 0-9-4-9-9v-24z'/%3E%3Cpath d='M55 138v26'/%3E%3Cpath d='M89 138v26'/%3E%3C/g%3E%3C/svg%3E");
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: bottom right;
     pointer-events: none;
+    opacity: 0.15;
+    z-index: 0;
 }
 
-/* Dog silhouettes pattern */
-.container::before {
-    background-image: url("data:image/svg+xml,%3Csvg width='200' height='200' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M50 80c0-8 6-15 14-15 3 0 6 1 8 3 2-5 7-9 13-9s11 4 13 9c2-2 5-3 8-3 8 0 14 7 14 15 0 2 0 4-1 6l-8 25c-1 3-4 5-7 5H66c-3 0-6-2-7-5l-8-25c-1-2-1-4-1-6z M70 50c4 0 7 3 7 7s-3 7-7 7-7-3-7-7 3-7 7-7z M96 50c4 0 7 3 7 7s-3 7-7 7-7-3-7-7 3-7 7-7z M60 115h46v8c0 3-2 5-5 5H65c-3 0-5-2-5-5v-8z' fill='%234B5563'/%3E%3C/svg%3E");
-    background-size: 200px 200px;
-    background-position: 20px 20px;
+/* Additional dog decorations */
+.dogLeft {
+    position: absolute;
+    bottom: 30%;
+    left: 15px;
+    width: 140px;
+    height: 160px;
+    background-image: url("data:image/svg+xml,%3Csvg width='140' height='160' viewBox='0 0 140 160' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' stroke='%23A0A0A0' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M40 110c0-9 7-16 16-16 3 0 5 1 7 2 2-6 8-11 14-11s12 5 14 11c2-1 4-2 7-2 9 0 16 7 16 16v5l-8 22c-1 4-4 6-8 6H56c-4 0-7-2-8-6l-8-22v-5z'/%3E%3Ccircle cx='60' cy='85' r='6'/%3E%3Ccircle cx='84' cy='85' r='6'/%3E%3Cpath d='M45 143h54v7c0 3-3 6-6 6H51c-3 0-6-3-6-6v-7z'/%3E%3Cpath d='M60 143v9'/%3E%3Cpath d='M84 143v9'/%3E%3C/g%3E%3C/svg%3E");
+    background-size: contain;
+    background-repeat: no-repeat;
+    pointer-events: none;
+    opacity: 0.15;
+    z-index: 0;
 }
 
-/* Paw prints pattern */
-.container::after {
-    background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%234B5563'%3E%3Cellipse cx='50' cy='60' rx='8' ry='12'/%3E%3Cellipse cx='38' cy='50' rx='6' ry='9' transform='rotate(-20 38 50)'/%3E%3Cellipse cx='50' cy='42' rx='6' ry='9' transform='rotate(-5 50 42)'/%3E%3Cellipse cx='62' cy='50' rx='6' ry='9' transform='rotate(20 62 50)'/%3E%3Cellipse cx='50' cy='70' rx='10' ry='8'/%3E%3C/g%3E%3C/svg%3E");
-    background-size: 100px 100px;
-    background-position: 110px 80px;
+.dogRight {
+    position: absolute;
+    bottom: 25%;
+    right: 15px;
+    width: 135px;
+    height: 155px;
+    background-image: url("data:image/svg+xml,%3Csvg width='135' height='155' viewBox='0 0 135 155' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' stroke='%23A0A0A0' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M30 85c0-9 6-15 15-15 3 0 5 1 7 3 2-5 7-10 13-10s11 5 13 10c2-2 4-3 7-3 9 0 15 6 15 15l-6 35c-1 4-4 7-8 7H44c-4 0-7-3-8-7l-6-35z'/%3E%3Ccircle cx='48' cy='62' r='6'/%3E%3Ccircle cx='72' cy='62' r='6'/%3E%3Cpath d='M35 127h50v21c0 4-3 7-7 7H42c-4 0-7-3-7-7v-21z'/%3E%3Cpath d='M47 127v23'/%3E%3Cpath d='M73 127v23'/%3E%3C/g%3E%3C/svg%3E");
+    background-size: contain;
+    background-repeat: no-repeat;
+    pointer-events: none;
+    opacity: 0.15;
+    z-index: 0;
+}
+
+/* Paw print clusters */
+.pawBottomLeft {
+    position: absolute;
+    bottom: 15px;
+    left: 180px;
+    width: 80px;
+    height: 60px;
+    background-image: url("data:image/svg+xml,%3Csvg width='80' height='60' viewBox='0 0 80 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23A0A0A0' opacity='0.3'%3E%3Cellipse cx='18' cy='28' rx='4' ry='6'/%3E%3Cellipse cx='12' cy='22' rx='3' ry='4.5' transform='rotate(-15 12 22)'/%3E%3Cellipse cx='18' cy='18' rx='3' ry='4.5'/%3E%3Cellipse cx='24' cy='22' rx='3' ry='4.5' transform='rotate(15 24 22)'/%3E%3Cellipse cx='18' cy='34' rx='5' ry='4'/%3E%3Cellipse cx='58' cy='38' rx='4' ry='6'/%3E%3Cellipse cx='52' cy='32' rx='3' ry='4.5' transform='rotate(-15 52 32)'/%3E%3Cellipse cx='58' cy='28' rx='3' ry='4.5'/%3E%3Cellipse cx='64' cy='32' rx='3' ry='4.5' transform='rotate(15 64 32)'/%3E%3Cellipse cx='58' cy='44' rx='5' ry='4'/%3E%3C/g%3E%3C/svg%3E");
+    background-size: contain;
+    background-repeat: no-repeat;
+    pointer-events: none;
+    z-index: 0;
+}
+
+.pawMidLeft {
+    position: absolute;
+    bottom: 45%;
+    left: 160px;
+    width: 70px;
+    height: 55px;
+    background-image: url("data:image/svg+xml,%3Csvg width='70' height='55' viewBox='0 0 70 55' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23A0A0A0' opacity='0.3'%3E%3Cellipse cx='16' cy='25' rx='4' ry='6'/%3E%3Cellipse cx='10' cy='19' rx='3' ry='4.5' transform='rotate(-15 10 19)'/%3E%3Cellipse cx='16' cy='15' rx='3' ry='4.5'/%3E%3Cellipse cx='22' cy='19' rx='3' ry='4.5' transform='rotate(15 22 19)'/%3E%3Cellipse cx='16' cy='31' rx='5' ry='4'/%3E%3Cellipse cx='50' cy='30' rx='4' ry='6'/%3E%3Cellipse cx='44' cy='24' rx='3' ry='4.5' transform='rotate(-15 44 24)'/%3E%3Cellipse cx='50' cy='20' rx='3' ry='4.5'/%3E%3Cellipse cx='56' cy='24' rx='3' ry='4.5' transform='rotate(15 56 24)'/%3E%3Cellipse cx='50' cy='36' rx='5' ry='4'/%3E%3C/g%3E%3C/svg%3E");
+    background-size: contain;
+    background-repeat: no-repeat;
+    pointer-events: none;
+    z-index: 0;
+}
+
+.pawBottomRight {
+    position: absolute;
+    bottom: 15px;
+    right: 160px;
+    width: 40px;
+    height: 35px;
+    background-image: url("data:image/svg+xml,%3Csvg width='40' height='35' viewBox='0 0 40 35' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23A0A0A0' opacity='0.3'%3E%3Cellipse cx='20' cy='18' rx='4' ry='6'/%3E%3Cellipse cx='14' cy='12' rx='3' ry='4.5' transform='rotate(-15 14 12)'/%3E%3Cellipse cx='20' cy='8' rx='3' ry='4.5'/%3E%3Cellipse cx='26' cy='12' rx='3' ry='4.5' transform='rotate(15 26 12)'/%3E%3Cellipse cx='20' cy='24' rx='5' ry='4'/%3E%3C/g%3E%3C/svg%3E");
+    background-size: contain;
+    background-repeat: no-repeat;
+    pointer-events: none;
+    z-index: 0;
+}
+
+.pawMidRight {
+    position: absolute;
+    bottom: 40%;
+    right: 140px;
+    width: 70px;
+    height: 55px;
+    background-image: url("data:image/svg+xml,%3Csvg width='70' height='55' viewBox='0 0 70 55' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23A0A0A0' opacity='0.3'%3E%3Cellipse cx='18' cy='25' rx='4' ry='6'/%3E%3Cellipse cx='12' cy='19' rx='3' ry='4.5' transform='rotate(-15 12 19)'/%3E%3Cellipse cx='18' cy='15' rx='3' ry='4.5'/%3E%3Cellipse cx='24' cy='19' rx='3' ry='4.5' transform='rotate(15 24 19)'/%3E%3Cellipse cx='18' cy='31' rx='5' ry='4'/%3E%3Cellipse cx='52' cy='30' rx='4' ry='6'/%3E%3Cellipse cx='46' cy='24' rx='3' ry='4.5' transform='rotate(-15 46 24)'/%3E%3Cellipse cx='52' cy='20' rx='3' ry='4.5'/%3E%3Cellipse cx='58' cy='24' rx='3' ry='4.5' transform='rotate(15 58 24)'/%3E%3Cellipse cx='52' cy='36' rx='5' ry='4'/%3E%3C/g%3E%3C/svg%3E");
+    background-size: contain;
+    background-repeat: no-repeat;
+    pointer-events: none;
+    z-index: 0;
 }
 
 /* Centered Card */
@@ -63,7 +156,8 @@
 /* Logo */
 .logoContainer {
     text-align: center;
-    margin-bottom: 4px;
+    margin-bottom: 24px;
+    z-index: 1;
 }
 
 /* Header */
@@ -267,11 +361,16 @@
 
 /* Copyright */
 .copyright {
+    position: absolute;
+    bottom: 24px;
+    left: 0;
+    right: 0;
     font-size: 11px;
     color: #9CA3AF;
     text-align: center;
-    margin-top: 24px;
+    margin-top: 0;
     padding-top: 4px;
+    z-index: 1;
 }
 
 /* Responsive: Mobile */
@@ -291,5 +390,15 @@
 
     .form {
         gap: 18px;
+    }
+
+    /* Hide decorations on mobile */
+    .dogLeft,
+    .dogRight,
+    .pawBottomLeft,
+    .pawMidLeft,
+    .pawBottomRight,
+    .pawMidRight {
+        display: none;
     }
 }

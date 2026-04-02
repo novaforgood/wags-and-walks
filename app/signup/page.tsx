@@ -5,28 +5,49 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/app/components/AuthProvider'
 import Image from 'next/image'
 import Link from 'next/link'
-import styles from './login.module.css'
+import styles from '../login/login.module.css'
 
-export default function LoginPage() {
+export default function SignUpPage() {
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
-    const [rememberMe, setRememberMe] = useState(false)
+    const [confirmPassword, setConfirmPassword] = useState('')
     const [showPassword, setShowPassword] = useState(false)
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false)
     const [error, setError] = useState('')
     const [loading, setLoading] = useState(false)
-    const { signIn } = useAuth()
+    const { signUp } = useAuth()
     const router = useRouter()
 
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault()
         setError('')
+
+        // Validation
+        if (password !== confirmPassword) {
+            setError('Passwords do not match')
+            return
+        }
+
+        if (password.length < 6) {
+            setError('Password must be at least 6 characters')
+            return
+        }
+
         setLoading(true)
 
         try {
-            await signIn(email, password)
+            await signUp(email, password)
             router.push('/candidates')
         } catch (err: any) {
-            setError(err.message || 'Failed to sign in')
+            if (err.code === 'auth/email-already-in-use') {
+                setError('This email is already registered')
+            } else if (err.code === 'auth/invalid-email') {
+                setError('Invalid email address')
+            } else if (err.code === 'auth/weak-password') {
+                setError('Password is too weak')
+            } else {
+                setError(err.message || 'Failed to create account')
+            }
         } finally {
             setLoading(false)
         }
@@ -53,13 +74,13 @@ export default function LoginPage() {
                 />
             </div>
 
-            {/* Centered Login Card */}
+            {/* Centered Signup Card */}
             <div className={styles.card}>
                 <form onSubmit={handleSubmit} className={styles.form}>
                     {/* Header */}
                     <div className={styles.header}>
-                        <h1 className={styles.title}>Welcome Back</h1>
-                        <p className={styles.subtitle}>Log in to manage your foster candidates.</p>
+                        <h1 className={styles.title}>Create Account</h1>
+                        <p className={styles.subtitle}>Sign up to manage foster candidates.</p>
                     </div>
 
                     {/* Error Message */}
@@ -108,7 +129,7 @@ export default function LoginPage() {
                                 onChange={(e) => setPassword(e.target.value)}
                                 required
                                 className={styles.input}
-                                placeholder="••••••••"
+                                placeholder="At least 6 characters"
                             />
                             <button
                                 type="button"
@@ -130,20 +151,43 @@ export default function LoginPage() {
                         </div>
                     </div>
 
-                    {/* Remember Me & Forgot Password */}
-                    <div className={styles.utilityRow}>
-                        <label className={styles.checkboxLabel}>
-                            <input
-                                type="checkbox"
-                                checked={rememberMe}
-                                onChange={(e) => setRememberMe(e.target.checked)}
-                                className={styles.checkbox}
-                            />
-                            <span>Remember Me</span>
+                    {/* Confirm Password Field */}
+                    <div className={styles.inputGroup}>
+                        <label htmlFor="confirmPassword" className={styles.label}>
+                            Confirm Password
                         </label>
-                        <a href="#" className={styles.forgotLink}>
-                            Forgot Password?
-                        </a>
+                        <div className={styles.inputWrapper}>
+                            <svg className={styles.inputIcon} width="20" height="20" viewBox="0 0 20 20" fill="none">
+                                <rect x="4" y="9" width="12" height="8" rx="1" stroke="currentColor" strokeWidth="1.5"/>
+                                <path d="M7 9V6a3 3 0 0 1 6 0v3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                            </svg>
+                            <input
+                                id="confirmPassword"
+                                type={showConfirmPassword ? 'text' : 'password'}
+                                value={confirmPassword}
+                                onChange={(e) => setConfirmPassword(e.target.value)}
+                                required
+                                className={styles.input}
+                                placeholder="Re-enter password"
+                            />
+                            <button
+                                type="button"
+                                className={styles.togglePassword}
+                                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                tabIndex={-1}
+                            >
+                                {showConfirmPassword ? (
+                                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                                        <path d="M2 10s3-6 8-6 8 6 8 6-3 6-8 6-8-6-8-6z" stroke="currentColor" strokeWidth="1.5"/>
+                                        <circle cx="10" cy="10" r="2" stroke="currentColor" strokeWidth="1.5"/>
+                                    </svg>
+                                ) : (
+                                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                                        <path d="M3 3l14 14M10 7a3 3 0 0 1 3 3m-1.5 4.5A5.5 5.5 0 0 1 4.5 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                                    </svg>
+                                )}
+                            </button>
+                        </div>
                     </div>
 
                     {/* Submit Button */}
@@ -152,22 +196,15 @@ export default function LoginPage() {
                         disabled={loading}
                         className={styles.button}
                     >
-                        {loading ? 'LOGGING IN...' : 'LOG IN'}
+                        {loading ? 'CREATING ACCOUNT...' : 'SIGN UP'}
                     </button>
 
                     {/* Footer Links */}
                     <p className={styles.footer}>
-                        Don't have an account?{' '}
-                        <Link href="/signup" className={styles.signUpLink}>
-                            Sign Up here
+                        Already have an account?{' '}
+                        <Link href="/login" className={styles.signUpLink}>
+                            Log in here
                         </Link>
-                        .
-                    </p>
-                    <p className={styles.footer}>
-                        Need help?{' '}
-                        <a href="mailto:support@wagsandwalks.org" className={styles.signUpLink}>
-                            Contact support
-                        </a>
                         .
                     </p>
                 </form>
