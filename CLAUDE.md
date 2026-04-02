@@ -10,6 +10,7 @@ Wags and Walks is an internal admin dashboard for a dog foster/rescue nonprofit.
 
 - `npm run dev` — Start Next.js dev server
 - `npm run build` — Production build
+- `npm run start` — Start production server
 - `npm run lint` — ESLint (next lint)
 
 No test framework is configured.
@@ -38,13 +39,16 @@ The API auto-promotes `new` applicants with no flags to `in-progress` (see `app/
 
 Two layout patterns coexist:
 - **`/candidates` and `/fosters`** — New sidebar layout (these pages render their own sidebar; `Navigation` component hides itself)
+- `/candidates` — Applicants in pipeline (new, in-progress, approved)
 - `/fosters` — Active fosters list (status = `current`)
 - `/applicants/[email]` — Individual applicant detail
+- `/applicants/[email]/updates` — Updates timeline (currently placeholder)
 
 ### Shared Components
 
 - `PersonModal` — Detail modal for viewing full applicant info
 - `FilterDropdown` — Multi-category filter dropdown (living situation, experience, children, dog types, pet history)
+- `NotificationPanel` — Bell icon notification dropdown with unread/read filtering (currently uses mock data)
 
 ### Styling
 
@@ -54,8 +58,22 @@ CSS Modules throughout (`*.module.css`). Global styles in `app/globals.css`. Fon
 
 `@/*` maps to project root (e.g., `@/app/lib/peopleTypes`).
 
+### Authentication
+
+**Firebase Auth** — Email/password authentication for admin access.
+
+- `firebase.js` — Firebase initialization and auth instance export
+- `app/components/AuthProvider.tsx` — React context providing `useAuth()` hook with `signIn()`, `signOut()`, `signUp()` methods
+- `app/components/ProtectedRoute.tsx` — Wrapper component that redirects to `/login` if user is not authenticated
+- `app/login/page.tsx` — Split-screen login page with Wags & Walks branding
+
+Protected pages (wrapped with `<ProtectedRoute>`):
+- `/candidates`
+- `/fosters`
+
 ### Environment Variables
 
 Defined in `.env.local`:
 - `APPS_SCRIPT_URL` — Google Apps Script deployment URL (the main data API)
 - `APPS_SCRIPT_KEY` — Auth key for the Apps Script
+- `NEXT_PUBLIC_FIREBASE_*` — Firebase configuration (API key, auth domain, project ID, etc.)

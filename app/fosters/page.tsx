@@ -4,6 +4,8 @@ import { useMemo, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { usePeople } from '@/app/components/PeopleProvider'
+import { useAuth } from '@/app/components/AuthProvider'
+import ProtectedRoute from '@/app/components/ProtectedRoute'
 import FilterDropdown, { FilterState } from '@/app/components/FilterDropdown'
 import PersonModal from '@/app/components/PersonModal'
 import type { Person } from '@/app/lib/peopleTypes'
@@ -12,6 +14,7 @@ import styles from '../candidates/candidates.module.css'
 
 export default function FostersPage() {
     const { people, isLoading, error } = usePeople()
+    const { signOut } = useAuth()
     const [searchQuery, setSearchQuery] = useState('')
     const [selectedPerson, setSelectedPerson] = useState<Person | null>(null)
     const [filters, setFilters] = useState<FilterState>({
@@ -97,6 +100,7 @@ export default function FostersPage() {
     }, [allFosters, searchQuery, filters])
 
     return (
+        <ProtectedRoute>
         <div className={styles.pageWrapper}>
             {/* ---- Left Sidebar ---- */}
             <aside className={styles.sidebar}>
@@ -128,7 +132,7 @@ export default function FostersPage() {
                     <div className={styles.profileInfo}>
                         <span className={styles.profileName}>Olivia Qi</span>
                         <a href="#" className={styles.profileEmail}>oliviaqi@ww.com</a>
-                        <button className={styles.profileLogout}>Log Out</button>
+                        <button className={styles.profileLogout} onClick={signOut}>Log Out</button>
                     </div>
                 </div>
             </aside>
@@ -242,5 +246,6 @@ export default function FostersPage() {
             {/* Person detail modal */}
             <PersonModal person={selectedPerson} onClose={() => setSelectedPerson(null)} />
         </div>
+        </ProtectedRoute>
     )
 }

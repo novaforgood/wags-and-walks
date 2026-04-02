@@ -4,6 +4,8 @@ import { useMemo, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { usePeople } from '@/app/components/PeopleProvider'
+import { useAuth } from '@/app/components/AuthProvider'
+import ProtectedRoute from '@/app/components/ProtectedRoute'
 import PersonModal from '@/app/components/PersonModal'
 import FilterDropdown, { FilterState } from '@/app/components/FilterDropdown'
 import type { Person } from '@/app/lib/peopleTypes'
@@ -14,6 +16,7 @@ type Tab = 'candidates' | 'redflags'
 
 export default function CandidatesPage() {
     const { people, isLoading, error, setStatus } = usePeople()
+    const { signOut } = useAuth()
     const [activeTab, setActiveTab] = useState<Tab>('candidates')
     const [selectedEmails, setSelectedEmails] = useState<Set<string>>(new Set())
     const [searchQuery, setSearchQuery] = useState('')
@@ -168,6 +171,7 @@ export default function CandidatesPage() {
     }
 
     return (
+        <ProtectedRoute>
         <div className={styles.pageWrapper}>
             {/* ---- Left Sidebar ---- */}
             <aside className={styles.sidebar}>
@@ -199,7 +203,7 @@ export default function CandidatesPage() {
                     <div className={styles.profileInfo}>
                         <span className={styles.profileName}>Olivia Qi</span>
                         <a href="#" className={styles.profileEmail}>oliviaqi@ww.com</a>
-                        <button className={styles.profileLogout}>Log Out</button>
+                        <button className={styles.profileLogout} onClick={signOut}>Log Out</button>
                     </div>
                 </div>
             </aside>
@@ -470,5 +474,6 @@ export default function CandidatesPage() {
                 </>
             )}
         </div>
+        </ProtectedRoute>
     )
 }

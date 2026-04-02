@@ -1,0 +1,295 @@
+/* Design tokens are defined in app/globals.css */
+
+/* Container - Full viewport with patterned background */
+.container {
+    min-height: 100vh;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background-color: #E5E7EB;
+    position: relative;
+}
+
+/* Background pattern using pseudo-elements for better visibility */
+.container::before,
+.container::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    opacity: 0.06;
+    pointer-events: none;
+}
+
+/* Dog silhouettes pattern */
+.container::before {
+    background-image: url("data:image/svg+xml,%3Csvg width='200' height='200' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M50 80c0-8 6-15 14-15 3 0 6 1 8 3 2-5 7-9 13-9s11 4 13 9c2-2 5-3 8-3 8 0 14 7 14 15 0 2 0 4-1 6l-8 25c-1 3-4 5-7 5H66c-3 0-6-2-7-5l-8-25c-1-2-1-4-1-6z M70 50c4 0 7 3 7 7s-3 7-7 7-7-3-7-7 3-7 7-7z M96 50c4 0 7 3 7 7s-3 7-7 7-7-3-7-7 3-7 7-7z M60 115h46v8c0 3-2 5-5 5H65c-3 0-5-2-5-5v-8z' fill='%234B5563'/%3E%3C/svg%3E");
+    background-size: 200px 200px;
+    background-position: 20px 20px;
+}
+
+/* Paw prints pattern */
+.container::after {
+    background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%234B5563'%3E%3Cellipse cx='50' cy='60' rx='8' ry='12'/%3E%3Cellipse cx='38' cy='50' rx='6' ry='9' transform='rotate(-20 38 50)'/%3E%3Cellipse cx='50' cy='42' rx='6' ry='9' transform='rotate(-5 50 42)'/%3E%3Cellipse cx='62' cy='50' rx='6' ry='9' transform='rotate(20 62 50)'/%3E%3Cellipse cx='50' cy='70' rx='10' ry='8'/%3E%3C/g%3E%3C/svg%3E");
+    background-size: 100px 100px;
+    background-position: 110px 80px;
+}
+
+/* Centered Card */
+.card {
+    width: 100%;
+    max-width: 440px;
+    background-color: var(--color-surface);
+    border-radius: 16px;
+    box-shadow:
+        0 10px 25px -5px rgba(0, 0, 0, 0.1),
+        0 8px 10px -6px rgba(0, 0, 0, 0.1);
+    padding: 40px 44px;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    z-index: 1;
+}
+
+/* Form Container */
+.form {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+/* Logo */
+.logoContainer {
+    text-align: center;
+    margin-bottom: 4px;
+}
+
+/* Header */
+.header {
+    text-align: center;
+    margin-bottom: 4px;
+}
+
+.title {
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--color-text-main);
+    margin: 0 0 6px 0;
+    letter-spacing: -0.3px;
+}
+
+.subtitle {
+    font-size: 13px;
+    color: var(--color-text-muted);
+    margin: 0;
+    line-height: 1.4;
+}
+
+/* Error Message */
+.error {
+    background: #FEE;
+    border: 1px solid #FCC;
+    color: #C33;
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    text-align: center;
+}
+
+/* Input Groups */
+.inputGroup {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--color-text-main);
+    letter-spacing: -0.1px;
+}
+
+/* Input Wrapper (for icon positioning) */
+.inputWrapper {
+    position: relative;
+    width: 100%;
+}
+
+.inputIcon {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #9CA3AF;
+    pointer-events: none;
+    width: 18px;
+    height: 18px;
+}
+
+.input {
+    width: 100%;
+    height: 44px;
+    padding: 0 18px 0 42px;
+    background-color: var(--color-surface);
+    border: 1.5px solid #D1D5DB;
+    border-radius: var(--radius-pill);
+    font-size: 14px;
+    color: var(--color-text-main);
+    transition: all 0.2s ease;
+    outline: none;
+}
+
+.input::placeholder {
+    color: #9CA3AF;
+}
+
+.input:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px var(--color-focus-ring);
+}
+
+/* Toggle Password Button */
+.togglePassword {
+    position: absolute;
+    right: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: #9CA3AF;
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s ease;
+}
+
+.togglePassword:hover {
+    color: var(--color-primary);
+}
+
+.togglePassword svg {
+    width: 18px;
+    height: 18px;
+}
+
+/* Utility Row (Remember Me + Forgot Password) */
+.utilityRow {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: -6px;
+}
+
+.checkboxLabel {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 13px;
+    color: var(--color-text-main);
+    cursor: pointer;
+}
+
+.checkbox {
+    width: 15px;
+    height: 15px;
+    accent-color: var(--color-primary);
+    cursor: pointer;
+}
+
+.forgotLink {
+    font-size: 13px;
+    color: var(--color-text-muted);
+    text-decoration: underline;
+    transition: color 0.2s ease;
+}
+
+.forgotLink:hover {
+    color: var(--color-primary);
+}
+
+/* Submit Button */
+.button {
+    width: 100%;
+    height: 44px;
+    background-color: var(--color-primary);
+    color: var(--color-surface);
+    border: none;
+    border-radius: var(--radius-pill);
+    font-size: 15px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin-top: 4px;
+}
+
+.button:hover:not(:disabled) {
+    background-color: var(--color-primary-dark);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(75, 161, 157, 0.3);
+}
+
+.button:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+.button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Footer Links */
+.footer {
+    font-size: 13px;
+    color: var(--color-text-muted);
+    text-align: center;
+    margin: 0;
+    line-height: 1.6;
+}
+
+.signUpLink {
+    color: var(--color-primary);
+    text-decoration: underline;
+    transition: color 0.2s ease;
+    font-weight: 500;
+}
+
+.signUpLink:hover {
+    color: var(--color-primary-dark);
+}
+
+/* Copyright */
+.copyright {
+    font-size: 11px;
+    color: #9CA3AF;
+    text-align: center;
+    margin-top: 24px;
+    padding-top: 4px;
+}
+
+/* Responsive: Mobile */
+@media (max-width: 480px) {
+    .container {
+        padding: 16px;
+    }
+
+    .card {
+        padding: 32px 28px;
+        max-width: 100%;
+    }
+
+    .title {
+        font-size: 24px;
+    }
+
+    .form {
+        gap: 18px;
+    }
+}
