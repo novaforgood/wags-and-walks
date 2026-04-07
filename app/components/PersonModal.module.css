@@ -2,8 +2,7 @@
 .overlay {
     position: fixed;
     top: 0;
-    left: 208px;
-    /* sidebar width */
+    left: var(--app-sidebar-width, 208px);
     right: 0;
     bottom: 0;
     background: #f3f7f7;

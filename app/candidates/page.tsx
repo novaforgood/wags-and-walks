@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
@@ -40,6 +40,19 @@ export default function CandidatesPage() {
         isOpen: boolean
         message: string
     }>({ isOpen: false, message: '' })
+
+    const [navWidth, setNavWidth] = useState<number>(() => {
+        try {
+            const raw = localStorage.getItem('app_nav_sidebar_width_v1')
+            const n = raw ? Number(raw) : NaN
+            return Number.isFinite(n) ? Math.max(180, Math.min(280, n)) : 208
+        } catch {
+            return 208
+        }
+    })
+    const [isResizingNav, setIsResizingNav] = useState(false)
+    const navStartXRef = useRef(0)
+    const navStartWRef = useRef(208)
     const [filters, setFilters] = useState<FilterState>({
         livingSituation: [],
         dogTypes: [],
@@ -183,9 +196,46 @@ export default function CandidatesPage() {
         return () => window.clearTimeout(t)
     }, [acceptToast.isOpen])
 
+    useEffect(() => {
+        try {
+            localStorage.setItem('app_nav_sidebar_width_v1', String(navWidth))
+        } catch {
+            // ignore
+        }
+    }, [navWidth])
+
+    useEffect(() => {
+        if (!isResizingNav) return
+        const prevUserSelect = document.body.style.userSelect
+        document.body.style.userSelect = 'none'
+
+        function onMove(e: PointerEvent) {
+            const delta = e.clientX - navStartXRef.current
+            const next = Math.max(180, Math.min(280, navStartWRef.current + delta))
+            setNavWidth(next)
+        }
+
+        function onUp() {
+            setIsResizingNav(false)
+        }
+
+        window.addEventListener('pointermove', onMove)
+        window.addEventListener('pointerup', onUp)
+        window.addEventListener('pointercancel', onUp)
+        return () => {
+            document.body.style.userSelect = prevUserSelect
+            window.removeEventListener('pointermove', onMove)
+            window.removeEventListener('pointerup', onUp)
+            window.removeEventListener('pointercancel', onUp)
+        }
+    }, [isResizingNav])
+
     return (
         <ProtectedRoute>
-        <div className={styles.pageWrapper}>
+        <div
+            className={styles.pageWrapper}
+            style={{ ['--app-sidebar-width' as any]: `${navWidth}px` }}
+        >
             {/* ---- Left Sidebar ---- */}
             <aside className={styles.sidebar}>
                 <div className={styles.sidebarLogo}>
@@ -223,6 +273,17 @@ export default function CandidatesPage() {
                     </div>
                 </div>
             </aside>
+
+            <div
+                className={styles.navResizeHandle}
+                onPointerDown={(e) => {
+                    e.preventDefault()
+                    e.currentTarget.setPointerCapture(e.pointerId)
+                    navStartXRef.current = e.clientX
+                    navStartWRef.current = navWidth
+                    setIsResizingNav(true)
+                }}
+            />
 
             {/* ---- Main Content ---- */}
             <div className={styles.mainContent}>

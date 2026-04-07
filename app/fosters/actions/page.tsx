@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState, useCallback, useEffect } from 'react'
+import { useMemo, useState, useCallback, useEffect, useRef } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
@@ -48,6 +48,18 @@ export default function FosterActionsPage() {
   const pathname = usePathname()
   const { people, isLoading, error } = usePeople()
   const { user, signOut } = useAuth()
+  const [navWidth, setNavWidth] = useState<number>(() => {
+    try {
+      const raw = localStorage.getItem('app_nav_sidebar_width_v1')
+      const n = raw ? Number(raw) : NaN
+      return Number.isFinite(n) ? Math.max(180, Math.min(280, n)) : 208
+    } catch {
+      return 208
+    }
+  })
+  const [isResizingNav, setIsResizingNav] = useState(false)
+  const navStartXRef = useRef(0)
+  const navStartWRef = useRef(208)
 
   const realRows = useMemo(() => buildFosterOverview(people), [people])
   const rows = useMemo(() => {
@@ -69,6 +81,18 @@ export default function FosterActionsPage() {
   const [expandedDogs, setExpandedDogs] = useState<Set<string>>(new Set())
 
   const [selection, setSelection] = useState<Selection | null>(null)
+  const [sidebarWidth, setSidebarWidth] = useState<number>(() => {
+    try {
+      const raw = localStorage.getItem('fosters_actions_sidebar_width_v1')
+      const n = raw ? Number(raw) : NaN
+      return Number.isFinite(n) ? Math.max(260, Math.min(420, n)) : 312
+    } catch {
+      return 312
+    }
+  })
+  const [isResizing, setIsResizing] = useState(false)
+  const dragStartXRef = useRef(0)
+  const startWidthRef = useRef(312)
 
   useEffect(() => {
     if (rows.length === 0) return
@@ -109,6 +133,72 @@ export default function FosterActionsPage() {
     })
   }, [])
 
+  useEffect(() => {
+    if (!isResizing) return
+
+    const prevUserSelect = document.body.style.userSelect
+    document.body.style.userSelect = 'none'
+
+    function onMove(e: PointerEvent) {
+      const delta = e.clientX - dragStartXRef.current
+      const next = Math.max(260, Math.min(420, startWidthRef.current + delta))
+      setSidebarWidth(next)
+    }
+
+    function onUp() {
+      setIsResizing(false)
+    }
+
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
+    window.addEventListener('pointercancel', onUp)
+    return () => {
+      document.body.style.userSelect = prevUserSelect
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+      window.removeEventListener('pointercancel', onUp)
+    }
+  }, [isResizing])
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('app_nav_sidebar_width_v1', String(navWidth))
+    } catch {
+      // ignore
+    }
+  }, [navWidth])
+
+  useEffect(() => {
+    if (!isResizingNav) return
+    const prevUserSelect = document.body.style.userSelect
+    document.body.style.userSelect = 'none'
+    function onMove(e: PointerEvent) {
+      const delta = e.clientX - navStartXRef.current
+      const next = Math.max(180, Math.min(280, navStartWRef.current + delta))
+      setNavWidth(next)
+    }
+    function onUp() {
+      setIsResizingNav(false)
+    }
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
+    window.addEventListener('pointercancel', onUp)
+    return () => {
+      document.body.style.userSelect = prevUserSelect
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+      window.removeEventListener('pointercancel', onUp)
+    }
+  }, [isResizingNav])
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('fosters_actions_sidebar_width_v1', String(sidebarWidth))
+    } catch {
+      // ignore
+    }
+  }, [sidebarWidth])
+
   const selectedRow = selection
     ? rows.find(r => r.id === selection.fosterId)
     : undefined
@@ -119,7 +209,7 @@ export default function FosterActionsPage() {
 
   return (
     <ProtectedRoute>
-      <div className={layoutStyles.pageWrapper}>
+      <div className={layoutStyles.pageWrapper} style={{ ['--app-sidebar-width' as any]: `${navWidth}px` }}>
         <aside className={layoutStyles.sidebar}>
           <div className={layoutStyles.sidebarLogo}>
             <Image src="/assets/logo.png" alt="Wags & Walks" width={160} height={60} priority />
@@ -161,6 +251,17 @@ export default function FosterActionsPage() {
           </div>
         </aside>
 
+        <div
+          className={layoutStyles.navResizeHandle}
+          onPointerDown={(e) => {
+            e.preventDefault()
+            e.currentTarget.setPointerCapture(e.pointerId)
+            navStartXRef.current = e.clientX
+            navStartWRef.current = navWidth
+            setIsResizingNav(true)
+          }}
+        />
+
         <div className={layoutStyles.mainContent}>
           <div className={layoutStyles.topBar}>
             <h1 className={layoutStyles.topBarTitle}>Onboarded Fosters</h1>
@@ -175,7 +276,11 @@ export default function FosterActionsPage() {
 
           {!isLoading && (
             <div className={styles.pageInner}>
-              <aside className={styles.treePane} aria-label="Foster tree">
+              <aside
+                className={styles.treePane}
+                aria-label="Foster tree"
+                style={{ width: sidebarWidth }}
+              >
                 <div className={styles.treeHeader}>Action Items</div>
                 <div className={styles.treeScroll}>
                   <div className={styles.treeSummary}>
@@ -297,6 +402,17 @@ export default function FosterActionsPage() {
                   )}
                 </div>
               </aside>
+
+              <div
+                className={styles.resizeHandle}
+                onPointerDown={(e) => {
+                  e.preventDefault()
+                  e.currentTarget.setPointerCapture(e.pointerId)
+                  dragStartXRef.current = e.clientX
+                  startWidthRef.current = sidebarWidth
+                  setIsResizing(true)
+                }}
+              />
 
               <main className={styles.detailPane}>
                 <p className={styles.detailHint}>

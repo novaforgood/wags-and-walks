@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
@@ -28,14 +28,57 @@ export default function FostersSectionOverviewPage() {
   const pathname = usePathname()
   const { people, isLoading, error } = usePeople()
   const { user, signOut } = useAuth()
+  const [navWidth, setNavWidth] = useState<number>(() => {
+    try {
+      const raw = localStorage.getItem('app_nav_sidebar_width_v1')
+      const n = raw ? Number(raw) : NaN
+      return Number.isFinite(n) ? Math.max(180, Math.min(280, n)) : 208
+    } catch {
+      return 208
+    }
+  })
+  const [isResizingNav, setIsResizingNav] = useState(false)
+  const navStartXRef = useRef(0)
+  const navStartWRef = useRef(208)
 
   const rows = useMemo(() => buildFosterOverview(people), [people])
   const totalOpen = useMemo(() => countOpenActions(rows), [rows])
   const overdue = useMemo(() => countOverdue(rows), [rows])
 
+  useEffect(() => {
+    try {
+      localStorage.setItem('app_nav_sidebar_width_v1', String(navWidth))
+    } catch {
+      // ignore
+    }
+  }, [navWidth])
+
+  useEffect(() => {
+    if (!isResizingNav) return
+    const prevUserSelect = document.body.style.userSelect
+    document.body.style.userSelect = 'none'
+    function onMove(e: PointerEvent) {
+      const delta = e.clientX - navStartXRef.current
+      const next = Math.max(180, Math.min(280, navStartWRef.current + delta))
+      setNavWidth(next)
+    }
+    function onUp() {
+      setIsResizingNav(false)
+    }
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
+    window.addEventListener('pointercancel', onUp)
+    return () => {
+      document.body.style.userSelect = prevUserSelect
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+      window.removeEventListener('pointercancel', onUp)
+    }
+  }, [isResizingNav])
+
   return (
     <ProtectedRoute>
-      <div className={layoutStyles.pageWrapper}>
+      <div className={layoutStyles.pageWrapper} style={{ ['--app-sidebar-width' as any]: `${navWidth}px` }}>
         <aside className={layoutStyles.sidebar}>
           <div className={layoutStyles.sidebarLogo}>
             <Image src="/assets/logo.png" alt="Wags & Walks" width={160} height={60} priority />
@@ -76,6 +119,17 @@ export default function FostersSectionOverviewPage() {
             </div>
           </div>
         </aside>
+
+        <div
+          className={layoutStyles.navResizeHandle}
+          onPointerDown={(e) => {
+            e.preventDefault()
+            e.currentTarget.setPointerCapture(e.pointerId)
+            navStartXRef.current = e.clientX
+            navStartWRef.current = navWidth
+            setIsResizingNav(true)
+          }}
+        />
 
         <div className={layoutStyles.mainContent}>
           <div className={layoutStyles.topBar}>
