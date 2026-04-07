@@ -9,6 +9,7 @@ import { useAuth } from '@/app/components/AuthProvider'
 import ProtectedRoute from '@/app/components/ProtectedRoute'
 import FilterDropdown, { FilterState } from '@/app/components/FilterDropdown'
 import PersonModal from '@/app/components/PersonModal'
+import NotificationPanel from '@/app/components/NotificationPanel'
 import type { Person } from '@/app/lib/peopleTypes'
 import styles from '../candidates/candidates.module.css'
 
@@ -216,6 +217,7 @@ export default function DirectoryPage() {
                 {/* Top bar */}
                 <div className={styles.topBar}>
                     <h1 className={styles.topBarTitle}>Directory</h1>
+                    <NotificationPanel />
                 </div>
 
                 {/* Toolbar (same styling as Applicants) */}

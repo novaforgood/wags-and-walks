@@ -36,6 +36,7 @@
     min-height: 100vh;
     background: #f3f7f7;
     font-family: 'Inter', sans-serif;
+    align-items: stretch;
 }
 
 /* ---- Sidebar ---- */
@@ -431,6 +432,7 @@
     font-size: 14px;
     font-family: 'Inter', sans-serif;
     table-layout: auto;
+    min-width: 760px;
 }
 
 .table thead tr {
@@ -666,6 +668,10 @@
     min-width: 0;
 }
 
+.redFlagsTableColWithPanel {
+    flex: 0 1 calc(100% - 304px);
+}
+
 /* Wrapper inside redFlagsLayout — no extra tableWrapper padding needed */
 .redFlagsTableCol .tableWrapper {
     padding: 0;
@@ -771,10 +777,28 @@
 }
 
 .sidePanelContent {
-    font-size: 14px;
-    color: #414141;
-    line-height: 1.5;
-    text-align: center;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    margin-top: 2px;
+}
+
+.redFlagBadge {
+    display: inline-flex;
+    align-items: center;
+    min-height: 28px;
+    border-radius: 999px;
+    padding: 6px 12px;
+    border: 1px solid rgba(220, 38, 38, 0.25);
+    background: #fee2e2;
+    color: #b91c1c;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    line-height: 1;
 }
 
 .sidePanelClose {
@@ -940,9 +964,85 @@
 
 /* ---- Responsive: align tables/toolbars with full-width tab underline ---- */
 @media (max-width: 900px) {
+    .pageWrapper {
+        flex-direction: column;
+    }
+
+    .sidebar {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+        padding: 10px 16px;
+        gap: 12px;
+    }
+
+    .sidebarLogo {
+        height: auto;
+        justify-content: flex-start;
+    }
+
+    .sidebarNav {
+        flex: 1;
+        flex-direction: row;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .navItem {
+        margin: 0;
+        padding: 8px 10px;
+        font-size: 14px;
+        gap: 8px;
+        border-radius: 8px;
+    }
+
+    .navItemActive {
+        margin: 0;
+        padding: 8px 10px;
+        border-radius: 8px;
+    }
+
+    .sidebarProfile {
+        padding: 0;
+        align-items: center;
+    }
+
+    .profileInfo {
+        display: none;
+    }
+
+    .navResizeHandle {
+        display: none;
+    }
+
+    .topBar {
+        padding: 16px 24px;
+    }
+
+    .tabSection {
+        padding: 18px 24px 0;
+    }
+
+    .toolbar {
+        padding: 12px 24px 16px;
+    }
+
+    .tableWrapper {
+        padding: 0 24px 24px;
+    }
+
     .redFlagsLayout {
+        padding: 0 24px 24px;
         flex-direction: column;
         align-items: stretch;
+    }
+
+    .redFlagsLayout {
+        gap: 16px;
     }
 
     .redFlagsTableCol {
@@ -957,6 +1057,15 @@
 }
 
 @media (max-width: 768px) {
+    .topBarTitle {
+        font-size: 20px;
+    }
+
+    .tab {
+        padding: 8px 12px;
+        font-size: 16px;
+    }
+
     .toolbar {
         flex-wrap: wrap;
         align-items: stretch;
@@ -975,6 +1084,7 @@
         margin-left: 0;
         flex-wrap: wrap;
         justify-content: flex-start;
+        width: 100%;
     }
 
     .filterByBtn {
@@ -984,6 +1094,22 @@
 }
 
 @media (max-width: 640px) {
+    .sidebar {
+        padding: 10px 12px;
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .sidebarNav {
+        width: 100%;
+        justify-content: flex-start;
+    }
+
+    .sidebarProfile {
+        width: 100%;
+        justify-content: flex-end;
+    }
+
     .tabSection,
     .toolbar,
     .tableWrapper,
@@ -1005,5 +1131,34 @@
 
     .table td:last-child {
         padding-right: 16px;
+    }
+
+    .rowActions {
+        gap: 6px;
+    }
+
+    .actionIconBtn {
+        width: 32px;
+        height: 32px;
+    }
+
+    .actionIconSvg {
+        width: 16px;
+        height: 16px;
+    }
+
+    .confirmModalPopover {
+        width: calc(100vw - 32px);
+        max-width: 420px;
+    }
+
+    .confirmActions {
+        gap: 10px;
+    }
+
+    .confirmCancelBtn,
+    .confirmAcceptBtn,
+    .confirmRejectBtn {
+        padding: 10px 12px;
     }
 }

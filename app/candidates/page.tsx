@@ -8,6 +8,7 @@ import { usePeople } from '@/app/components/PeopleProvider'
 import { useAuth } from '@/app/components/AuthProvider'
 import ProtectedRoute from '@/app/components/ProtectedRoute'
 import PersonModal from '@/app/components/PersonModal'
+import NotificationPanel from '@/app/components/NotificationPanel'
 import FilterDropdown, { FilterState } from '@/app/components/FilterDropdown'
 import type { Person } from '@/app/lib/peopleTypes'
 import styles from './candidates.module.css'
@@ -172,6 +173,23 @@ export default function CandidatesPage() {
         return raw
     }
 
+    const getRedFlagTokens = (person: typeof people[0]) => {
+        const value = getRedFlagsDisplay(person)
+        if (value === 'None') return []
+
+        return value
+            .split(/[;,|]/)
+            .map(token => token.trim())
+            .filter(Boolean)
+    }
+
+    const formatRedFlagLabel = (token: string) => {
+        return token
+            .replace(/_/g, ' ')
+            .toLowerCase()
+            .replace(/\b\w/g, (char) => char.toUpperCase())
+    }
+
     const hasFlags = (person: typeof people[0]) => {
         const flags = getRedFlagsDisplay(person)
         return flags !== 'None'
@@ -298,6 +316,7 @@ export default function CandidatesPage() {
                 {/* Top bar */}
                 <div className={styles.topBar}>
                     <h1 className={styles.topBarTitle}>Foster Applicants</h1>
+                    <NotificationPanel />
                 </div>
 
                 {/* Tabs */}
@@ -445,7 +464,7 @@ export default function CandidatesPage() {
                 {activeTab === 'redflags' && (
                     <div className={styles.redFlagsLayout}>
                         {/* Table column */}
-                        <div className={`${styles.redFlagsTableCol}`}>
+                        <div className={`${styles.redFlagsTableCol} ${expandedEmail ? styles.redFlagsTableColWithPanel : ''}`}>
                             <div className={styles.tableContainer}>
                                 <table className={styles.table}>
                                     <thead>
@@ -490,19 +509,24 @@ export default function CandidatesPage() {
                             </div>
                         </div>
 
-                        {/* Side panel — always visible; fills with info when a row is clicked */}
-                        <div className={styles.sidePanel}>
-                            {expandedEmail ? (() => {
+                        {/* Side panel — shown only when a row is selected */}
+                        {expandedEmail && (() => {
                                 const person = flaggedPeople.find(p => p.email === expandedEmail)
-                                if (!person) return <div className={styles.sidePanelTitle}>Select a candidate</div>
+                                if (!person) return null
                                 const name = `${person.firstName ?? ''} ${person.lastName ?? ''}`.trim() || 'Unknown'
-                                const flagsText = getRedFlagsDisplay(person)
+                                const flagTokens = getRedFlagTokens(person)
                                 return (
-                                    <>
+                                    <div className={styles.sidePanel}>
                                         <div className={styles.sidePanelTopBlock}>
                                             <div className={styles.sidePanelNameTitle}>{name}</div>
                                         </div>
-                                        <div className={styles.sidePanelContent}>{flagsText}</div>
+                                        <div className={styles.sidePanelContent}>
+                                            {flagTokens.map(flag => (
+                                                <span key={flag} className={styles.redFlagBadge}>
+                                                    {formatRedFlagLabel(flag)}
+                                                </span>
+                                            ))}
+                                        </div>
                                         <button
                                             className={styles.viewMoreBtn}
                                             onClick={() => setSelectedPerson(person)}
@@ -525,12 +549,9 @@ export default function CandidatesPage() {
                                                 }}
                                             >Reject</button>
                                         </div>
-                                    </>
+                                    </div>
                                 )
-                            })() : (
-                                <div className={styles.sidePanelTitle}>Select a candidate</div>
-                            )}
-                        </div>
+                            })()}
                     </div>
                 )}
             </div>

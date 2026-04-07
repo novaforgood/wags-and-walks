@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { useParams, usePathname } from 'next/navigation'
 import { useAuth } from '@/app/components/AuthProvider'
 import ProtectedRoute from '@/app/components/ProtectedRoute'
+import NotificationPanel from '@/app/components/NotificationPanel'
 import {
   buildFosterDirectory,
   formatDateShort,
@@ -160,6 +161,7 @@ export default function FosterDetailsPage() {
         <div className={layoutStyles.mainContent}>
           <div className={layoutStyles.topBar}>
             <h1 className={layoutStyles.topBarTitle}>Foster Details</h1>
+            <NotificationPanel />
           </div>
 
           <div className={styles.wrap}>

@@ -7,6 +7,7 @@ import { usePathname } from 'next/navigation'
 import { usePeople } from '@/app/components/PeopleProvider'
 import { useAuth } from '@/app/components/AuthProvider'
 import ProtectedRoute from '@/app/components/ProtectedRoute'
+import NotificationPanel from '@/app/components/NotificationPanel'
 import type { Person, PersonStatus } from '@/app/lib/peopleTypes'
 import layoutStyles from '../candidates/candidates.module.css'
 import styles from './overview.module.css'
@@ -245,6 +246,7 @@ export default function OverviewPage() {
                 <div className={layoutStyles.mainContent}>
                     <div className={layoutStyles.topBar}>
                         <h1 className={layoutStyles.topBarTitle}>Overview</h1>
+                        <NotificationPanel />
                     </div>
 
                     {isLoading && people.length === 0 && (

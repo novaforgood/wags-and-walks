@@ -3,6 +3,7 @@
 import { useState } from 'react'
 
 import type { Person } from '@/app/lib/peopleTypes'
+import NotificationPanel from './NotificationPanel'
 import styles from './PersonModal.module.css'
 
 interface Props {
@@ -47,7 +48,7 @@ export default function PersonModal({ person, onClose }: Props) {
                 </div>
                 {/* Notification bell */}
                 <div className={styles.topBarIcon}>
-                    <img src="/assets/Notif.svg" alt="Notifications" width={24} height={24} />
+                    <NotificationPanel />
                 </div>
             </div>
 

@@ -7,6 +7,7 @@ import { usePathname } from 'next/navigation'
 import { usePeople } from '@/app/components/PeopleProvider'
 import { useAuth } from '@/app/components/AuthProvider'
 import ProtectedRoute from '@/app/components/ProtectedRoute'
+import NotificationPanel from '@/app/components/NotificationPanel'
 import type { ActionStatus } from '@/app/lib/fosterActions'
 import {
   buildFosterOverview,
@@ -277,6 +278,7 @@ export default function FosterActionsPage() {
         <div className={layoutStyles.mainContent}>
           <div className={layoutStyles.topBar}>
             <h1 className={layoutStyles.topBarTitle}>Onboarded Fosters</h1>
+            <NotificationPanel />
           </div>
 
           <FostersSubTabs active="overview" />

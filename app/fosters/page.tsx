@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAuth } from '@/app/components/AuthProvider'
 import ProtectedRoute from '@/app/components/ProtectedRoute'
+import NotificationPanel from '@/app/components/NotificationPanel'
 import FostersSubTabs from './FostersSubTabs'
 import { buildFosterDirectory, formatDateShort, type DogRecord, type FosterStatus } from '@/app/lib/fosterDirectory'
 import styles from '../candidates/candidates.module.css'
@@ -170,6 +171,7 @@ export default function FostersPage() {
         <div className={styles.mainContent}>
           <div className={styles.topBar}>
             <h1 className={styles.topBarTitle}>Onboarded Fosters</h1>
+            <NotificationPanel />
           </div>
 
           <FostersSubTabs active="directory" />

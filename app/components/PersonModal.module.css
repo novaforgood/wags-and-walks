@@ -123,35 +123,46 @@
 .content {
     flex: 1;
     overflow-y: auto;
+    background: #f6f9f9;
 }
 
 /* ---- Profile tab ---- */
 .profileContent {
-    padding: 40px 60px 64px;
+    padding: 28px 40px 48px;
     display: flex;
     flex-direction: column;
-    gap: 56px;
+    gap: 24px;
     width: 100%;
+    max-width: 1200px;
 }
 
 /* ---- Section ---- */
 .section {
     display: flex;
     flex-direction: column;
-    gap: 28px;
+    gap: 20px;
+    background: #fbfbfb;
+    border: 1px solid #d9e7e7;
+    border-radius: 12px;
+    padding: 20px 22px 22px;
+    box-shadow: 0 2px 8px rgba(10, 40, 40, 0.04);
 }
 
 .sectionTitle {
-    font-size: 14px;
-    font-weight: 600;
-    color: #222;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: #3b4b4b;
+    border-bottom: 1px solid #e5eeee;
+    padding-bottom: 10px;
 }
 
 /* ---- 3-column grid ---- */
 .threeColGrid {
     display: grid;
-    grid-template-columns: 37.5% 37.5% 25%;
-    gap: 36px 0;
+    grid-template-columns: repeat(3, minmax(220px, 1fr));
+    gap: 22px 20px;
     width: 100%;
 }
 
@@ -159,13 +170,14 @@
 .field {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 4px;
+    min-width: 0;
 }
 
 .fieldLabel {
     font-size: 12px;
-    font-weight: 400;
-    color: #888;
+    font-weight: 500;
+    color: #6f7e7e;
 }
 
 .fieldValue {
@@ -173,6 +185,41 @@
     font-weight: 600;
     color: #222;
     word-break: break-word;
+}
+
+@media (max-width: 1000px) {
+    .profileContent {
+        padding: 24px 24px 40px;
+        max-width: none;
+    }
+
+    .threeColGrid {
+        grid-template-columns: repeat(2, minmax(220px, 1fr));
+    }
+}
+
+@media (max-width: 640px) {
+    .tabRow,
+    .topBar {
+        padding-left: 16px;
+        padding-right: 16px;
+    }
+
+    .profileContent {
+        padding: 18px 16px 28px;
+        gap: 16px;
+    }
+
+    .section {
+        border-radius: 10px;
+        padding: 16px;
+        gap: 14px;
+    }
+
+    .threeColGrid {
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
 }
 
 /* (placeholder styles removed; only Profile tab remains) */
