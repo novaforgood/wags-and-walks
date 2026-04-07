@@ -157,7 +157,7 @@ export default function LoginPage() {
 
                     {/* Footer Links */}
                     <p className={styles.footer}>
-                        Don't have an account?{' '}
+                        Don&apos;t have an account?{' '}
                         <Link href="/signup" className={styles.signUpLink}>
                             Sign Up here
                         </Link>

@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import styles from '../candidates/candidates.module.css'
 
-type Tab = 'overview' | 'directory' | 'actions'
+type Tab = 'overview' | 'actions'
 
 export default function FostersSubTabs({ active }: { active: Tab }) {
     return (
@@ -12,12 +12,6 @@ export default function FostersSubTabs({ active }: { active: Tab }) {
                     className={`${styles.tab} ${active === 'overview' ? styles.tabActive : ''}`}
                 >
                     Overview
-                </Link>
-                <Link
-                    href="/fosters"
-                    className={`${styles.tab} ${active === 'directory' ? styles.tabActive : ''}`}
-                >
-                    Directory
                 </Link>
                 <Link
                     href="/fosters/actions"

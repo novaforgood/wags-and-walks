@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { usePeople } from '@/app/components/PeopleProvider'
 import { useAuth } from '@/app/components/AuthProvider'
 import ProtectedRoute from '@/app/components/ProtectedRoute'
@@ -16,6 +16,7 @@ type Tab = 'candidates' | 'redflags'
 
 export default function CandidatesPage() {
     const pathname = usePathname()
+    const router = useRouter()
     const { people, isLoading, error, setStatus } = usePeople()
     const { user, signOut } = useAuth()
     const [activeTab, setActiveTab] = useState<Tab>('candidates')
@@ -252,8 +253,15 @@ export default function CandidatesPage() {
                         Applicants
                     </Link>
                     <Link
+                        href="/fosters"
+                        className={`${styles.navItem} ${pathname === '/fosters' ? styles.navItemActive : ''}`}
+                    >
+                        <img src="/assets/Search.svg" alt="Directory" width={18} height={18} />
+                        Directory
+                    </Link>
+                    <Link
                         href="/fosters/overview"
-                        className={`${styles.navItem} ${pathname?.startsWith('/fosters') ? styles.navItemActive : ''}`}
+                        className={`${styles.navItem} ${pathname?.startsWith('/fosters/') ? styles.navItemActive : ''}`}
                     >
                         <img src="/assets/fosters.svg" alt="Fosters" width={18} height={18} />
                         Fosters

@@ -165,8 +165,17 @@ export default function FostersPage() {
                         Applicants
                     </Link>
                     <Link
+                        href="/fosters"
+                        className={`${styles.navItem} ${pathname === '/fosters' ? styles.navItemActive : ''}`}
+                    >
+                        <img src="/assets/Search.svg" alt="Directory" width={18} height={18} />
+                        Directory
+                    </Link>
+                    <Link
                         href="/fosters/overview"
-                        className={`${styles.navItem} ${pathname?.startsWith('/fosters') ? styles.navItemActive : ''}`}
+                        className={`${styles.navItem} ${
+                            pathname?.startsWith('/fosters/') ? styles.navItemActive : ''
+                        }`}
                     >
                         <img src="/assets/fosters.svg" alt="Fosters" width={18} height={18} />
                         Fosters
@@ -204,8 +213,6 @@ export default function FostersPage() {
                 <div className={styles.topBar}>
                     <h1 className={styles.topBarTitle}>Onboarded Fosters</h1>
                 </div>
-
-                <FostersSubTabs active="directory" />
 
                 {/* Toolbar */}
                 <div className={styles.toolbar}>

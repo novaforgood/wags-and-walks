@@ -94,8 +94,15 @@ export default function FostersSectionOverviewPage() {
               Applicants
             </Link>
             <Link
+              href="/fosters"
+              className={`${layoutStyles.navItem} ${pathname === '/fosters' ? layoutStyles.navItemActive : ''}`}
+            >
+              <img src="/assets/Search.svg" alt="" width={18} height={18} />
+              Directory
+            </Link>
+            <Link
               href="/fosters/overview"
-              className={`${layoutStyles.navItem} ${pathname?.startsWith('/fosters') ? layoutStyles.navItemActive : ''}`}
+              className={`${layoutStyles.navItem} ${pathname?.startsWith('/fosters/') ? layoutStyles.navItemActive : ''}`}
             >
               <img src="/assets/fosters.svg" alt="" width={18} height={18} />
               Fosters

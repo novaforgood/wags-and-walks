@@ -94,25 +94,30 @@ export default function FosterActionsPage() {
   const dragStartXRef = useRef(0)
   const startWidthRef = useRef(312)
 
-  useEffect(() => {
-    if (rows.length === 0) return
-    setExpandedFosters(prev => {
-      if (prev.size > 0) return prev
-      return new Set([rows[0].id])
-    })
-    setExpandedDogs(prev => {
-      if (prev.size > 0) return prev
-      const d0 = rows[0].dogs[0]
-      if (!d0) return prev
-      return new Set([`${rows[0].id}::${d0.id}`])
-    })
-    setSelection(sel => {
-      if (sel) return sel
-      const d0 = rows[0].dogs[0]
-      if (d0) return { kind: 'dog', fosterId: rows[0].id, dogId: d0.id }
-      return { kind: 'foster', fosterId: rows[0].id }
-    })
-  }, [rows])
+  const defaultFosterId = rows[0]?.id
+  const defaultDogId = rows[0]?.dogs?.[0]?.id
+
+  const effectiveExpandedFosters =
+    expandedFosters.size > 0
+      ? expandedFosters
+      : defaultFosterId
+        ? new Set([defaultFosterId])
+        : new Set<string>()
+
+  const effectiveExpandedDogs =
+    expandedDogs.size > 0
+      ? expandedDogs
+      : defaultFosterId && defaultDogId
+        ? new Set([`${defaultFosterId}::${defaultDogId}`])
+        : new Set<string>()
+
+  const effectiveSelection: Selection | null =
+    selection ??
+    (defaultFosterId
+      ? defaultDogId
+        ? { kind: 'dog', fosterId: defaultFosterId, dogId: defaultDogId }
+        : { kind: 'foster', fosterId: defaultFosterId }
+      : null)
 
   const toggleFoster = useCallback((id: string) => {
     setExpandedFosters(prev => {
@@ -199,12 +204,12 @@ export default function FosterActionsPage() {
     }
   }, [sidebarWidth])
 
-  const selectedRow = selection
-    ? rows.find(r => r.id === selection.fosterId)
+  const selectedRow = effectiveSelection
+    ? rows.find(r => r.id === effectiveSelection.fosterId)
     : undefined
   const selectedDog =
-    selection?.kind === 'dog' && selectedRow
-      ? selectedRow.dogs.find(d => d.id === selection.dogId)
+    effectiveSelection?.kind === 'dog' && selectedRow
+      ? selectedRow.dogs.find(d => d.id === effectiveSelection.dogId)
       : undefined
 
   return (
@@ -225,8 +230,15 @@ export default function FosterActionsPage() {
               Applicants
             </Link>
             <Link
+              href="/fosters"
+              className={`${layoutStyles.navItem} ${pathname === '/fosters' ? layoutStyles.navItemActive : ''}`}
+            >
+              <img src="/assets/Search.svg" alt="" width={18} height={18} />
+              Directory
+            </Link>
+            <Link
               href="/fosters/overview"
-              className={`${layoutStyles.navItem} ${pathname?.startsWith('/fosters') ? layoutStyles.navItemActive : ''}`}
+              className={`${layoutStyles.navItem} ${pathname?.startsWith('/fosters/') ? layoutStyles.navItemActive : ''}`}
             >
               <img src="/assets/fosters.svg" alt="" width={18} height={18} />
               Fosters
@@ -312,14 +324,14 @@ export default function FosterActionsPage() {
                     [...rows]
                       .sort((a, b) => openCountForFoster(b) - openCountForFoster(a))
                       .map(row => {
-                      const fOpen = expandedFosters.has(row.id)
+                      const fOpen = effectiveExpandedFosters.has(row.id)
                       const openN = openCountForFoster(row)
                       return (
                         <div key={row.id}>
                           <button
                             type="button"
                             className={`${styles.rowBtn} ${styles.indent1} ${
-                              selection?.fosterId === row.id && selection.kind === 'foster'
+                              effectiveSelection?.fosterId === row.id && effectiveSelection.kind === 'foster'
                                 ? styles.rowBtnSelected
                                 : ''
                             }`}
@@ -346,11 +358,11 @@ export default function FosterActionsPage() {
                           {fOpen &&
                             row.dogs.map(dog => {
                               const dk = `${row.id}::${dog.id}`
-                              const dOpen = expandedDogs.has(dk)
+                              const dOpen = effectiveExpandedDogs.has(dk)
                               const isDogSel =
-                                selection?.kind === 'dog' &&
-                                selection.fosterId === row.id &&
-                                selection.dogId === dog.id
+                                effectiveSelection?.kind === 'dog' &&
+                                effectiveSelection.fosterId === row.id &&
+                                effectiveSelection.dogId === dog.id
                               return (
                                 <div key={dog.id}>
                                   <button
@@ -419,14 +431,14 @@ export default function FosterActionsPage() {
                   Select a foster (or dog) on the left to see outstanding action items.
                 </p>
 
-                {!selection && (
+                {!effectiveSelection && (
                   <p className={styles.detailEmpty}>
                     Select a foster or dog in the tree to see action items. Expand folders with the arrows
                     (similar to OneNote).
                   </p>
                 )}
 
-                {selection?.kind === 'foster' && selectedRow && (
+                {effectiveSelection?.kind === 'foster' && selectedRow && (
                   <>
                     <h2 className={styles.detailTitle}>{selectedRow.fosterDisplayName}</h2>
                     <p className={styles.detailSubtitle}>
@@ -456,7 +468,7 @@ export default function FosterActionsPage() {
                   </>
                 )}
 
-                {selection?.kind === 'dog' && selectedRow && selectedDog && (
+                {effectiveSelection?.kind === 'dog' && selectedRow && selectedDog && (
                   <>
                     <h2 className={styles.detailTitle}>{selectedDog.name}</h2>
                     <p className={styles.detailSubtitle}>
