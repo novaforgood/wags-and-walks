@@ -91,11 +91,13 @@ export default function FostersSectionOverviewPage() {
 
           {!isLoading && (
             <div className={styles.wrap}>
-              <p className={styles.intro}>
-                High-level view of your active foster homes: headcount, outstanding tasks, and who is
-                caring for which dogs. Use Directory for the full table and Action items for the task
-                tree.
-              </p>
+              <section className={styles.heroPanel}>
+                <p className={styles.intro}>
+                  Snapshot of your active foster homes: headcount, outstanding tasks, and who is
+                  currently caring for each dog. Use Directory for full records and Action items for
+                  the task tree.
+                </p>
+              </section>
 
               <div className={styles.statsGrid}>
                 <div className={styles.statCard}>
@@ -115,35 +117,46 @@ export default function FostersSectionOverviewPage() {
                 </div>
               </div>
 
-              <h2 className={styles.sectionTitle}>Roster at a glance</h2>
-              {rows.length === 0 && !error ? (
-                <p className={styles.empty}>No active fosters yet.</p>
-              ) : (
-                <div className={styles.rosterList}>
-                  {rows.map(row => {
-                    const open = openCountForFoster(row)
-                    const dogLine = row.dogs.map(d => d.name).join(', ')
-                    return (
-                      <div key={row.id} className={styles.rosterCard}>
-                        <div>
-                          <div className={styles.rosterName}>{row.fosterDisplayName}</div>
-                          {row.email && (
-                            <div className={styles.rosterMeta}>{row.email}</div>
-                          )}
-                          <div className={styles.rosterDogs}>
-                            <strong>Dogs:</strong> {dogLine}
-                          </div>
-                        </div>
-                        {open > 0 ? (
-                          <span className={styles.badgeOpen}>{open} open</span>
-                        ) : (
-                          <span className={styles.badgeClear}>All clear</span>
-                        )}
-                      </div>
-                    )
-                  })}
+              <section className={styles.sectionPanel}>
+                <div className={styles.sectionHeader}>
+                  <h2 className={styles.sectionTitle}>Roster at a glance</h2>
+                  <span className={styles.sectionCount}>{rows.length} foster homes</span>
                 </div>
-              )}
+
+                {rows.length === 0 && !error ? (
+                  <p className={styles.empty}>No active fosters yet.</p>
+                ) : (
+                  <div className={styles.rosterList}>
+                    {[...rows]
+                      .sort((a, b) => openCountForFoster(b) - openCountForFoster(a))
+                      .map(row => {
+                        const open = openCountForFoster(row)
+                        const dogLine = row.dogs.map(d => d.name).join(', ')
+                        return (
+                          <article key={row.id} className={styles.rosterCard}>
+                            <div className={styles.rosterMain}>
+                              <div className={styles.rosterName}>{row.fosterDisplayName}</div>
+                              {row.email && <div className={styles.rosterMeta}>{row.email}</div>}
+                              <div className={styles.rosterDogs}>
+                                <strong>Dogs:</strong> {dogLine}
+                              </div>
+                            </div>
+                            <div className={styles.rosterSide}>
+                              <span className={styles.dogCount}>
+                                {row.dogs.length} dog{row.dogs.length === 1 ? '' : 's'}
+                              </span>
+                              {open > 0 ? (
+                                <span className={styles.badgeOpen}>{open} open</span>
+                              ) : (
+                                <span className={styles.badgeClear}>All clear</span>
+                              )}
+                            </div>
+                          </article>
+                        )
+                      })}
+                  </div>
+                )}
+              </section>
             </div>
           )}
         </div>

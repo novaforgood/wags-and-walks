@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
@@ -36,6 +36,10 @@ export default function CandidatesPage() {
         x: 0,
         y: 0
     })
+    const [acceptToast, setAcceptToast] = useState<{
+        isOpen: boolean
+        message: string
+    }>({ isOpen: false, message: '' })
     const [filters, setFilters] = useState<FilterState>({
         livingSituation: [],
         dogTypes: [],
@@ -171,6 +175,14 @@ export default function CandidatesPage() {
         }
     }
 
+    useEffect(() => {
+        if (!acceptToast.isOpen) return
+        const t = window.setTimeout(() => {
+            setAcceptToast({ isOpen: false, message: '' })
+        }, 4200)
+        return () => window.clearTimeout(t)
+    }, [acceptToast.isOpen])
+
     return (
         <ProtectedRoute>
         <div className={styles.pageWrapper}>
@@ -274,13 +286,12 @@ export default function CandidatesPage() {
                                     <tr>
                                         <th>Name</th>
                                         {/* TODO: Connect "Orientation date" to actual sheet column when available */}
-                                        <th>Orientation date</th>
+                                        <th>Orientation Date</th>
                                         {/* TODO: Connect "Signed document" to actual sheet column when available */}
-                                        <th>Signed document</th>
+                                        <th>Signed Document</th>
                                         <th>Status</th>
-                                        <th>Red flags</th>
-                                        <th></th>
-                                        <th style={{ width: '40px' }}></th>
+                                        <th>Red Flags</th>
+                                        <th style={{ textAlign: 'right', width: '180px' }}></th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -307,30 +318,50 @@ export default function CandidatesPage() {
                                                 <td className={hasFlags(person) ? styles.flagYes : styles.flagNone}>
                                                     {flagsDisplay === 'None' ? 'None' : 'Yes'}
                                                 </td>
-                                                <td>
-                                                    <button
-                                                        className={styles.selectBtn}
-                                                        onClick={(e) => {
-                                                            e.stopPropagation()
-                                                            const rect = e.currentTarget.getBoundingClientRect()
-                                                            setConfirmModalState({ isOpen: true, action: 'accept', person, x: rect.left + rect.width / 2, y: rect.top })
-                                                        }}
-                                                    >
-                                                        Accept
-                                                    </button>
-                                                </td>
-                                                <td style={{ textAlign: 'right', paddingLeft: 0, paddingRight: '24px' }}>
-                                                    <button
-                                                        className={styles.actionRejectBtn}
-                                                        onClick={(e) => {
-                                                            e.stopPropagation()
-                                                            const rect = e.currentTarget.getBoundingClientRect()
-                                                            setConfirmModalState({ isOpen: true, action: 'reject', person, x: rect.left + rect.width / 2, y: rect.top })
-                                                        }}
-                                                        title="Reject"
-                                                    >
-                                                        ✕
-                                                    </button>
+                                                <td style={{ textAlign: 'right' }}>
+                                                    <div className={styles.rowActions}>
+                                                        <button
+                                                            className={`${styles.actionIconBtn} ${styles.actionIconAccept}`}
+                                                            onClick={(e) => {
+                                                                e.stopPropagation()
+                                                                const rect = e.currentTarget.getBoundingClientRect()
+                                                                setConfirmModalState({ isOpen: true, action: 'accept', person, x: rect.left + rect.width / 2, y: rect.top })
+                                                            }}
+                                                            title="Accept"
+                                                            aria-label={`Accept ${name}`}
+                                                        >
+                                                            <svg viewBox="0 0 24 24" aria-hidden="true" className={styles.actionIconSvg}>
+                                                                <path
+                                                                    d="M20 6L9 17l-5-5"
+                                                                    fill="none"
+                                                                    stroke="currentColor"
+                                                                    strokeWidth="2.4"
+                                                                    strokeLinecap="round"
+                                                                    strokeLinejoin="round"
+                                                                />
+                                                            </svg>
+                                                        </button>
+                                                        <button
+                                                            className={`${styles.actionIconBtn} ${styles.actionIconReject}`}
+                                                            onClick={(e) => {
+                                                                e.stopPropagation()
+                                                                const rect = e.currentTarget.getBoundingClientRect()
+                                                                setConfirmModalState({ isOpen: true, action: 'reject', person, x: rect.left + rect.width / 2, y: rect.top })
+                                                            }}
+                                                            title="Reject"
+                                                            aria-label={`Reject ${name}`}
+                                                        >
+                                                            <svg viewBox="0 0 24 24" aria-hidden="true" className={styles.actionIconSvg}>
+                                                                <path
+                                                                    d="M7 7l10 10M17 7L7 17"
+                                                                    fill="none"
+                                                                    stroke="currentColor"
+                                                                    strokeWidth="2.2"
+                                                                    strokeLinecap="round"
+                                                                />
+                                                            </svg>
+                                                        </button>
+                                                    </div>
                                                 </td>
                                             </tr>
                                         )
@@ -444,7 +475,6 @@ export default function CandidatesPage() {
                     <div className={styles.modalOverlayTransparent} onClick={() => setConfirmModalState(s => ({ ...s, isOpen: false }))}></div>
                     <div
                         className={styles.confirmModalPopover}
-                        style={{ left: confirmModalState.x, top: confirmModalState.y }}
                         onClick={e => e.stopPropagation()}
                     >
                         <h2 className={styles.confirmTitlePopover}>
@@ -460,14 +490,25 @@ export default function CandidatesPage() {
                             <button
                                 className={confirmModalState.action === 'accept' ? styles.confirmAcceptBtn : styles.confirmRejectBtn}
                                 onClick={() => {
+                                    const name =
+                                        `${confirmModalState.person?.firstName ?? ''} ${confirmModalState.person?.lastName ?? ''}`.trim() ||
+                                        confirmModalState.person?.email ||
+                                        'This applicant'
                                     if (confirmModalState.person?.email) {
                                         setStatus(
                                             confirmModalState.person.email,
-                                            confirmModalState.action === 'accept' ? 'in-progress' : 'rejected'
+                                            confirmModalState.action === 'accept' ? 'approved' : 'rejected'
                                         )
                                     }
                                     setConfirmModalState(s => ({ ...s, isOpen: false }))
                                     setExpandedEmail(null)
+
+                                    if (confirmModalState.action === 'accept') {
+                                        setAcceptToast({
+                                            isOpen: true,
+                                            message: `${name} has been accepted as a current foster. They are not currently fostering, and an email has been sent informing them they’re a current foster.`
+                                        })
+                                    }
                                 }}
                             >
                                 Yes
@@ -475,6 +516,30 @@ export default function CandidatesPage() {
                         </div>
                     </div>
                 </>
+            )}
+
+            {/* Accepted Toast */}
+            {acceptToast.isOpen && (
+                <div
+                    className={styles.acceptToast}
+                    role="status"
+                    aria-live="polite"
+                    onClick={() => setAcceptToast({ isOpen: false, message: '' })}
+                >
+                    <div className={styles.acceptToastTitle}>Accepted</div>
+                    <div className={styles.acceptToastBody}>{acceptToast.message}</div>
+                    <button
+                        type="button"
+                        className={styles.acceptToastClose}
+                        onClick={(e) => {
+                            e.stopPropagation()
+                            setAcceptToast({ isOpen: false, message: '' })
+                        }}
+                        aria-label="Close"
+                    >
+                        ×
+                    </button>
+                </div>
             )}
         </div>
         </ProtectedRoute>

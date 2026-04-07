@@ -10,7 +10,7 @@ interface Props {
     onClose: () => void
 }
 
-type ProfileTab = 'profile' | 'documents' | 'updates' | 'pending'
+type ProfileTab = 'profile'
 
 // Raw keys already rendered in the structured sections — skip from the "Other" dump
 const SHOWN_RAW_KEYS = new Set([
@@ -21,7 +21,7 @@ const SHOWN_RAW_KEYS = new Set([
 ])
 
 export default function PersonModal({ person, onClose }: Props) {
-    const [activeTab, setActiveTab] = useState<ProfileTab>('profile')
+    const [activeTab] = useState<ProfileTab>('profile')
 
     if (!person) return null
 
@@ -54,41 +54,19 @@ export default function PersonModal({ person, onClose }: Props) {
             {/* Tab row */}
             <div className={styles.tabRow}>
                 <div className={styles.tabs}>
-                    {(['profile', 'documents', 'updates', 'pending'] as ProfileTab[]).map(tab => {
-                        const labels: Record<ProfileTab, string> = {
-                            profile: 'Profile',
-                            documents: 'Documents',
-                            updates: 'Updates',
-                            pending: 'Pending actions',
-                        }
-                        return (
-                            <button
-                                key={tab}
-                                className={`${styles.tab} ${activeTab === tab ? styles.tabActive : ''}`}
-                                onClick={() => setActiveTab(tab)}
-                            >
-                                {labels[tab]}
-                            </button>
-                        )
-                    })}
+                    <button
+                        className={`${styles.tab} ${styles.tabActive}`}
+                        type="button"
+                    >
+                        Profile
+                    </button>
                 </div>
                 <button className={styles.closeBtn} onClick={onClose} aria-label="Close">✕</button>
             </div>
 
             {/* Content */}
             <div className={styles.content}>
-                {activeTab === 'profile' && (
-                    <ProfileTab person={person} otherEntries={otherEntries} />
-                )}
-                {activeTab === 'documents' && (
-                    <Placeholder label="Documents" />
-                )}
-                {activeTab === 'updates' && (
-                    <Placeholder label="Updates" />
-                )}
-                {activeTab === 'pending' && (
-                    <Placeholder label="Pending actions" />
-                )}
+                <ProfileTab person={person} otherEntries={otherEntries} />
             </div>
         </div>
     )
@@ -151,15 +129,6 @@ function Field({ label, value }: { label: string; value: string }) {
         <div className={styles.field}>
             <div className={styles.fieldLabel}>{label}:</div>
             <div className={styles.fieldValue}>{value}</div>
-        </div>
-    )
-}
-
-function Placeholder({ label }: { label: string }) {
-    return (
-        <div className={styles.placeholder}>
-            {/* TODO: implement {label} tab */}
-            <span className={styles.placeholderText}>{label} — coming soon</span>
         </div>
     )
 }

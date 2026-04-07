@@ -460,7 +460,52 @@
     display: flex;
     align-items: center;
     justify-content: flex-end;
-    gap: 16px;
+    gap: 10px;
+}
+
+/* Applicants table: icon actions (accept/reject) */
+.actionIconBtn {
+    width: 36px;
+    height: 36px;
+    border-radius: 999px;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    background: #fbfbfb;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, color 0.15s, transform 0.05s;
+    padding: 0;
+}
+
+.actionIconBtn:active {
+    transform: translateY(0.5px);
+}
+
+.actionIconSvg {
+    width: 18px;
+    height: 18px;
+}
+
+.actionIconAccept {
+    color: #038a8d;
+    border-color: rgba(5, 170, 175, 0.25);
+    background: rgba(5, 170, 175, 0.10);
+}
+
+.actionIconAccept:hover {
+    background: rgba(5, 170, 175, 0.16);
+    border-color: rgba(5, 170, 175, 0.35);
+}
+
+.actionIconReject {
+    color: #888;
+}
+
+.actionIconReject:hover {
+    background: #fee2e2;
+    border-color: rgba(220, 38, 38, 0.25);
+    color: #dc2626;
 }
 
 .actionRejectBtn {
@@ -668,8 +713,9 @@
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
     width: max-content;
     text-align: center;
-    transform: translate(-50%, -100%);
-    margin-top: -8px;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
     z-index: 1000;
 }
 
@@ -738,6 +784,55 @@
 
 .confirmRejectBtn:hover {
     background: #fecaca;
+}
+
+/* ---- Accepted Toast ---- */
+.acceptToast {
+    position: fixed;
+    right: 24px;
+    bottom: 24px;
+    width: min(560px, calc(100vw - 48px));
+    background: #fbfbfb;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.18);
+    border-radius: 14px;
+    padding: 14px 16px 14px 16px;
+    z-index: 1100;
+    cursor: pointer;
+}
+
+.acceptToastTitle {
+    font-size: 14px;
+    font-weight: 700;
+    color: #038a8d;
+    margin-bottom: 6px;
+}
+
+.acceptToastBody {
+    font-size: 13px;
+    color: #414141;
+    line-height: 1.4;
+    padding-right: 24px; /* room for close */
+}
+
+.acceptToastClose {
+    position: absolute;
+    top: 8px;
+    right: 10px;
+    width: 28px;
+    height: 28px;
+    border: none;
+    background: transparent;
+    border-radius: 8px;
+    font-size: 18px;
+    line-height: 1;
+    color: #888;
+    cursor: pointer;
+}
+
+.acceptToastClose:hover {
+    background: rgba(5, 170, 175, 0.10);
+    color: #038a8d;
 }
 
 /* ---- Loading / Error ---- */

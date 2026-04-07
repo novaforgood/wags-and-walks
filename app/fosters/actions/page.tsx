@@ -49,8 +49,20 @@ export default function FosterActionsPage() {
   const { people, isLoading, error } = usePeople()
   const { user, signOut } = useAuth()
 
-  const rows = useMemo(() => buildFosterOverview(people), [people])
+  const realRows = useMemo(() => buildFosterOverview(people), [people])
+  const rows = useMemo(() => {
+    // Demo-friendly: ensure the UI shows multiple fosters even with sparse data
+    const min = 4
+    if (realRows.length >= min) return realRows
+    const needed = min - realRows.length
+    return [...realRows, ...buildMockRows().slice(0, needed)]
+  }, [realRows])
   const totalOpen = useMemo(() => countOpenActions(rows), [rows])
+  const overdueCount = useMemo(() => {
+    let n = 0
+    for (const r of rows) for (const d of r.dogs) for (const a of d.actions) if (a.status === 'overdue') n += 1
+    return n
+  }, [rows])
 
   const [rootOpen, setRootOpen] = useState(true)
   const [expandedFosters, setExpandedFosters] = useState<Set<string>>(new Set())
@@ -151,7 +163,7 @@ export default function FosterActionsPage() {
 
         <div className={layoutStyles.mainContent}>
           <div className={layoutStyles.topBar}>
-            <h1 className={layoutStyles.topBarTitle}>Foster action items</h1>
+            <h1 className={layoutStyles.topBarTitle}>Onboarded Fosters</h1>
           </div>
 
           <FostersSubTabs active="actions" />
@@ -164,20 +176,37 @@ export default function FosterActionsPage() {
           {!isLoading && (
             <div className={styles.pageInner}>
               <aside className={styles.treePane} aria-label="Foster tree">
-                <div className={styles.treeHeader}>Pipeline</div>
+                <div className={styles.treeHeader}>Action Items</div>
                 <div className={styles.treeScroll}>
+                  <div className={styles.treeSummary}>
+                    <div className={styles.summaryCard}>
+                      <span className={styles.summaryLabel}>Open tasks</span>
+                      <span className={styles.summaryValue}>{totalOpen}</span>
+                    </div>
+                    <div className={styles.summaryCard}>
+                      <span className={styles.summaryLabel}>Overdue</span>
+                      <span className={styles.summaryValue}>{overdueCount}</span>
+                    </div>
+                    <div className={styles.summaryCard}>
+                      <span className={styles.summaryLabel}>Fosters</span>
+                      <span className={styles.summaryValue}>{rows.length}</span>
+                    </div>
+                  </div>
+
                   <button
                     type="button"
                     className={styles.treeRootBtn}
                     onClick={() => setRootOpen(o => !o)}
                   >
                     <span className={styles.chevron}>{rootOpen ? '▼' : '▶'}</span>
-                    Active fosters
+                    Foster homes
                     <span className={styles.badge}>{rows.length}</span>
                   </button>
 
                   {rootOpen &&
-                    rows.map(row => {
+                    [...rows]
+                      .sort((a, b) => openCountForFoster(b) - openCountForFoster(a))
+                      .map(row => {
                       const fOpen = expandedFosters.has(row.id)
                       const openN = openCountForFoster(row)
                       return (
@@ -203,9 +232,9 @@ export default function FosterActionsPage() {
                             </span>
                             <span style={{ flex: 1, minWidth: 0 }}>{row.fosterDisplayName}</span>
                             {openN > 0 ? (
-                              <span className={`${styles.badge} ${styles.badgeWarn}`}>{openN}</span>
+                              <span className={`${styles.badge} ${styles.badgeWarn}`}>{openN} open</span>
                             ) : (
-                              <span className={styles.badge}>0</span>
+                              <span className={styles.badge}>All clear</span>
                             )}
                           </button>
 
@@ -242,20 +271,18 @@ export default function FosterActionsPage() {
                                   </button>
 
                                   {dOpen &&
-                                    dog.actions.map(act => (
+                                    dog.actions
+                                      .filter(a => a.status !== 'done')
+                                      .map(act => (
                                       <div key={act.id} className={`${styles.actionLeaf} ${styles.indent3}`}>
                                         <span
                                           className={`${styles.statusDot} ${
-                                            act.status === 'done'
-                                              ? styles.statusDone
-                                              : act.status === 'overdue'
-                                                ? styles.statusOverdue
-                                                : styles.statusNeeded
+                                            act.status === 'overdue' ? styles.statusOverdue : styles.statusNeeded
                                           }`}
                                         />
                                         <span>{act.title}</span>
                                       </div>
-                                    ))}
+                                      ))}
                                 </div>
                               )
                             })}
@@ -272,16 +299,9 @@ export default function FosterActionsPage() {
               </aside>
 
               <main className={styles.detailPane}>
-                <div className={styles.summaryStrip}>
-                  <div className={styles.summaryChip}>
-                    Open tasks
-                    <strong>{totalOpen}</strong>
-                  </div>
-                  <div className={styles.summaryChip}>
-                    Active fosters
-                    <strong>{rows.length}</strong>
-                  </div>
-                </div>
+                <p className={styles.detailHint}>
+                  Select a foster (or dog) on the left to see outstanding action items.
+                </p>
 
                 {!selection && (
                   <p className={styles.detailEmpty}>
@@ -328,7 +348,7 @@ export default function FosterActionsPage() {
                       {selectedRow.email ? ` · ${selectedRow.email}` : ''}
                     </p>
                     <div className={styles.card}>
-                      <div className={styles.cardTitle}>Action items</div>
+                      <div className={styles.cardTitle}>Action Items</div>
                       {selectedDog.actions.map(act => (
                         <div key={act.id} className={styles.actionRow}>
                           <span className={`${styles.pill} ${statusPill(act.status)}`}>
@@ -354,4 +374,37 @@ export default function FosterActionsPage() {
       </div>
     </ProtectedRoute>
   )
+}
+
+function buildMockRows(): FosterOverviewRow[] {
+  const mk = (id: string, foster: string, email: string, dog: string, overdue = false): FosterOverviewRow => ({
+    id,
+    fosterDisplayName: foster,
+    email,
+    person: { email, firstName: foster.split(' ')[0], lastName: foster.split(' ')[1] || '', status: 'current' } as any,
+    dogs: [
+      {
+        id: `${id}-dog-0`,
+        name: dog,
+        actions: [
+          {
+            id: `${id}-photos`,
+            title: 'Upload foster photos',
+            status: overdue ? 'overdue' : 'needed',
+            detail: overdue ? 'Photo update is past due' : 'Needs photo upload',
+          },
+          { id: `${id}-weekly`, title: 'Weekly check-in', status: 'needed' },
+          { id: `${id}-vet`, title: 'Submit vet records', status: 'needed' },
+          { id: `${id}-orientation`, title: 'Orientation / paperwork', status: 'done' },
+        ],
+      },
+    ],
+  })
+
+  return [
+    mk('mock-brenda', 'Brenda S.', 'brenda@example.com', 'Spot', true),
+    mk('mock-marcus', 'Marcus T.', 'marcus@example.com', 'Bella'),
+    mk('mock-olivia', 'Olivia Q.', 'olivia@example.com', 'Fido'),
+    mk('mock-sarah', 'Sarah K.', 'sarah@example.com', 'Luna'),
+  ]
 }

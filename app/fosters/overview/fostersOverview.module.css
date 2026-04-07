@@ -7,19 +7,27 @@
     box-sizing: border-box;
 }
 
+.heroPanel {
+    background: #fbfbfb;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    border-radius: 12px;
+    padding: 16px 18px;
+    margin-bottom: 18px;
+}
+
 .intro {
-    margin: 0 0 24px;
+    margin: 0;
     font-size: 15px;
     line-height: 1.5;
     color: #414141;
-    max-width: 640px;
+    max-width: 760px;
 }
 
 .statsGrid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 16px;
-    margin-bottom: 28px;
+    margin-bottom: 20px;
 }
 
 @media (max-width: 720px) {
@@ -31,9 +39,13 @@
 .statCard {
     background: #fbfbfb;
     border-radius: 12px;
-    padding: 20px 20px 18px;
+    padding: 16px 18px 14px;
     box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
     border: 1px solid rgba(5, 170, 175, 0.12);
+    min-height: 104px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
 }
 
 .statLabel {
@@ -43,60 +55,105 @@
 }
 
 .statValue {
-    font-size: 36px;
+    font-size: 34px;
     font-weight: 700;
     color: #05aaaf;
     line-height: 1.1;
     font-variant-numeric: tabular-nums;
+    margin-top: 2px;
 }
 
 .statHint {
     font-size: 12px;
     color: #888;
-    margin-top: 8px;
+    margin-top: 6px;
+}
+
+.sectionPanel {
+    background: #fbfbfb;
+    border-radius: 12px;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+    padding: 16px 16px 14px;
+}
+
+.sectionHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 12px;
 }
 
 .sectionTitle {
     font-size: 17px;
     font-weight: 600;
     color: #1a1a1a;
-    margin: 0 0 14px;
+    margin: 0;
+}
+
+.sectionCount {
+    font-size: 12px;
+    color: #666;
+    background: #f0f5f5;
+    border-radius: 999px;
+    padding: 5px 10px;
 }
 
 .rosterList {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 8px;
 }
 
 .rosterCard {
-    background: #fbfbfb;
+    background: #fff;
     border-radius: 10px;
-    padding: 14px 18px;
+    padding: 12px 14px;
     border: 1px solid rgba(0, 0, 0, 0.06);
     display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
+    align-items: flex-start;
     justify-content: space-between;
+    gap: 10px;
+}
+
+.rosterMain {
+    min-width: 0;
+}
+
+.rosterSide {
+    display: flex;
+    align-items: center;
     gap: 8px;
+    flex-shrink: 0;
+    margin-left: auto;
 }
 
 .rosterName {
     font-size: 15px;
     font-weight: 600;
     color: #1a1a1a;
+    line-height: 1.25;
 }
 
 .rosterMeta {
-    font-size: 13px;
+    font-size: 12px;
     color: #666;
+    margin-top: 2px;
 }
 
 .rosterDogs {
-    font-size: 14px;
+    font-size: 13px;
     color: #414141;
-    width: 100%;
-    margin-top: 4px;
+    margin-top: 6px;
+}
+
+.dogCount {
+    font-size: 11px;
+    color: #666;
+    background: #f4f4f4;
+    border-radius: 999px;
+    padding: 4px 8px;
 }
 
 .badgeOpen {
@@ -120,12 +177,27 @@
 .empty {
     color: #888;
     font-size: 14px;
-    padding: 8px 0;
+    padding: 4px 0 2px;
 }
 
 @media (max-width: 640px) {
     .wrap {
+        padding-top: 24px;
         padding-left: 16px;
         padding-right: 16px;
+    }
+
+    .sectionHeader {
+        flex-direction: column;
+        align-items: flex-start;
+        margin-bottom: 10px;
+    }
+
+    .rosterCard {
+        flex-direction: column;
+    }
+
+    .rosterSide {
+        margin-left: 0;
     }
 }

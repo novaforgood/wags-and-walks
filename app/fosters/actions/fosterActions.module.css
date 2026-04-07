@@ -1,4 +1,4 @@
-/* OneNote-inspired: dark nav rail + light detail. Brand teal accents on selection. */
+/* Action Items: branded light UI (matches Wags & Walks dashboard) */
 
 .pageInner {
     display: flex;
@@ -11,11 +11,11 @@
     width: 300px;
     min-width: 260px;
     max-width: 360px;
-    background: #1e1e1e;
-    color: #e8e8e8;
+    background: #fbfbfb;
+    color: #1a1a1a;
     display: flex;
     flex-direction: column;
-    border-right: 1px solid #2d2d2d;
+    border-right: 1px solid rgba(0, 0, 0, 0.08);
     font-family: 'Inter', sans-serif;
 }
 
@@ -25,8 +25,8 @@
     font-weight: 600;
     letter-spacing: 0.06em;
     text-transform: uppercase;
-    color: #9e9e9e;
-    border-bottom: 1px solid #2d2d2d;
+    color: #666;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
 }
 
 .treeScroll {
@@ -53,7 +53,7 @@
 }
 
 .treeRootBtn:hover {
-    background: rgba(255, 255, 255, 0.06);
+    background: rgba(5, 170, 175, 0.08);
 }
 
 .chevron {
@@ -61,7 +61,7 @@
     width: 18px;
     justify-content: center;
     font-size: 10px;
-    color: #aaa;
+    color: #888;
     flex-shrink: 0;
 }
 
@@ -85,11 +85,11 @@
 }
 
 .rowBtn:hover {
-    background: rgba(255, 255, 255, 0.06);
+    background: rgba(5, 170, 175, 0.08);
 }
 
 .rowBtnSelected {
-    background: rgba(5, 170, 175, 0.22);
+    background: rgba(5, 170, 175, 0.16);
     box-shadow: inset 3px 0 0 #05aaaf;
 }
 
@@ -111,13 +111,13 @@
     font-weight: 600;
     padding: 2px 7px;
     border-radius: 10px;
-    background: rgba(255, 255, 255, 0.1);
-    color: #ccc;
+    background: rgba(0, 0, 0, 0.06);
+    color: #444;
 }
 
 .badgeWarn {
-    background: rgba(255, 193, 7, 0.2);
-    color: #ffc107;
+    background: rgba(255, 193, 7, 0.22);
+    color: #8a6a00;
 }
 
 .actionLeaf {
@@ -129,13 +129,13 @@
     width: calc(100% - 12px);
     box-sizing: border-box;
     font-size: 12px;
-    color: #bdbdbd;
+    color: #555;
     border-radius: 4px;
     cursor: default;
 }
 
 .actionLeaf:hover {
-    background: rgba(255, 255, 255, 0.04);
+    background: rgba(5, 170, 175, 0.06);
 }
 
 .statusDot {
@@ -163,6 +163,44 @@
     background: #f3f7f7;
     overflow-y: auto;
     padding: 28px 36px 40px;
+}
+
+.detailHint {
+    color: #666;
+    font-size: 14px;
+    margin: 0 0 16px;
+    max-width: 620px;
+    line-height: 1.5;
+}
+
+.treeSummary {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    padding: 12px;
+}
+
+.summaryCard {
+    background: #fff;
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    border-radius: 10px;
+    padding: 10px 10px 8px;
+}
+
+.summaryLabel {
+    font-size: 11px;
+    color: #666;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+}
+
+.summaryValue {
+    display: block;
+    margin-top: 4px;
+    font-size: 18px;
+    font-weight: 800;
+    color: #05aaaf;
+    font-variant-numeric: tabular-nums;
 }
 
 .detailEmpty {
@@ -279,7 +317,7 @@
         min-height: 220px;
         max-height: 45vh;
         border-right: none;
-        border-bottom: 1px solid #2d2d2d;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.08);
     }
 
     .detailPane {

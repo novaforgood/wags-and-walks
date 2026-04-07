@@ -80,33 +80,25 @@
 .tabs {
     display: flex;
     align-items: flex-end;
-    gap: 80px;
+    gap: 0;
 }
 
 .tab {
     padding: 12px 0;
     font-size: 18px;
-    font-weight: 400;
-    color: #adadad;
-    cursor: pointer;
+    font-weight: 500;
+    color: black;
+    cursor: default;
     background: none;
     border: none;
-    border-bottom: 2px solid transparent;
+    border-bottom: 2px solid #05aaaf;
     margin-bottom: -2px;
-    /* Pulls active underline over the parent border */
-    transition: color 0.15s, border-color 0.15s;
     font-family: 'Inter', sans-serif;
     white-space: nowrap;
 }
 
-.tab:hover {
-    color: #666;
-}
-
 .tabActive {
-    color: black;
-    font-weight: 500;
-    border-bottom-color: #05aaaf;
+    /* retained for compatibility; styles baked into .tab */
 }
 
 .closeBtn {
@@ -183,15 +175,4 @@
     word-break: break-word;
 }
 
-/* ---- Placeholder tabs ---- */
-.placeholder {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 200px;
-}
-
-.placeholderText {
-    font-size: 14px;
-    color: #adadad;
-}
+/* (placeholder styles removed; only Profile tab remains) */

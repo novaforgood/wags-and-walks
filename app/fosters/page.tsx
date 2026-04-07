@@ -28,9 +28,11 @@ export default function FostersPage() {
     })
 
     const allFosters = useMemo(() => {
-        // Only show people that are actively fostering
+        // Show onboarded foster homes:
+        // - approved = onboarded but not yet currently fostering
+        // - current = actively fostering
         return people
-            .filter(p => !!p.email && p.status === 'current')
+            .filter(p => !!p.email && (p.status === 'approved' || p.status === 'current'))
             .sort((a, b) => {
                 const ta = a.appliedAt ? new Date(a.appliedAt).getTime() : (a.rowIndex ?? 0)
                 const tb = b.appliedAt ? new Date(b.appliedAt).getTime() : (b.rowIndex ?? 0)
@@ -206,7 +208,7 @@ export default function FostersPage() {
                                         const lastUpdateDate = person.appliedAt ? new Date(person.appliedAt) : new Date()
                                         const lastUpdate = `${lastUpdateDate.getMonth() + 1}/${lastUpdateDate.getDate()}/${lastUpdateDate.getFullYear().toString().slice(-2)}`
 
-                                        // Currently fostering YES hardcoded per instructions
+                                        const currentlyFostering = person.status === 'current'
                                         return (
                                             <tr key={email}>
                                                 <td
@@ -215,7 +217,7 @@ export default function FostersPage() {
                                                 >{name}</td>
                                                 <td>{location}</td>
                                                 <td>{lastUpdate}</td>
-                                                <td>Yes</td>
+                                                <td>{currentlyFostering ? 'Yes' : 'No'}</td>
                                                 <td>
                                                     <button className={styles.tableSelectBtn}>Select</button>
                                                 </td>
