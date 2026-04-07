@@ -10,12 +10,133 @@ import ProtectedRoute from '@/app/components/ProtectedRoute'
 import FilterDropdown, { FilterState } from '@/app/components/FilterDropdown'
 import PersonModal from '@/app/components/PersonModal'
 import type { Person } from '@/app/lib/peopleTypes'
-import FostersSubTabs from './FostersSubTabs'
+import { normalizeEmailKey } from '@/app/lib/peopleTypes'
 import styles from '../candidates/candidates.module.css'
+
+type DogRecord = {
+    id?: number
+    name?: string
+    foster?: {
+        name?: string
+        firstName?: string
+        lastName?: string
+        town?: string
+        county?: string
+        phone?: string
+        email?: string
+    }
+}
+
+type DogsApiResponse = {
+    success?: boolean
+    dogs?: DogRecord[]
+    error?: string
+}
+
+type FosterListItem = {
+    key: string
+    person: Person | null
+    email?: string
+    phone?: string
+    firstName?: string
+    lastName?: string
+    location: string
+    dogCount: number
+    dogNames: string[]
+    lastUpdate?: string
+}
+
+function normalizeWhitespace(value?: string) {
+    return String(value || '')
+        .replace(/^[^A-Za-z0-9]+/, '')
+        .replace(/\s+/g, ' ')
+        .trim()
+}
+
+function formatNameToken(token: string) {
+    return token
+        .split(/([-'])/)
+        .map(part => {
+            if (part === '-' || part === "'") return part
+            if (!part) return part
+            return part.charAt(0).toUpperCase() + part.slice(1).toLowerCase()
+        })
+        .join('')
+}
+
+function toDisplayName(value?: string) {
+    const normalized = normalizeWhitespace(value)
+    if (!normalized) return ''
+
+    return normalized
+        .split(' ')
+        .filter(Boolean)
+        .map(formatNameToken)
+        .join(' ')
+}
+
+function parseFosterName(foster?: DogRecord['foster']) {
+    const explicitFirst = toDisplayName(foster?.firstName)
+    const explicitLast = toDisplayName(foster?.lastName)
+
+    if (explicitFirst || explicitLast) {
+        return {
+            firstName: explicitFirst || undefined,
+            lastName: explicitLast || undefined,
+            fullName: [explicitFirst, explicitLast].filter(Boolean).join(' ').trim() || undefined
+        }
+    }
+
+    const rawFullName = normalizeWhitespace(foster?.name)
+    if (!rawFullName) {
+        return { firstName: undefined, lastName: undefined, fullName: undefined }
+    }
+
+    if (rawFullName.includes(',')) {
+        const [lastPart, firstPart] = rawFullName.split(',').map(part => toDisplayName(part))
+        return {
+            firstName: firstPart || undefined,
+            lastName: lastPart || undefined,
+            fullName: [firstPart, lastPart].filter(Boolean).join(' ').trim() || undefined
+        }
+    }
+
+    const fullName = toDisplayName(rawFullName)
+    const parts = fullName.split(' ').filter(Boolean)
+    if (parts.length === 1) {
+        return { firstName: parts[0], lastName: undefined, fullName }
+    }
+
+    return {
+        firstName: parts[0],
+        lastName: parts.slice(1).join(' '),
+        fullName
+    }
+}
+
+function normalizeDogName(value?: string) {
+    return toDisplayName(value)
+}
+
+function parseDogDate(value?: string) {
+    if (!value) return undefined
+    const d = new Date(value)
+    return Number.isNaN(d.getTime()) ? undefined : d
+}
+
+function formatShortDate(value?: string) {
+    const d = parseDogDate(value)
+    if (!d) return 'Unknown'
+    return `${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear().toString().slice(-2)}`
+}
+
+function getDisplayName(item: FosterListItem) {
+    return `${item.firstName ?? ''} ${item.lastName ?? ''}`.trim() || item.email || 'Unknown'
+}
 
 export default function FostersPage() {
     const pathname = usePathname()
-    const { people, isLoading, error } = usePeople()
+    const { people } = usePeople()
     const { user, signOut } = useAuth()
     const [navWidth, setNavWidth] = useState<number>(() => {
         try {
@@ -38,43 +159,137 @@ export default function FostersPage() {
         experienceLevel: [],
         children: []
     })
+    const [dogs, setDogs] = useState<DogRecord[]>([])
+    const [isLoadingDogs, setIsLoadingDogs] = useState(true)
+    const [dogsError, setDogsError] = useState<string | null>(null)
 
-    const allFosters = useMemo(() => {
-        // Show onboarded foster homes:
-        // - approved = onboarded but not yet currently fostering
-        // - current = actively fostering
-        return people
-            .filter(p => !!p.email && (p.status === 'approved' || p.status === 'current'))
-            .sort((a, b) => {
-                const ta = a.appliedAt ? new Date(a.appliedAt).getTime() : (a.rowIndex ?? 0)
-                const tb = b.appliedAt ? new Date(b.appliedAt).getTime() : (b.rowIndex ?? 0)
-                return tb - ta
-            })
+    useEffect(() => {
+        let active = true
+
+        async function loadDogs() {
+            setIsLoadingDogs(true)
+            setDogsError(null)
+
+            try {
+                const response = await fetch('/api/dogs', { method: 'GET', cache: 'no-store' })
+                const data = (await response.json()) as DogsApiResponse
+
+                if (!response.ok || !data?.success || !Array.isArray(data.dogs)) {
+                    throw new Error(data?.error || 'Failed to load fosters from Shelter Manager')
+                }
+
+                if (!active) return
+                setDogs(data.dogs)
+            } catch (error) {
+                if (!active) return
+                setDogsError(error instanceof Error ? error.message : 'Failed to load fosters from Shelter Manager')
+            } finally {
+                if (active) setIsLoadingDogs(false)
+            }
+        }
+
+        loadDogs()
+        return () => {
+            active = false
+        }
+    }, [])
+
+    const peopleByEmail = useMemo(() => {
+        const map = new Map<string, Person>()
+        for (const person of people) {
+            const key = normalizeEmailKey(person.email)
+            if (key) map.set(key, person)
+        }
+        return map
     }, [people])
 
+    const allFosters = useMemo(() => {
+        const grouped = new Map<string, FosterListItem & { lastUpdateDate?: number }>()
+
+        for (const dog of dogs) {
+            const foster = dog.foster
+            if (!foster) continue
+
+            const parsedName = parseFosterName(foster)
+            const emailKey = normalizeEmailKey(foster.email)
+            const key = emailKey || parsedName.fullName
+            if (!key) continue
+
+            const matchedPerson = emailKey ? peopleByEmail.get(emailKey) ?? null : null
+            const town = normalizeWhitespace(foster.town) || matchedPerson?.raw?.['City']?.trim() || 'Unknown'
+            const county = normalizeWhitespace(foster.county) || matchedPerson?.raw?.['State']?.trim() || ''
+            const location = county ? `${town}, ${county}` : town
+            const nextUpdateDate = parseDogDate(matchedPerson?.appliedAt)?.getTime()
+            const dogName = normalizeDogName(dog.name)
+
+            const existing = grouped.get(key)
+            if (existing) {
+                existing.dogCount += 1
+                if (dogName) existing.dogNames.push(dogName)
+                if (!existing.person && matchedPerson) existing.person = matchedPerson
+                if (!existing.email && foster.email) existing.email = foster.email.trim()
+                if (!existing.phone && foster.phone) existing.phone = foster.phone.trim()
+                if ((!existing.firstName || !existing.lastName) && matchedPerson) {
+                    existing.firstName = existing.firstName || matchedPerson.firstName
+                    existing.lastName = existing.lastName || matchedPerson.lastName
+                }
+                if (!existing.firstName && parsedName.firstName) existing.firstName = parsedName.firstName
+                if (!existing.lastName && parsedName.lastName) existing.lastName = parsedName.lastName
+                if (nextUpdateDate && (!existing.lastUpdateDate || nextUpdateDate > existing.lastUpdateDate)) {
+                    existing.lastUpdateDate = nextUpdateDate
+                    existing.lastUpdate = matchedPerson?.appliedAt
+                }
+                continue
+            }
+
+            grouped.set(key, {
+                key,
+                person: matchedPerson,
+                email: foster.email?.trim() || matchedPerson?.email,
+                phone: foster.phone?.trim() || matchedPerson?.phone,
+                firstName: matchedPerson?.firstName || parsedName.firstName,
+                lastName: matchedPerson?.lastName || parsedName.lastName,
+                location,
+                dogCount: 1,
+                dogNames: dogName ? [dogName] : [],
+                lastUpdate: matchedPerson?.appliedAt,
+                lastUpdateDate: nextUpdateDate
+            })
+        }
+
+        return Array.from(grouped.values()).map(({ lastUpdateDate, ...item }) => ({
+            ...item,
+            dogNames: Array.from(new Set(item.dogNames)).sort((a, b) => a.localeCompare(b))
+        }))
+    }, [dogs, peopleByEmail])
+
+    const filterablePeople = useMemo(
+        () => allFosters.map(item => item.person).filter((person): person is Person => Boolean(person)),
+        [allFosters]
+    )
+
     const filtered = useMemo(() => {
-        return allFosters.filter(p => {
-            const name = `${p.firstName ?? ''} ${p.lastName ?? ''}`.toLowerCase()
-            const email = (p.email || '').toLowerCase()
+        const visible = allFosters.filter(item => {
+            const name = getDisplayName(item).toLowerCase()
+            const email = (item.email || '').toLowerCase()
             const q = searchQuery.toLowerCase()
 
-            if (q && !name.includes(q) && !email.includes(q)) return false
+            if (q && !name.includes(q) && !email.includes(q) && !item.dogNames.some(dogName => dogName.toLowerCase().includes(q))) {
+                return false
+            }
 
-            const raw = p.raw || {}
+            const raw = item.person?.raw || {}
 
-            // Living Situation
             if (filters.livingSituation.length > 0) {
                 const val = String(raw['What is your living arrangement?'] || '').trim()
                 if (!filters.livingSituation.includes(val)) return false
             }
 
-            // Experience Level
             if (filters.experienceLevel.length > 0) {
                 const val = String(raw['How would you rate your experience with dogs?'] || '').trim()
                 if (!filters.experienceLevel.includes(val)) return false
             }
 
-            // Children in home
             if (filters.children.length > 0) {
                 const childrenCount = String(raw['How many children are in your home?'] || '0').trim()
                 const hasChildren = childrenCount !== '0' && childrenCount !== ''
@@ -85,13 +300,11 @@ export default function FostersPage() {
                 if (wantsNoChildren && !wantsHasChildren && hasChildren) return false
             }
 
-            // Dog Types
             if (filters.dogTypes.length > 0) {
-                const hasMatch = filters.dogTypes.some(type => p.specialNeeds?.includes(type))
+                const hasMatch = filters.dogTypes.some(type => item.person?.specialNeeds?.includes(type))
                 if (!hasMatch) return false
             }
 
-            // Past/Current Animals
             if (filters.pastCurrentAnimals.length > 0) {
                 const currentPets = String(raw['Do you currently have any pets at home?'] || '').toLowerCase()
                 const pastPets = String(raw['Have you ever owned a pet before?'] || '').toLowerCase()
@@ -112,6 +325,13 @@ export default function FostersPage() {
             }
 
             return true
+        })
+
+        return [...visible].sort((a, b) => {
+            const ta = parseDogDate(a.lastUpdate)?.getTime() || 0
+            const tb = parseDogDate(b.lastUpdate)?.getTime() || 0
+            if (tb !== ta) return tb - ta
+            return getDisplayName(a).localeCompare(getDisplayName(b))
         })
     }, [allFosters, searchQuery, filters])
 
@@ -149,7 +369,6 @@ export default function FostersPage() {
     return (
         <ProtectedRoute>
         <div className={styles.pageWrapper} style={{ ['--app-sidebar-width' as any]: `${navWidth}px` }}>
-            {/* ---- Left Sidebar ---- */}
             <aside className={styles.sidebar}>
                 <div className={styles.sidebarLogo}>
                     <Image src="/assets/logo.png" alt="Wags & Walks" width={160} height={60} priority />
@@ -173,9 +392,7 @@ export default function FostersPage() {
                     </Link>
                     <Link
                         href="/fosters/overview"
-                        className={`${styles.navItem} ${
-                            pathname?.startsWith('/fosters/') ? styles.navItemActive : ''
-                        }`}
+                        className={`${styles.navItem} ${pathname?.startsWith('/fosters/') ? styles.navItemActive : ''}`}
                     >
                         <img src="/assets/fosters.svg" alt="Fosters" width={18} height={18} />
                         Fosters
@@ -207,14 +424,11 @@ export default function FostersPage() {
                 }}
             />
 
-            {/* ---- Main Content ---- */}
             <div className={styles.mainContent}>
-                {/* Top bar */}
                 <div className={styles.topBar}>
                     <h1 className={styles.topBarTitle}>Onboarded Fosters</h1>
                 </div>
 
-                {/* Toolbar */}
                 <div className={styles.toolbar}>
                     <div className={styles.searchWrapper}>
                         <input
@@ -229,20 +443,18 @@ export default function FostersPage() {
                         </div>
                     </div>
                     <div className={styles.toolbarRight}>
-                        <button className={styles.toolbarBtn}>Recently added</button>
+                        <button type="button" className={`${styles.toolbarBtn} ${styles.toolbarBtnStarred}`}>Recently added</button>
                         <button className={`${styles.toolbarBtn} ${styles.toolbarBtnStarred}`}>Starred</button>
-                        <FilterDropdown people={people} filters={filters} setFilters={setFilters} />
+                        <FilterDropdown people={filterablePeople} filters={filters} setFilters={setFilters} />
                     </div>
                 </div>
 
-                {/* Loading / Error */}
-                {isLoading && people.length === 0 && (
+                {isLoadingDogs && allFosters.length === 0 && (
                     <div className={styles.loadingContainer}>Loading fosters...</div>
                 )}
-                {error && <div className={styles.errorText}>{error}</div>}
+                {dogsError && <div className={styles.errorText}>{dogsError}</div>}
 
-                {/* ---- Table ---- */}
-                {!isLoading && (
+                {!isLoadingDogs && (
                     <div className={styles.tableWrapper}>
                         <div className={styles.tableContainer}>
                             <table className={styles.table}>
@@ -256,36 +468,43 @@ export default function FostersPage() {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {filtered.map((person, i) => {
-                                        const email = person.email || String(i)
-                                        const name = `${person.firstName ?? ''} ${person.lastName ?? ''}`.trim() || 'Unknown'
+                                    {filtered.map(item => {
+                                        const displayName = getDisplayName(item)
+                                        const [city = '', state = ''] = item.location.split(',').map(part => part.trim())
+                                        const personForModal = item.person || {
+                                            firstName: item.firstName,
+                                            lastName: item.lastName,
+                                            email: item.email,
+                                            phone: item.phone,
+                                            status: 'current',
+                                            raw: {
+                                                City: city,
+                                                State: state,
+                                                'Currently fostering dogs': item.dogNames.join(', ')
+                                            }
+                                        }
 
-                                        const city = person.raw?.['City']?.trim() || 'Unknown'
-                                        const state = person.raw?.['State']?.trim() || ''
-                                        let location = state ? `${city}, ${state}` : city
-                                        // For mock testing when not present
-                                        if (location === 'Unknown') location = 'Westwood, CA'
-
-                                        const lastUpdateDate = person.appliedAt ? new Date(person.appliedAt) : new Date()
-                                        const lastUpdate = `${lastUpdateDate.getMonth() + 1}/${lastUpdateDate.getDate()}/${lastUpdateDate.getFullYear().toString().slice(-2)}`
-
-                                        const currentlyFostering = person.status === 'current'
                                         return (
-                                            <tr key={email}>
+                                            <tr key={item.key}>
                                                 <td
                                                     className={styles.nameCell}
-                                                    onClick={() => setSelectedPerson(person)}
-                                                >{name}</td>
-                                                <td>{location}</td>
-                                                <td>{lastUpdate}</td>
-                                                <td>{currentlyFostering ? 'Yes' : 'No'}</td>
+                                                    onClick={() => setSelectedPerson(personForModal)}
+                                                >{displayName}</td>
+                                                <td>{item.location}</td>
+                                                <td>{formatShortDate(item.lastUpdate)}</td>
+                                                <td>{item.dogCount > 0 ? 'Yes' : 'No'}</td>
                                                 <td>
-                                                    <button className={styles.tableSelectBtn}>Select</button>
+                                                    <button
+                                                        className={styles.tableSelectBtn}
+                                                        onClick={() => setSelectedPerson(personForModal)}
+                                                    >
+                                                        Select
+                                                    </button>
                                                 </td>
                                             </tr>
-                                        )
-                                    })}
-                                    {filtered.length === 0 && !error && (
+                                        )}
+                                    )}
+                                    {filtered.length === 0 && !dogsError && (
                                         <tr>
                                             <td colSpan={5} style={{ textAlign: 'center', padding: '32px', color: '#888' }}>
                                                 No fosters found.
@@ -299,7 +518,6 @@ export default function FostersPage() {
                 )}
             </div>
 
-            {/* Person detail modal */}
             <PersonModal person={selectedPerson} onClose={() => setSelectedPerson(null)} />
         </div>
         </ProtectedRoute>
