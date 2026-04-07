@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { usePeople } from '@/app/components/PeopleProvider'
 import { useAuth } from '@/app/components/AuthProvider'
 import ProtectedRoute from '@/app/components/ProtectedRoute'
@@ -16,6 +16,7 @@ type Tab = 'candidates' | 'redflags'
 
 export default function CandidatesPage() {
     const pathname = usePathname()
+    const router = useRouter()
     const { people, isLoading, error, setStatus } = usePeople()
     const { user, signOut } = useAuth()
     const [activeTab, setActiveTab] = useState<Tab>('candidates')
@@ -188,6 +189,13 @@ export default function CandidatesPage() {
                     <Link href="/candidates" className={`${styles.navItem} ${styles.navItemActive}`}>
                         <img src="/assets/candidates.svg" alt="Applicants" width={18} height={18} />
                         Applicants
+                    </Link>
+                    <Link
+                        href="/directory"
+                        className={styles.navItem}
+                    >
+                        <img src="/assets/candidates.svg" alt="Directory" width={18} height={18} />
+                        Directory
                     </Link>
                     <Link
                         href="/fosters/overview"
@@ -460,11 +468,13 @@ export default function CandidatesPage() {
                             <button
                                 className={confirmModalState.action === 'accept' ? styles.confirmAcceptBtn : styles.confirmRejectBtn}
                                 onClick={() => {
-                                    if (confirmModalState.person?.email) {
-                                        setStatus(
-                                            confirmModalState.person.email,
-                                            confirmModalState.action === 'accept' ? 'in-progress' : 'rejected'
-                                        )
+                                    const email = confirmModalState.person?.email
+                                    if (email) {
+                                        const nextStatus = confirmModalState.action === 'accept' ? 'current' : 'rejected'
+                                        setStatus(email, nextStatus)
+                                        if (nextStatus === 'current') {
+                                            router.push('/fosters')
+                                        }
                                     }
                                     setConfirmModalState(s => ({ ...s, isOpen: false }))
                                     setExpandedEmail(null)

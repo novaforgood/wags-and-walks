@@ -424,6 +424,17 @@
     /* Light grey underline */
 }
 
+.nameLink {
+    color: inherit;
+    text-decoration: none;
+    display: inline-block;
+}
+
+.nameLink:hover {
+    text-decoration: underline;
+    text-decoration-color: #d1d5db;
+}
+
 .table tbody tr {
     background: #fbfbfb;
     transition: background 0.12s;

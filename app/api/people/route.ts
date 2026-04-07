@@ -36,7 +36,7 @@ function parseTimestampToIso(raw: unknown): string | undefined {
 }
 
 function normalizeStatus(raw: unknown): PersonStatus {
-  const s = String(raw || '').trim()
+  const s = String(raw || '').trim().toLowerCase()
   const allowed: PersonStatus[] = ['new', 'in-progress', 'approved', 'current', 'rejected', 'rejected_new', 'rejected_in-progress', 'rejected_approved']
   if (allowed.includes(s as PersonStatus)) return s as PersonStatus
   return 'new'
