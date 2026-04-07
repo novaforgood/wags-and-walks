@@ -1,0 +1,288 @@
+/* OneNote-inspired: dark nav rail + light detail. Brand teal accents on selection. */
+
+.pageInner {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    min-width: 0;
+}
+
+.treePane {
+    width: 300px;
+    min-width: 260px;
+    max-width: 360px;
+    background: #1e1e1e;
+    color: #e8e8e8;
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid #2d2d2d;
+    font-family: 'Inter', sans-serif;
+}
+
+.treeHeader {
+    padding: 14px 14px 10px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #9e9e9e;
+    border-bottom: 1px solid #2d2d2d;
+}
+
+.treeScroll {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 8px 0 16px;
+}
+
+.treeRootBtn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 8px 12px;
+    background: none;
+    border: none;
+    color: inherit;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    text-align: left;
+    font-family: inherit;
+}
+
+.treeRootBtn:hover {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.chevron {
+    display: inline-flex;
+    width: 18px;
+    justify-content: center;
+    font-size: 10px;
+    color: #aaa;
+    flex-shrink: 0;
+}
+
+.rowBtn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    padding: 6px 12px 6px 8px;
+    background: none;
+    border: none;
+    color: inherit;
+    font-size: 13px;
+    cursor: pointer;
+    text-align: left;
+    font-family: inherit;
+    border-radius: 4px;
+    margin: 0 6px;
+    width: calc(100% - 12px);
+    box-sizing: border-box;
+}
+
+.rowBtn:hover {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.rowBtnSelected {
+    background: rgba(5, 170, 175, 0.22);
+    box-shadow: inset 3px 0 0 #05aaaf;
+}
+
+.indent1 {
+    padding-left: 22px;
+}
+
+.indent2 {
+    padding-left: 38px;
+}
+
+.indent3 {
+    padding-left: 54px;
+}
+
+.badge {
+    margin-left: auto;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.1);
+    color: #ccc;
+}
+
+.badgeWarn {
+    background: rgba(255, 193, 7, 0.2);
+    color: #ffc107;
+}
+
+.actionLeaf {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 12px 4px 8px;
+    margin: 0 6px 2px;
+    width: calc(100% - 12px);
+    box-sizing: border-box;
+    font-size: 12px;
+    color: #bdbdbd;
+    border-radius: 4px;
+    cursor: default;
+}
+
+.actionLeaf:hover {
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.statusDot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.statusNeeded {
+    background: #ffc107;
+}
+
+.statusDone {
+    background: #4caf50;
+}
+
+.statusOverdue {
+    background: #f44336;
+}
+
+.detailPane {
+    flex: 1;
+    min-width: 0;
+    background: #f3f7f7;
+    overflow-y: auto;
+    padding: 28px 36px 40px;
+}
+
+.detailEmpty {
+    color: #888;
+    font-size: 15px;
+    max-width: 420px;
+    line-height: 1.5;
+}
+
+.detailTitle {
+    font-size: 22px;
+    font-weight: 700;
+    color: #111;
+    margin: 0 0 6px;
+}
+
+.detailSubtitle {
+    font-size: 14px;
+    color: #666;
+    margin: 0 0 20px;
+}
+
+.card {
+    background: #fbfbfb;
+    border-radius: 12px;
+    padding: 18px 20px;
+    margin-bottom: 12px;
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.05);
+}
+
+.cardTitle {
+    font-size: 15px;
+    font-weight: 600;
+    color: #1a1a1a;
+    margin: 0 0 12px;
+}
+
+.actionRow {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid #eee;
+    font-size: 14px;
+}
+
+.actionRow:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.actionRow:first-of-type {
+    padding-top: 0;
+}
+
+.pill {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 4px 10px;
+    border-radius: 20px;
+    flex-shrink: 0;
+}
+
+.pillNeeded {
+    background: rgba(255, 193, 7, 0.2);
+    color: #b8860b;
+}
+
+.pillDone {
+    background: rgba(76, 175, 80, 0.18);
+    color: #2e7d32;
+}
+
+.pillOverdue {
+    background: rgba(244, 67, 54, 0.15);
+    color: #c62828;
+}
+
+.summaryStrip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.summaryChip {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    padding: 10px 16px;
+    font-size: 13px;
+    color: #414141;
+}
+
+.summaryChip strong {
+    color: #05aaaf;
+    font-weight: 700;
+    font-size: 18px;
+    display: block;
+}
+
+@media (max-width: 900px) {
+    .pageInner {
+        flex-direction: column;
+    }
+
+    .treePane {
+        width: 100%;
+        max-width: none;
+        min-height: 220px;
+        max-height: 45vh;
+        border-right: none;
+        border-bottom: 1px solid #2d2d2d;
+    }
+
+    .detailPane {
+        padding: 20px 16px 32px;
+    }
+}

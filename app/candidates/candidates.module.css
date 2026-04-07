@@ -232,6 +232,8 @@
     font-family: 'Inter', sans-serif;
     position: relative;
     z-index: 1;
+    text-decoration: none;
+    display: inline-block;
 }
 
 .tab:hover {
@@ -250,11 +252,16 @@
     align-items: center;
     gap: 16px;
     padding: 16px 40px 16px;
-    max-width: 1056px;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
 }
 
 .searchWrapper {
     position: relative;
+    flex: 1;
+    min-width: 0;
+    max-width: 340px;
 }
 
 .searchInput {
@@ -262,7 +269,8 @@
     border: 1px solid #c4c4c4;
     border-radius: 30px;
     font-size: 14px;
-    width: 340px;
+    width: 100%;
+    max-width: 340px;
     height: 37px;
     outline: none;
     background: #fff;
@@ -359,7 +367,9 @@
     background: white;
     border-radius: 8px;
     overflow: hidden;
-    max-width: 1118px;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
 }
 
 /* .tableContainerNarrow: Red Flags tab uses flex proportions instead of a fixed max-width */
@@ -369,6 +379,7 @@
     border-collapse: collapse;
     font-size: 14px;
     font-family: 'Inter', sans-serif;
+    table-layout: auto;
 }
 
 .table thead tr {
@@ -743,4 +754,74 @@
     color: #b00020;
     font-size: 14px;
     padding: 16px 40px;
+}
+
+/* ---- Responsive: align tables/toolbars with full-width tab underline ---- */
+@media (max-width: 900px) {
+    .redFlagsLayout {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .redFlagsTableCol {
+        min-width: 0;
+    }
+
+    .sidePanel {
+        width: 100%;
+        min-width: 0;
+        max-width: none;
+    }
+}
+
+@media (max-width: 768px) {
+    .toolbar {
+        flex-wrap: wrap;
+        align-items: stretch;
+    }
+
+    .searchWrapper {
+        max-width: none;
+        flex: 1 1 100%;
+    }
+
+    .searchInput {
+        max-width: none;
+    }
+
+    .toolbarRight {
+        margin-left: 0;
+        flex-wrap: wrap;
+        justify-content: flex-start;
+    }
+
+    .filterByBtn {
+        width: auto;
+        min-width: min(177px, 100%);
+    }
+}
+
+@media (max-width: 640px) {
+    .tabSection,
+    .toolbar,
+    .tableWrapper,
+    .redFlagsLayout {
+        padding-left: 16px;
+        padding-right: 16px;
+    }
+
+    .table th,
+    .table td {
+        padding-left: 12px;
+        padding-right: 12px;
+    }
+
+    .table th:first-child,
+    .table td:first-child {
+        padding-left: 16px;
+    }
+
+    .table td:last-child {
+        padding-right: 16px;
+    }
 }

@@ -3,18 +3,19 @@
 import { useMemo, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import { usePeople } from '@/app/components/PeopleProvider'
 import { useAuth } from '@/app/components/AuthProvider'
 import ProtectedRoute from '@/app/components/ProtectedRoute'
 import PersonModal from '@/app/components/PersonModal'
 import FilterDropdown, { FilterState } from '@/app/components/FilterDropdown'
 import type { Person } from '@/app/lib/peopleTypes'
-import NotificationPanel from '@/app/components/NotificationPanel'
 import styles from './candidates.module.css'
 
 type Tab = 'candidates' | 'redflags'
 
 export default function CandidatesPage() {
+    const pathname = usePathname()
     const { people, isLoading, error, setStatus } = usePeople()
     const { user, signOut } = useAuth()
     const [activeTab, setActiveTab] = useState<Tab>('candidates')
@@ -180,22 +181,21 @@ export default function CandidatesPage() {
                 </div>
 
                 <nav className={styles.sidebarNav}>
-                    <div className={styles.navItem}>
+                    <Link href="/overview" className={styles.navItem}>
                         <img src="/assets/Overview.svg" alt="Overview" width={18} height={18} />
                         Overview
-                    </div>
-                    <Link href="/candidates" className={`${styles.navItem} ${styles.navItemActive}`}>
-                        <img src="/assets/candidates.svg" alt="Candidates" width={18} height={18} />
-                        Candidates
                     </Link>
-                    <Link href="/fosters" className={styles.navItem}>
+                    <Link href="/candidates" className={`${styles.navItem} ${styles.navItemActive}`}>
+                        <img src="/assets/candidates.svg" alt="Applicants" width={18} height={18} />
+                        Applicants
+                    </Link>
+                    <Link
+                        href="/fosters/overview"
+                        className={`${styles.navItem} ${pathname?.startsWith('/fosters') ? styles.navItemActive : ''}`}
+                    >
                         <img src="/assets/fosters.svg" alt="Fosters" width={18} height={18} />
                         Fosters
                     </Link>
-                    <div className={styles.navItem}>
-                        <img src="/assets/Notif.svg" alt="Notifications" width={18} height={18} />
-                        Notifications
-                    </div>
                 </nav>
 
                 <div className={styles.sidebarProfile}>
@@ -216,8 +216,7 @@ export default function CandidatesPage() {
             <div className={styles.mainContent}>
                 {/* Top bar */}
                 <div className={styles.topBar}>
-                    <h1 className={styles.topBarTitle}>Foster candidates</h1>
-                    <NotificationPanel />
+                    <h1 className={styles.topBarTitle}>Foster Applicants</h1>
                 </div>
 
                 {/* Tabs */}
@@ -227,7 +226,7 @@ export default function CandidatesPage() {
                             className={`${styles.tab} ${activeTab === 'candidates' ? styles.tabActive : ''}`}
                             onClick={() => setActiveTab('candidates')}
                         >
-                            Candidates
+                            Applicants
                         </button>
                         <button
                             className={`${styles.tab} ${activeTab === 'redflags' ? styles.tabActive : ''}`}
@@ -266,7 +265,7 @@ export default function CandidatesPage() {
                 )}
                 {error && <div className={styles.errorText}>{error}</div>}
 
-                {/* ---- Candidates Tab ---- */}
+                {/* ---- Applicants Tab ---- */}
                 {activeTab === 'candidates' && (
                     <div className={styles.tableWrapper}>
                         <div className={styles.tableContainer}>

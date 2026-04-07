@@ -3,16 +3,18 @@
 import { useMemo, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import { usePeople } from '@/app/components/PeopleProvider'
 import { useAuth } from '@/app/components/AuthProvider'
 import ProtectedRoute from '@/app/components/ProtectedRoute'
 import FilterDropdown, { FilterState } from '@/app/components/FilterDropdown'
 import PersonModal from '@/app/components/PersonModal'
 import type { Person } from '@/app/lib/peopleTypes'
-import NotificationPanel from '@/app/components/NotificationPanel'
+import FostersSubTabs from './FostersSubTabs'
 import styles from '../candidates/candidates.module.css'
 
 export default function FostersPage() {
+    const pathname = usePathname()
     const { people, isLoading, error } = usePeople()
     const { user, signOut } = useAuth()
     const [searchQuery, setSearchQuery] = useState('')
@@ -109,22 +111,21 @@ export default function FostersPage() {
                 </div>
 
                 <nav className={styles.sidebarNav}>
-                    <div className={styles.navItem}>
+                    <Link href="/overview" className={styles.navItem}>
                         <img src="/assets/Overview.svg" alt="Overview" width={18} height={18} />
                         Overview
-                    </div>
-                    <Link href="/candidates" className={styles.navItem}>
-                        <img src="/assets/candidates.svg" alt="Candidates" width={18} height={18} />
-                        Candidates
                     </Link>
-                    <Link href="/fosters" className={`${styles.navItem} ${styles.navItemActive}`}>
+                    <Link href="/candidates" className={styles.navItem}>
+                        <img src="/assets/candidates.svg" alt="Applicants" width={18} height={18} />
+                        Applicants
+                    </Link>
+                    <Link
+                        href="/fosters/overview"
+                        className={`${styles.navItem} ${pathname?.startsWith('/fosters') ? styles.navItemActive : ''}`}
+                    >
                         <img src="/assets/fosters.svg" alt="Fosters" width={18} height={18} />
                         Fosters
                     </Link>
-                    <div className={styles.navItem}>
-                        <img src="/assets/Notif.svg" alt="Notifications" width={18} height={18} />
-                        Notifications
-                    </div>
                 </nav>
 
                 <div className={styles.sidebarProfile}>
@@ -145,22 +146,10 @@ export default function FostersPage() {
             <div className={styles.mainContent}>
                 {/* Top bar */}
                 <div className={styles.topBar}>
-                    <h1 className={styles.topBarTitle}>Onboarded fosters</h1>
-                    <NotificationPanel />
+                    <h1 className={styles.topBarTitle}>Onboarded Fosters</h1>
                 </div>
 
-                {/* Title area (matching Candidates tab spacing) */}
-                <div className={styles.tabSection}>
-                    <div className={styles.tabRow}>
-                        <span
-                            className={`${styles.tab} ${styles.tabActive}`}
-                            style={{ borderBottomColor: 'transparent', cursor: 'default', display: 'inline-block' }}
-                        >
-                            Select a foster
-                        </span>
-                        <div className={styles.tabUnderlineFull} />
-                    </div>
-                </div>
+                <FostersSubTabs active="directory" />
 
                 {/* Toolbar */}
                 <div className={styles.toolbar}>
