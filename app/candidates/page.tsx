@@ -555,11 +555,13 @@ export default function CandidatesPage() {
                                         `${confirmModalState.person?.firstName ?? ''} ${confirmModalState.person?.lastName ?? ''}`.trim() ||
                                         confirmModalState.person?.email ||
                                         'This applicant'
-                                    if (confirmModalState.person?.email) {
-                                        setStatus(
-                                            confirmModalState.person.email,
-                                            confirmModalState.action === 'accept' ? 'approved' : 'rejected'
-                                        )
+                                    const email = confirmModalState.person?.email
+                                    if (email) {
+                                        const nextStatus = confirmModalState.action === 'accept' ? 'approved' : 'rejected'
+                                        setStatus(email, nextStatus)
+                                        if (nextStatus === 'approved') {
+                                            router.push('/fosters')
+                                        }
                                     }
                                     setConfirmModalState(s => ({ ...s, isOpen: false }))
                                     setExpandedEmail(null)
