@@ -342,6 +342,31 @@
     color: #808080;
 }
 
+.sortPillControl {
+    position: relative;
+    width: 280px;
+    height: 37px;
+    flex: 0 0 280px;
+    padding: 8px 18px 8px 24px;
+    border: 1px solid #c4c4c4;
+    border-radius: 30px;
+    background: #f7f7f7;
+    box-sizing: border-box;
+    color: black;
+    font-size: 14px;
+    font-family: 'Inter', sans-serif;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.sortPillControl:hover {
+    background: #f0f0f0;
+    border-color: #aaa;
+}
+
 /* ---- Table ---- */
 .tableWrapper {
     padding: 0 40px 40px;
