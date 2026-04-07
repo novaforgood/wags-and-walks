@@ -198,8 +198,8 @@ export default function OverviewPage() {
                             Applicants
                         </Link>
                         <Link
-                            href="/fosters"
-                            className={`${layoutStyles.navItem} ${pathname === '/fosters' ? layoutStyles.navItemActive : ''}`}
+                            href="/directory"
+                            className={`${layoutStyles.navItem} ${pathname === '/directory' ? layoutStyles.navItemActive : ''}`}
                         >
                             <img src="/assets/Search.svg" alt="" width={18} height={18} />
                             Directory
@@ -207,7 +207,7 @@ export default function OverviewPage() {
                         <Link
                             href="/fosters/overview"
                             className={`${layoutStyles.navItem} ${
-                                pathname?.startsWith('/fosters/') ? layoutStyles.navItemActive : ''
+                                pathname?.startsWith('/fosters') ? layoutStyles.navItemActive : ''
                             }`}
                         >
                             <img src="/assets/fosters.svg" alt="" width={18} height={18} />

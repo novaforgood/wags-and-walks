@@ -230,15 +230,15 @@ export default function FosterActionsPage() {
               Applicants
             </Link>
             <Link
-              href="/fosters"
-              className={`${layoutStyles.navItem} ${pathname === '/fosters' ? layoutStyles.navItemActive : ''}`}
+              href="/directory"
+              className={`${layoutStyles.navItem} ${pathname === '/directory' ? layoutStyles.navItemActive : ''}`}
             >
               <img src="/assets/Search.svg" alt="" width={18} height={18} />
               Directory
             </Link>
             <Link
               href="/fosters/overview"
-              className={`${layoutStyles.navItem} ${pathname?.startsWith('/fosters/') ? layoutStyles.navItemActive : ''}`}
+              className={`${layoutStyles.navItem} ${pathname?.startsWith('/fosters') ? layoutStyles.navItemActive : ''}`}
             >
               <img src="/assets/fosters.svg" alt="" width={18} height={18} />
               Fosters
@@ -279,7 +279,7 @@ export default function FosterActionsPage() {
             <h1 className={layoutStyles.topBarTitle}>Onboarded Fosters</h1>
           </div>
 
-          <FostersSubTabs active="actions" />
+          <FostersSubTabs active="overview" />
 
           {isLoading && people.length === 0 && (
             <div className={layoutStyles.loadingContainer}>Loading…</div>

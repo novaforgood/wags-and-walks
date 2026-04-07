@@ -253,15 +253,15 @@ export default function CandidatesPage() {
                         Applicants
                     </Link>
                     <Link
-                        href="/fosters"
-                        className={`${styles.navItem} ${pathname === '/fosters' ? styles.navItemActive : ''}`}
+                        href="/directory"
+                        className={`${styles.navItem} ${pathname === '/directory' ? styles.navItemActive : ''}`}
                     >
                         <img src="/assets/Search.svg" alt="Directory" width={18} height={18} />
                         Directory
                     </Link>
                     <Link
                         href="/fosters/overview"
-                        className={`${styles.navItem} ${pathname?.startsWith('/fosters/') ? styles.navItemActive : ''}`}
+                        className={`${styles.navItem} ${pathname?.startsWith('/fosters') ? styles.navItemActive : ''}`}
                     >
                         <img src="/assets/fosters.svg" alt="Fosters" width={18} height={18} />
                         Fosters

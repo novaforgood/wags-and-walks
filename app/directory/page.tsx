@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
@@ -16,6 +16,18 @@ export default function DirectoryPage() {
     const pathname = usePathname()
     const { people, isLoading, error } = usePeople()
     const { user, signOut } = useAuth()
+    const [navWidth, setNavWidth] = useState<number>(() => {
+        try {
+            const raw = localStorage.getItem('app_nav_sidebar_width_v1')
+            const n = raw ? Number(raw) : NaN
+            return Number.isFinite(n) ? Math.max(180, Math.min(280, n)) : 208
+        } catch {
+            return 208
+        }
+    })
+    const [isResizingNav, setIsResizingNav] = useState(false)
+    const navStartXRef = useRef(0)
+    const navStartWRef = useRef(208)
     const [searchQuery, setSearchQuery] = useState('')
     const [selectedPerson, setSelectedPerson] = useState<Person | null>(null)
     const [filters, setFilters] = useState<FilterState>({
@@ -106,9 +118,40 @@ export default function DirectoryPage() {
         return result
     }, [allApproved, searchQuery, filters])
 
+    useEffect(() => {
+        try {
+            localStorage.setItem('app_nav_sidebar_width_v1', String(navWidth))
+        } catch {
+            // ignore
+        }
+    }, [navWidth])
+
+    useEffect(() => {
+        if (!isResizingNav) return
+        const prevUserSelect = document.body.style.userSelect
+        document.body.style.userSelect = 'none'
+        function onMove(e: PointerEvent) {
+            const delta = e.clientX - navStartXRef.current
+            const next = Math.max(180, Math.min(280, navStartWRef.current + delta))
+            setNavWidth(next)
+        }
+        function onUp() {
+            setIsResizingNav(false)
+        }
+        window.addEventListener('pointermove', onMove)
+        window.addEventListener('pointerup', onUp)
+        window.addEventListener('pointercancel', onUp)
+        return () => {
+            document.body.style.userSelect = prevUserSelect
+            window.removeEventListener('pointermove', onMove)
+            window.removeEventListener('pointerup', onUp)
+            window.removeEventListener('pointercancel', onUp)
+        }
+    }, [isResizingNav])
+
     return (
         <ProtectedRoute>
-        <div className={styles.pageWrapper}>
+        <div className={styles.pageWrapper} style={{ ['--app-sidebar-width' as any]: `${navWidth}px` }}>
             {/* ---- Left Sidebar ---- */}
             <aside className={styles.sidebar}>
                 <div className={styles.sidebarLogo}>
@@ -131,10 +174,6 @@ export default function DirectoryPage() {
                         href="/directory"
                         className={`${styles.navItem} ${pathname === '/directory' ? styles.navItemActive : ''}`}
                     >
-                        <img src="/assets/candidates.svg" alt="Approved applicants" width={18} height={18} />
-                        Approved
-                    </Link>
-                    <Link href="/fosters" className={`${styles.navItem} ${pathname === '/fosters' ? styles.navItemActive : ''}`}>
                         <img src="/assets/Search.svg" alt="Directory" width={18} height={18} />
                         Directory
                     </Link>
@@ -160,6 +199,17 @@ export default function DirectoryPage() {
                     </div>
                 </div>
             </aside>
+
+            <div
+                className={styles.navResizeHandle}
+                onPointerDown={(e) => {
+                    e.preventDefault()
+                    e.currentTarget.setPointerCapture(e.pointerId)
+                    navStartXRef.current = e.clientX
+                    navStartWRef.current = navWidth
+                    setIsResizingNav(true)
+                }}
+            />
 
             {/* ---- Main Content ---- */}
             <div className={styles.mainContent}>
@@ -202,6 +252,7 @@ export default function DirectoryPage() {
                                     <th>Name</th>
                                     <th>Email</th>
                                     <th>Phone</th>
+                                    <th>Currently fostering</th>
                                     <th></th>
                                 </tr>
                             </thead>
@@ -209,6 +260,7 @@ export default function DirectoryPage() {
                                 {filtered.map((person, index) => {
                                     const email = person.email || `row-${index}`
                                     const name = `${person.firstName ?? ''} ${person.lastName ?? ''}`.trim() || 'Unknown'
+                                    const currentlyFostering = String(person.status || '').toLowerCase() === 'current'
 
                                     return (
                                         <tr key={email}>
@@ -220,6 +272,7 @@ export default function DirectoryPage() {
                                             </td>
                                             <td>{person.email || '—'}</td>
                                             <td>{person.phone || '—'}</td>
+                                            <td>{currentlyFostering ? 'Yes' : 'No'}</td>
                                             <td>
                                                 <button
                                                     className={styles.selectBtn}

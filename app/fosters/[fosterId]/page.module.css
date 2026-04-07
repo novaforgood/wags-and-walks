@@ -1,0 +1,58 @@
+.wrap {
+  padding: 24px 40px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.backLink {
+  color: #05aaaf;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.backLink:hover {
+  text-decoration: underline;
+}
+
+.card {
+  background: #fff;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  padding: 18px 20px;
+}
+
+.title {
+  margin: 0 0 12px;
+  font-size: 24px;
+}
+
+.sectionTitle {
+  margin: 0 0 12px;
+  font-size: 18px;
+}
+
+.metaGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(220px, 1fr));
+  gap: 10px 18px;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table th,
+.table td {
+  text-align: left;
+  padding: 10px 8px;
+  border-bottom: 1px solid #edf2f7;
+  font-size: 14px;
+}
+
+.hint {
+  margin: 0;
+  color: #4b5563;
+}
+

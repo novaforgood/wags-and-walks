@@ -2,7 +2,8 @@
 .overlay {
     position: fixed;
     top: 0;
-    left: var(--app-sidebar-width, 208px);
+    /* Keep the sidebar resize handle exposed while modal is open */
+    left: calc(var(--app-sidebar-width, 208px) + 8px);
     right: 0;
     bottom: 0;
     background: #f3f7f7;
