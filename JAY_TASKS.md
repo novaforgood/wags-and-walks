@@ -4,7 +4,7 @@
 
 Filter out dogs that should NOT appear on the fosters page:
 - `*FTA` / `*uFTA` / `*adopting` — these dogs are in the adoption process
-- `*STS` — Shelter to Soldier (uncommon, but hide from fosters page)
+- `*STS` — Shelter to Shelter (uncommon, but hide from fosters page)
 - `(w/name)` — dog is in training (e.g. "Moira (w/Klutch)"), hide everywhere
 
 Keep/show on fosters page:
@@ -28,6 +28,15 @@ Track last update type per foster:
 
 ## 4. Starred / Donor System
 
-- Add a "Donor" starred flag column
-- Show in `/Applicants` page
-- Show in `/Directory` page
+### Done
+- [x] `starred` field added to `Person` type
+- [x] Starring UI wired up on `/candidates` and `/directory` pages (star button, starred-only filter)
+- [x] `Starred` column added to Google Sheet
+- [x] Apps Script updated with `set_starred` action (`appscript/WebApp.gs`)
+- [x] `app/api/people/route.ts` reads `Starred` column from sheet → sets `starred: true/false` on each Person
+- [x] `app/components/PeopleProvider.tsx` — `toggleStar` calls `/api/send-email` with `set_starred`, optimistic update with revert on failure; localStorage star storage removed
+
+### To Do
+- [ ] Add a separate **Donor** flag column (distinct from the existing `Starred` column)
+- [ ] Show donor badge/indicator on `/candidates` page
+- [ ] Show donor badge/indicator on `/directory` page

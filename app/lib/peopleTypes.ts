@@ -19,6 +19,7 @@ export type Person = {
   appliedAt?: string
   availability?: string
   specialNeeds?: string[]
+  starred?: boolean
   raw?: Record<string, string>
 }
 

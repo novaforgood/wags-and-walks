@@ -15,7 +15,7 @@ import styles from '../candidates/candidates.module.css'
 
 export default function DirectoryPage() {
     const pathname = usePathname()
-    const { people, isLoading, error } = usePeople()
+    const { people, isLoading, error, toggleStar } = usePeople()
     const { user, signOut } = useAuth()
     const [navWidth, setNavWidth] = useState<number>(() => {
         try {
@@ -31,6 +31,7 @@ export default function DirectoryPage() {
     const navStartWRef = useRef(208)
     const [searchQuery, setSearchQuery] = useState('')
     const [selectedPerson, setSelectedPerson] = useState<Person | null>(null)
+    const [showStarredOnly, setShowStarredOnly] = useState(false)
     const [filters, setFilters] = useState<FilterState>({
         livingSituation: [],
         dogTypes: [],
@@ -116,8 +117,12 @@ export default function DirectoryPage() {
             })
         }
 
+        if (showStarredOnly) {
+            result = result.filter(p => p.starred)
+        }
+
         return result
-    }, [allApproved, searchQuery, filters])
+    }, [allApproved, searchQuery, filters, showStarredOnly])
 
     useEffect(() => {
         try {
@@ -235,6 +240,10 @@ export default function DirectoryPage() {
                         </div>
                     </div>
                     <div className={styles.toolbarRight}>
+                        <button
+                            className={`${styles.toolbarBtn} ${styles.toolbarBtnStarred} ${showStarredOnly ? styles.toolbarBtnActive : ''}`}
+                            onClick={() => setShowStarredOnly(v => !v)}
+                        >Starred</button>
                         <FilterDropdown people={people} filters={filters} setFilters={setFilters} />
                     </div>
                 </div>
@@ -276,15 +285,37 @@ export default function DirectoryPage() {
                                             <td>{person.phone || '—'}</td>
                                             <td>{currentlyFostering ? 'Yes' : 'No'}</td>
                                             <td>
-                                                <button
-                                                    className={styles.selectBtn}
-                                                    onClick={(e) => {
-                                                        e.stopPropagation()
-                                                        setSelectedPerson(person)
-                                                    }}
-                                                >
-                                                    View
-                                                </button>
+                                                <div className={styles.rowActions}>
+                                                    <button
+                                                        className={`${styles.actionIconBtn} ${person.starred ? styles.actionIconStarActive : styles.actionIconStar}`}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation()
+                                                            toggleStar(person.email || '')
+                                                        }}
+                                                        title={person.starred ? 'Unstar' : 'Star'}
+                                                        aria-label={person.starred ? `Unstar ${name}` : `Star ${name}`}
+                                                    >
+                                                        <svg viewBox="0 0 24 24" aria-hidden="true" className={styles.actionIconSvg}>
+                                                            <path
+                                                                d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
+                                                                fill={person.starred ? 'currentColor' : 'none'}
+                                                                stroke="currentColor"
+                                                                strokeWidth="2"
+                                                                strokeLinecap="round"
+                                                                strokeLinejoin="round"
+                                                            />
+                                                        </svg>
+                                                    </button>
+                                                    <button
+                                                        className={styles.selectBtn}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation()
+                                                            setSelectedPerson(person)
+                                                        }}
+                                                    >
+                                                        View
+                                                    </button>
+                                                </div>
                                             </td>
                                         </tr>
                                     )
