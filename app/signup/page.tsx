@@ -37,7 +37,7 @@ export default function SignUpPage() {
 
         try {
             await signUp(email, password)
-            router.push('/candidates')
+            router.push('/overview')
         } catch (err: any) {
             if (err.code === 'auth/email-already-in-use') {
                 setError('This email is already registered')

@@ -24,7 +24,7 @@ export default function LoginPage() {
 
         try {
             await signIn(email, password)
-            router.push('/candidates')
+            router.push('/overview')
         } catch (err: any) {
             setError(err.message || 'Failed to sign in')
         } finally {
