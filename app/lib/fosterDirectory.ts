@@ -65,11 +65,21 @@ export function fosterSlug(name: string, email?: string) {
   return encodeURIComponent(key.replace(/\s+/g, '-'))
 }
 
+const HIDDEN_DOG_PREFIXES = ['*fta', '*ufta', '*sts', '*ff', '*adopting']
+
+export function shouldHideDog(name?: string): boolean {
+  if (!name) return false
+  const lower = name.trim().toLowerCase()
+  if (lower.includes('(w/')) return true
+  return HIDDEN_DOG_PREFIXES.some(prefix => lower.startsWith(prefix))
+}
+
 export function buildFosterDirectory(dogs: DogRecord[]): FosterDirectoryItem[] {
   const grouped = new Map<string, FosterDirectoryItem>()
 
   for (let i = 0; i < dogs.length; i += 1) {
     const dog = dogs[i]
+    if (shouldHideDog(dog.name)) continue
     const fosterName = fosterDisplayName(dog.foster)
     const fosterEmail = normalizeText(dog.foster?.email) || undefined
     const id = fosterSlug(fosterName, fosterEmail)

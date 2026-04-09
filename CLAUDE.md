@@ -71,9 +71,25 @@ Protected pages (wrapped with `<ProtectedRoute>`):
 - `/candidates`
 - `/fosters`
 
+### Dogs / ShelterManager
+
+`app/api/dogs/route.ts` — Fetches dog records from ShelterManager (ASM) at `ASM_BASE_URL`. Returns JSON consumed by the `/directory` page.
+
+### Foster Sub-pages
+
+Under `/fosters`:
+- `/fosters/overview` — Foster overview dashboard
+- `/fosters/actions` — Foster action tracking
+- `/fosters/[fosterId]` — Individual foster detail
+
+Key lib files:
+- `app/lib/fosterDirectory.ts` — Directory builders and status logic for active fosters
+- `app/lib/fosterActions.ts` — Action type definitions for foster tracking
+
 ### Environment Variables
 
 Defined in `.env.local`:
 - `APPS_SCRIPT_URL` — Google Apps Script deployment URL (the main data API)
 - `APPS_SCRIPT_KEY` — Auth key for the Apps Script
 - `NEXT_PUBLIC_FIREBASE_*` — Firebase configuration (API key, auth domain, project ID, etc.)
+- `ASM_BASE_URL`, `ASM_ACCOUNT`, `ASM_USERNAME`, `ASM_PASSWORD` — ShelterManager API credentials (server-side only)
