@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { type ChangeEvent, useEffect, useMemo, useRef, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useParams, usePathname } from 'next/navigation'
@@ -41,6 +41,9 @@ export default function FosterDetailsPage() {
   const [isResizingNav, setIsResizingNav] = useState(false)
   const navStartXRef = useRef(0)
   const navStartWRef = useRef(208)
+  const notesSavedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [fosterNotes, setFosterNotes] = useState('')
+  const [showNotesSaved, setShowNotesSaved] = useState(false)
 
   useEffect(() => {
     let active = true
@@ -70,6 +73,44 @@ export default function FosterDetailsPage() {
 
   const directory = useMemo(() => buildFosterDirectory(dogs), [dogs])
   const foster = useMemo(() => directory.find(f => f.id === fosterId), [directory, fosterId])
+
+  useEffect(() => {
+    if (!fosterId) return
+    try {
+      const raw = localStorage.getItem(`foster_notes_${fosterId}`)
+      setFosterNotes(typeof raw === 'string' ? raw : '')
+    } catch {
+      setFosterNotes('')
+    }
+  }, [fosterId])
+
+  function persistFosterNotes(value: string) {
+    if (!fosterId) return
+    try {
+      localStorage.setItem(`foster_notes_${fosterId}`, value)
+    } catch {
+      // ignore quota / private mode
+    }
+  }
+
+  function handleFosterNotesChange(e: ChangeEvent<HTMLTextAreaElement>) {
+    const value = e.target.value
+    setFosterNotes(value)
+    persistFosterNotes(value)
+  }
+
+  function handleSaveNotes() {
+    persistFosterNotes(fosterNotes)
+    if (notesSavedTimerRef.current) clearTimeout(notesSavedTimerRef.current)
+    setShowNotesSaved(true)
+    notesSavedTimerRef.current = setTimeout(() => setShowNotesSaved(false), 2000)
+  }
+
+  useEffect(() => {
+    return () => {
+      if (notesSavedTimerRef.current) clearTimeout(notesSavedTimerRef.current)
+    }
+  }, [])
 
   useEffect(() => {
     try {
@@ -208,6 +249,27 @@ export default function FosterDetailsPage() {
                       ))}
                     </tbody>
                   </table>
+                </section>
+
+                <section className={styles.card} aria-label="Foster notes">
+                  <h3 className={styles.sectionTitle}>Notes</h3>
+                  <textarea
+                    className={styles.notesTextarea}
+                    value={fosterNotes}
+                    onChange={handleFosterNotesChange}
+                    placeholder="Add notes about this foster…"
+                    rows={5}
+                  />
+                  <div className={styles.notesActions}>
+                    <button type="button" className={styles.notesSaveBtn} onClick={handleSaveNotes}>
+                      Save
+                    </button>
+                    {showNotesSaved && (
+                      <span className={styles.notesSavedHint} role="status">
+                        Saved
+                      </span>
+                    )}
+                  </div>
                 </section>
               </>
             )}

@@ -56,3 +56,64 @@
   color: #4b5563;
 }
 
+.notesTextarea {
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0;
+  min-height: 120px;
+  padding: 12px 14px;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.45;
+  color: #111827;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fafafa;
+  resize: vertical;
+}
+
+.notesTextarea:focus {
+  outline: none;
+  border-color: #05aaaf;
+  background: #fff;
+  box-shadow: 0 0 0 2px rgba(5, 170, 175, 0.15);
+}
+
+.notesTextarea::placeholder {
+  color: #9ca3af;
+}
+
+.notesActions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.notesSaveBtn {
+  padding: 8px 18px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  background: #05aaaf;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.notesSaveBtn:hover {
+  background: #04989c;
+}
+
+.notesSaveBtn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px #fff, 0 0 0 4px #05aaaf;
+}
+
+.notesSavedHint {
+  font-size: 14px;
+  color: #059669;
+  font-weight: 500;
+}
+
