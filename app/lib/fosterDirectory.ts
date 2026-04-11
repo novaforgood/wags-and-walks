@@ -71,6 +71,7 @@ export function shouldHideDog(name?: string): boolean {
   if (!name) return false
   const lower = name.trim().toLowerCase()
   if (lower.includes('(w/')) return true
+  if (lower.startsWith('*poss ff')) return false
   return HIDDEN_DOG_PREFIXES.some(prefix => lower.startsWith(prefix))
 }
 

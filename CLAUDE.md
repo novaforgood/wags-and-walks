@@ -40,9 +40,16 @@ The API auto-promotes `new` applicants with no flags to `in-progress` (see `app/
 Two layout patterns coexist:
 - **`/candidates` and `/fosters`** — New sidebar layout (these pages render their own sidebar; `Navigation` component hides itself)
 - `/candidates` — Applicants in pipeline (new, in-progress, approved)
-- `/fosters` — Active fosters list (status = `current`)
+- `/fosters` — Default route; renders the **ShelterManager directory** (dog records), NOT the people list
+- `/fosters/overview` — Foster overview dashboard (people with `status = 'current'`)
+- `/fosters/actions` — Foster action tracking (also driven by `current` people)
+- `/fosters/[fosterId]` — Individual foster detail (slug from `fosterSlug()` in `fosterDirectory.ts`)
+- `/overview` — Top-level overview dashboard
+- `/directory` — Dog directory page (also uses `/api/dogs`)
+- `/current` — Current fosters page
+- `/signup` — Signup page (auth, not fully wired)
 - `/applicants/[email]` — Individual applicant detail
-- `/applicants/[email]/updates` — Updates timeline (currently placeholder)
+- `/applicants/[email]/updates` — Updates timeline (placeholder)
 
 ### Shared Components
 
@@ -73,18 +80,28 @@ Protected pages (wrapped with `<ProtectedRoute>`):
 
 ### Dogs / ShelterManager
 
-`app/api/dogs/route.ts` — Fetches dog records from ShelterManager (ASM) at `ASM_BASE_URL`. Returns JSON consumed by the `/directory` page.
+`app/api/dogs/route.ts` — Fetches dog records from ShelterManager (ASM) via the `json_shelter_animals` method at `ASM_BASE_URL`. Returns JSON consumed by `/fosters` (directory tab) and `/directory`. Only animals with a foster-type active movement are flagged `inFoster: true`; `daysInFoster` is computed from `ACTIVEMOVEMENTDATE`.
 
 ### Foster Sub-pages
 
-Under `/fosters`:
-- `/fosters/overview` — Foster overview dashboard
-- `/fosters/actions` — Foster action tracking
-- `/fosters/[fosterId]` — Individual foster detail
-
 Key lib files:
-- `app/lib/fosterDirectory.ts` — Directory builders and status logic for active fosters
-- `app/lib/fosterActions.ts` — Action type definitions for foster tracking
+- `app/lib/fosterDirectory.ts` — Builds `FosterDirectoryItem[]` from ASM dog records; computes `FosterStatus` (Good: <14 days, Needs Review: 14–30 days, Overdue: >30 days). Dogs prefixed with `*fta`, `*ufta`, `*sts`, `*ff`, `*adopting`, or containing `(w/` are hidden via `shouldHideDog()`.
+- `app/lib/fosterActions.ts` — Builds `FosterOverviewRow[]` from `current` people in Google Sheets; extracts dog names and derives action statuses (photos, vet records, weekly check-in, orientation) from the sheet's raw column values.
+
+### localStorage Keys
+
+- `people_v2` — Cached array of `Person` objects from last successful fetch
+- `pending_status_updates_v1` — Queued status changes not yet flushed to Sheets (survives page refresh)
+- `app_nav_sidebar_width_v1` — Persisted sidebar width (px) for the resizable nav
+
+### Known TODOs in Code
+
+- `UPDATED_BY = 'jay t'` in `PeopleProvider.tsx` — hardcoded admin identity; should be replaced with the logged-in Firebase user
+- `firebase 2.js` at root — stale duplicate of `firebase.js`, safe to delete
+
+### Apps Script Source
+
+`appscript/` at the repo root contains the Google Apps Script source files (`WebApp.gs`, `Code.gs`, `CurrentFoster.gs`, etc.) that back the `APPS_SCRIPT_URL` endpoint. Changes here must be manually deployed to the Apps Script project.
 
 ### Environment Variables
 

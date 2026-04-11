@@ -11,19 +11,23 @@ Keep/show on fosters page:
 - Single letter prefix + hyphen (e.g. `n- Nibs`, `a- Rex`) — litter/family grouping only, display normally
 - `*poss FF` — possible foster fail; they are still fostering, display normally
 
+### Done
+- [x] `*poss FF` dogs no longer hidden — `shouldHideDog()` in `fosterDirectory.ts` now checks for `*poss ff` before the generic `*ff` prefix
+
+### To Do
+- [ ] Single letter + hyphen prefix dogs (e.g. `n- Nibs`) — confirm they display correctly (no current filter touches them, but worth verifying)
+
 ## 2. Foster Tracking Logic
 
-Define status distinctions:
-- **Needs review** — delinquent (task overdue, no submission yet)
-- **Overdue** — 2x follow-up sent with no response
-
-Track last update type per foster:
-- Distinguish between **survey submission** vs **photo upload**
+- [ ] Redefine status semantics:
+  - **Needs Review** — task overdue, no submission yet
+  - **Overdue** — 2x follow-up sent with no response (currently both collapse to the same threshold in `toStatus()`)
+- [ ] Track last update type per foster: distinguish **survey submission** vs **photo upload**
 
 ## 3. Notes System
 
-- Store and retrieve notes per foster
-- Add a button to send a manual check-in email to a foster
+- [ ] Store and retrieve notes per foster
+- [ ] Add a button to send a manual check-in email to a foster
   - Template: `Hey {fostername} checking in on {dog}!`
 
 ## 4. Starred / Donor System
@@ -40,3 +44,9 @@ Track last update type per foster:
 - [ ] Add a separate **Donor** flag column (distinct from the existing `Starred` column)
 - [ ] Show donor badge/indicator on `/candidates` page
 - [ ] Show donor badge/indicator on `/directory` page
+
+## 5. Auth Gaps
+
+- [ ] `/applicants/[email]` is not wrapped with `ProtectedRoute` — unauthenticated users can access it directly
+- [ ] "Remember Me" checkbox on `/login` is UI-only — connect it to Firebase `setPersistence(auth, browserLocalPersistence)`
+- [ ] `/signup` page is linked from the login footer but doesn't exist — either build it or remove the link
