@@ -15,7 +15,7 @@ Keep/show on fosters page:
 - [x] `*poss FF` dogs no longer hidden — `shouldHideDog()` in `fosterDirectory.ts` now checks for `*poss ff` before the generic `*ff` prefix
 
 ### To Do
-- [ ] Single letter + hyphen prefix dogs (e.g. `n- Nibs`) — confirm they display correctly (no current filter touches them, but worth verifying)
+- [x] Single letter + hyphen prefix dogs (e.g. `n- Nibs`) — confirmed, no filter touches them, display normally
 
 ## 2. Foster Tracking Logic
 
@@ -26,7 +26,15 @@ Keep/show on fosters page:
 
 ## 3. Notes System
 
-- [ ] Store and retrieve notes per foster
+### Done
+- [x] Notes stored as two columns (`Notes`, `Notes Updated At`) on the existing "Form Responses 1" sheet
+- [x] `set_notes` action added to Apps Script (`appscript/WebApp.gs`) — redeployed
+- [x] `notes` and `notesUpdatedAt` fields added to `Person` type (`app/lib/peopleTypes.ts`)
+- [x] `app/api/people/route.ts` reads both columns from sheet rows
+- [x] `PeopleProvider.tsx` — `setNotes(email, content)` added to context, optimistic local update
+- [x] Foster detail page (`app/fosters/[fosterId]/page.tsx`) — notes card with textarea, auto-save on blur, "Saving..."/"Saved" indicator, "Last saved" timestamp
+
+### To Do
 - [ ] Add a button to send a manual check-in email to a foster
   - Template: `Hey {fostername} checking in on {dog}!`
 

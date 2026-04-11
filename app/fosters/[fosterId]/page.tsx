@@ -5,6 +5,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { useParams, usePathname } from 'next/navigation'
 import { useAuth } from '@/app/components/AuthProvider'
+import { usePeople } from '@/app/components/PeopleProvider'
 import ProtectedRoute from '@/app/components/ProtectedRoute'
 import NotificationPanel from '@/app/components/NotificationPanel'
 import {
@@ -26,6 +27,10 @@ export default function FosterDetailsPage() {
   const params = useParams<{ fosterId: string }>()
   const fosterId = params?.fosterId
   const { user, signOut } = useAuth()
+  const { people, setNotes } = usePeople()
+  const [notesDraft, setNotesDraft] = useState<string | null>(null)
+  const [notesSaving, setNotesSaving] = useState(false)
+  const [notesSaved, setNotesSaved] = useState(false)
   const [dogs, setDogs] = useState<DogRecord[]>([])
   const [isLoadingDogs, setIsLoadingDogs] = useState(true)
   const [dogsError, setDogsError] = useState<string | null>(null)
@@ -70,6 +75,10 @@ export default function FosterDetailsPage() {
 
   const directory = useMemo(() => buildFosterDirectory(dogs), [dogs])
   const foster = useMemo(() => directory.find(f => f.id === fosterId), [directory, fosterId])
+  const person = useMemo(
+    () => people.find(p => p.email?.toLowerCase() === foster?.fosterEmail?.toLowerCase()),
+    [people, foster]
+  )
 
   useEffect(() => {
     try {
@@ -208,6 +217,33 @@ export default function FosterDetailsPage() {
                       ))}
                     </tbody>
                   </table>
+                </section>
+
+                <section className={styles.card}>
+                  <div className={styles.notesHeader}>
+                    <h3 className={styles.sectionTitle}>Notes</h3>
+                    {!notesSaving && notesSaved && <span className={styles.notesLastSaved}>Saved</span>}
+                    {notesSaving && <span className={styles.notesLastSaved}>Saving...</span>}
+                    {!notesSaving && !notesSaved && person?.notesUpdatedAt && (
+                      <span className={styles.notesLastSaved}>Last saved: {formatDateShort(person.notesUpdatedAt)}</span>
+                    )}
+                  </div>
+                  <textarea
+                    className={styles.notesTextarea}
+                    placeholder="No notes yet..."
+                    value={notesDraft ?? (person?.notes ?? '')}
+                    onChange={e => {
+                      setNotesDraft(e.target.value)
+                      setNotesSaved(false)
+                    }}
+                    onBlur={async () => {
+                      if (!foster.fosterEmail || notesDraft === null) return
+                      setNotesSaving(true)
+                      await setNotes(foster.fosterEmail, notesDraft)
+                      setNotesSaving(false)
+                      setNotesSaved(true)
+                    }}
+                  />
                 </section>
               </>
             )}

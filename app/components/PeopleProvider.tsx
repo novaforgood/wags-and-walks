@@ -18,6 +18,7 @@ type PeopleContextValue = {
   error: string | null
   setStatus: (email: string, status: PersonStatus) => void
   toggleStar: (email: string) => void
+  setNotes: (email: string, content: string) => Promise<void>
   refresh: () => Promise<void>
 }
 
@@ -96,6 +97,26 @@ export function PeopleProvider({ children }: { children: React.ReactNode }) {
         ))
       })
   }, [people])
+
+  const setNotes = useCallback(async (email: string, content: string) => {
+    const key = normalizeEmailKey(email)
+    if (!key) return
+
+    setPeople(prev =>
+      prev.map(p => normalizeEmailKey(p.email) === key ? { ...p, notes: content } : p)
+    )
+
+    await fetch('/api/send-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'set_notes', email, content })
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (!data?.success) console.error('set_notes failed:', data)
+      })
+      .catch(err => console.error('Failed to save notes:', err))
+  }, [])
 
   const refresh = useCallback(async () => {
     abortRef.current?.abort()
@@ -247,8 +268,8 @@ export function PeopleProvider({ children }: { children: React.ReactNode }) {
   }, [refresh, applyPendingOptimistic])
 
   const value = useMemo<PeopleContextValue>(
-    () => ({ people, isLoading, error, setStatus, toggleStar, refresh }),
-    [people, isLoading, error, setStatus, toggleStar, refresh]
+    () => ({ people, isLoading, error, setStatus, toggleStar, setNotes, refresh }),
+    [people, isLoading, error, setStatus, toggleStar, setNotes, refresh]
   )
 
   return <PeopleContext.Provider value={value}>{children}</PeopleContext.Provider>
