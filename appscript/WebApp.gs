@@ -39,7 +39,11 @@ const CONFIG = {
 
     // Email metadata
     EMAIL_SENT: "Email Sent",
-    EMAIL_SENT_AT: "Email Sent At"
+    EMAIL_SENT_AT: "Email Sent At",
+
+    // Foster notes
+    NOTES: "Notes",
+    NOTES_UPDATED_AT: "Notes Updated At"
   },
 
   REVIEW_VALUES: {
@@ -347,6 +351,12 @@ function doPost(e) {
       return json_(Object.assign({}, result, { build: CONFIG.BUILD_ID }));
     }
 
+    // ---- set_notes ---------------------------------------------------------
+    if (action === "set_notes") {
+      const result = setNotes_(payload.email, payload.content);
+      return json_(Object.assign({}, result, { build: CONFIG.BUILD_ID }));
+    }
+
     // ---- email sending -----------------------------------------------------
     const subject = String(payload.subject || CONFIG.EMAIL_DEFAULTS.DEFAULT_SUBJECT);
     const emailContent = String(payload.emailContent || "");
@@ -517,6 +527,41 @@ function setStarred_(email, starred) {
   for (let i = 0; i < emailData.length; i++) {
     if (String(emailData[i][0]).trim().toLowerCase() === String(email).trim().toLowerCase()) {
       sheet.getRange(i + 2, starredCol + 1).setValue(starred ? "TRUE" : "");
+      return { success: true };
+    }
+  }
+  return { success: false, error: "Email not found" };
+}
+
+function setNotes_(email, content) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(CONFIG.SHEET_NAME);
+  if (!sheet) return { success: false, error: "Sheet not found" };
+
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+
+  ensureOutputColumns_(sheet, headers, [
+    CONFIG.OUTPUT_HEADERS.NOTES,
+    CONFIG.OUTPUT_HEADERS.NOTES_UPDATED_AT
+  ]);
+
+  const freshHeaders = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  const emailCol = freshHeaders.findIndex(function(h) { return String(h).trim().toLowerCase() === "email"; });
+  const notesCol = freshHeaders.findIndex(function(h) { return String(h).trim() === CONFIG.OUTPUT_HEADERS.NOTES; });
+  const updatedAtCol = freshHeaders.findIndex(function(h) { return String(h).trim() === CONFIG.OUTPUT_HEADERS.NOTES_UPDATED_AT; });
+
+  if (emailCol === -1 || notesCol === -1 || updatedAtCol === -1)
+    return { success: false, error: "Required column not found" };
+
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return { success: false, error: "No data rows" };
+
+  const emailData = sheet.getRange(2, emailCol + 1, lastRow - 1, 1).getValues();
+  for (let i = 0; i < emailData.length; i++) {
+    if (String(emailData[i][0]).trim().toLowerCase() === String(email).trim().toLowerCase()) {
+      sheet.getRange(i + 2, notesCol + 1).setValue(content);
+      sheet.getRange(i + 2, updatedAtCol + 1).setValue(new Date());
+      SpreadsheetApp.flush();
       return { success: true };
     }
   }
