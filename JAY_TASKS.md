@@ -35,6 +35,7 @@ Keep/show on fosters page:
 - [x] Foster detail page (`app/fosters/[fosterId]/page.tsx`) — notes card with textarea, auto-save on blur, "Saving..."/"Saved" indicator, "Last saved" timestamp
 
 ### To Do
+- [ ] **Look into why starred and notes are not writing to the sheet** — `setStarred_` was missing `ensureOutputColumns_` (fixed in this session), redeployed Apps Script needed. Verify the `Starred`, `Notes`, and `Notes Updated At` columns are being created and written correctly after redeploy. Check browser network tab on `/api/send-email` POST for the actual Apps Script response if still broken.
 - [ ] Add a button to send a manual check-in email to a foster
   - Template: `Hey {fostername} checking in on {dog}!`
 

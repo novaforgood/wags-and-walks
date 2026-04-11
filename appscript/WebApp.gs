@@ -41,6 +41,9 @@ const CONFIG = {
     EMAIL_SENT: "Email Sent",
     EMAIL_SENT_AT: "Email Sent At",
 
+    // Starred
+    STARRED: "Starred",
+
     // Foster notes
     NOTES: "Notes",
     NOTES_UPDATED_AT: "Notes Updated At"
@@ -514,8 +517,12 @@ function setStarred_(email, starred) {
   if (!sheet) return { success: false, error: "Sheet not found" };
 
   const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-  const emailCol = headers.findIndex(function(h) { return String(h).trim().toLowerCase() === "email"; });
-  const starredCol = headers.findIndex(function(h) { return String(h).trim().toLowerCase() === "starred"; });
+
+  ensureOutputColumns_(sheet, headers, [CONFIG.OUTPUT_HEADERS.STARRED]);
+
+  const freshHeaders = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  const emailCol = freshHeaders.findIndex(function(h) { return String(h).trim().toLowerCase() === "email"; });
+  const starredCol = freshHeaders.findIndex(function(h) { return String(h).trim() === CONFIG.OUTPUT_HEADERS.STARRED; });
 
   if (emailCol === -1 || starredCol === -1)
     return { success: false, error: "Required column not found" };
@@ -527,6 +534,7 @@ function setStarred_(email, starred) {
   for (let i = 0; i < emailData.length; i++) {
     if (String(emailData[i][0]).trim().toLowerCase() === String(email).trim().toLowerCase()) {
       sheet.getRange(i + 2, starredCol + 1).setValue(starred ? "TRUE" : "");
+      SpreadsheetApp.flush();
       return { success: true };
     }
   }
