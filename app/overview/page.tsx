@@ -270,7 +270,7 @@ export default function OverviewPage() {
                                     </span>
                                 </div>
                                 <div className={styles.statCard}>
-                                    <span className={styles.statLabel}>Current fosters</span>
+                                    <span className={styles.statLabel}>Active fosters</span>
                                     <span className={styles.statValue}>{stats.currentCount}</span>
                                     <span className={styles.statHint}>Active on the Fosters page</span>
                                 </div>
@@ -381,7 +381,7 @@ export default function OverviewPage() {
                                             className: styles.barApproved,
                                         },
                                         {
-                                            label: 'Current',
+                                            label: 'Active',
                                             count: stats.currentCount,
                                             className: styles.barCurrent,
                                         },

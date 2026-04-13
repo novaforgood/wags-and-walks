@@ -254,7 +254,7 @@ export default function DirectoryPage() {
                                     <th>Name</th>
                                     <th>Email</th>
                                     <th>Phone</th>
-                                    <th>Currently fostering</th>
+                                    <th>Actively fostering</th>
                                     <th></th>
                                 </tr>
                             </thead>
