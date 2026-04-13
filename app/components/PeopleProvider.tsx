@@ -227,7 +227,7 @@ export function PeopleProvider({ children }: { children: React.ReactNode }) {
       if (status === 'approved') {
         // Fire and forget - don't block UI
         fetch(
-          'https://script.google.com/macros/s/AKfycbzU2k4tlSAGwxz6G2zqx_seW0-ZQWZLbMsnzfP5MBdYXDoe49JlcRuuu5KtPuqrL-3E/exec',
+          'https://script.google.com/macros/s/AKfycbyCk2eN4T6TTtaNF04U7nyM9TDKQOb_2Yw2UDTFbOFv6bmWxqk49sh-ndm7xzVxxskT/exec',
           {
             method: 'POST',
             mode: 'no-cors',

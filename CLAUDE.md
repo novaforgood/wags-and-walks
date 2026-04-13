@@ -56,6 +56,9 @@ Two layout patterns coexist:
 - `PersonModal` — Detail modal for viewing full applicant info
 - `FilterDropdown` — Multi-category filter dropdown (living situation, experience, children, dog types, pet history)
 - `NotificationPanel` — Bell icon notification dropdown with unread/read filtering (currently uses mock data)
+- `FostersSubTabs` — Tab bar (Directory / Overview / Actions) rendered inside the `/fosters` layout
+
+> **Layout coupling:** `/fosters`, `/fosters/overview`, `/fosters/actions`, and `/fosters/[fosterId]` all import from `candidates/candidates.module.css` for the shared sidebar shell. This is intentional — there is no separate fosters layout file.
 
 ### Styling
 
@@ -82,6 +85,8 @@ Protected pages (wrapped with `<ProtectedRoute>`):
 
 `app/api/dogs/route.ts` — Fetches dog records from ShelterManager (ASM) via the `json_shelter_animals` method at `ASM_BASE_URL`. Returns JSON consumed by `/fosters` (directory tab) and `/directory`. Only animals with a foster-type active movement are flagged `inFoster: true`; `daysInFoster` is computed from `ACTIVEMOVEMENTDATE`.
 
+`app/api/dogs/photo/route.ts` — Server-side proxy for dog images from ASM. Accepts `?animalId=<id>&variant=thumbnail|full`. Uses `animal_thumbnail` or `animal_image` (seq 1) ASM methods. Proxies the binary response directly — avoids exposing ASM credentials to the client.
+
 ### Foster Sub-pages
 
 Key lib files:
@@ -94,19 +99,36 @@ Key lib files:
 - `pending_status_updates_v1` — Queued status changes not yet flushed to Sheets (survives page refresh)
 - `app_nav_sidebar_width_v1` — Persisted sidebar width (px) for the resizable nav
 
+### Dev Utilities
+
+`scripts/reset_status.js` — Bulk-resets all applicants to `new` status by hitting the local API. Requires dev server running on port 3001. Run with `node scripts/reset_status.js`.
+
 ### Known TODOs in Code
 
 - `UPDATED_BY = 'jay t'` in `PeopleProvider.tsx` — hardcoded admin identity; should be replaced with the logged-in Firebase user
 - `firebase 2.js` at root — stale duplicate of `firebase.js`, safe to delete
 
-### Apps Script Source
+### Apps Script Source — Two Separate Sheets
 
-`appscript/` at the repo root contains the Google Apps Script source files (`WebApp.gs`, `Code.gs`, `CurrentFoster.gs`, etc.) that back the `APPS_SCRIPT_URL` endpoint. Changes here must be manually deployed to the Apps Script project.
+There are **two independent Google Sheets / Apps Script projects**. Changes to either must be manually redeployed in the Apps Script editor.
+
+**Sheet 1 — Applicants** (`appscript/WebApp.gs`)
+- Backs the `APPS_SCRIPT_URL` endpoint — the main data API used by the Next.js app
+- Sheet: "Form Responses 1" (applicant pipeline data: status, starred, notes, flags)
+- Current deployment ID: `AKfycbyCk2eN4T6TTtaNF04U7nyM9TDKQOb_2Yw2UDTFbOFv6bmWxqk49sh-ndm7xzVxxskT`
+- Called by: `/api/people` (GET rows) and `/api/send-email` (POST mutations)
+
+**Sheet 2 — Foster Tracking** (`appscript/CurrentFoster.gs`, `TaskCheck.gs`, `Code.gs`)
+- Standalone — **not called by the Next.js app**; runs on a schedule inside the Apps Script project
+- Deployment ID: `AKfycbxbypLoDIBYX5OaKM--nmulOHA_RtoOSN_Di_W6jBkornRP3I1tHEwMnVERmxS1X-Lh`
+- `CurrentFoster.gs` — `syncCurrentFosterDogs()`: pulls current fosters from ASM → writes to "Current Fosters" sheet
+- `TaskCheck.gs` — `checkFosterTasks()` (daily trigger at 8am): checks photo/survey task deadlines, queues email reminders, updates "Task Log" sheet. Reads form completions from "Form Responses" sheet. Currently logs only — email sending is disabled during testing.
+- `Code.gs` — `autoOrganizeFormFiles()`: form submit trigger that moves uploaded foster photos into per-dog Google Drive folders
 
 ### Environment Variables
 
 Defined in `.env.local`:
-- `APPS_SCRIPT_URL` — Google Apps Script deployment URL (the main data API)
+- `APPS_SCRIPT_URL` — Sheet 1 web app URL (applicant data API)
 - `APPS_SCRIPT_KEY` — Auth key for the Apps Script
 - `NEXT_PUBLIC_FIREBASE_*` — Firebase configuration (API key, auth domain, project ID, etc.)
 - `ASM_BASE_URL`, `ASM_ACCOUNT`, `ASM_USERNAME`, `ASM_PASSWORD` — ShelterManager API credentials (server-side only)

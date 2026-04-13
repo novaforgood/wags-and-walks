@@ -1,4 +1,82 @@
 /**
+ * Web app entry points for Sheet 2 (Foster Tracking)
+ */
+function doGet(e) {
+  const params = e.parameter || {};
+  const email = (params.email || '').trim().toLowerCase();
+
+  if (!email) {
+    return json_({ success: false, error: 'email parameter required' });
+  }
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName('Foster Notes');
+  if (!sheet || sheet.getLastRow() < 2) {
+    return json_({ success: true, notes: '', notesUpdatedAt: '' });
+  }
+
+  const data = sheet.getRange(2, 1, sheet.getLastRow() - 1, 3).getValues();
+  for (let i = 0; i < data.length; i++) {
+    if (String(data[i][0]).trim().toLowerCase() === email) {
+      return json_({ success: true, notes: data[i][1] || '', notesUpdatedAt: data[i][2] || '' });
+    }
+  }
+
+  return json_({ success: true, notes: '', notesUpdatedAt: '' });
+}
+
+function doPost(e) {
+  let body;
+  try {
+    body = JSON.parse(e.postData.contents);
+  } catch (err) {
+    return json_({ success: false, error: 'Invalid JSON' });
+  }
+
+  if (body.action === 'set_notes') {
+    return setFosterNotes_(body.email, body.content);
+  }
+
+  return json_({ success: false, error: 'Unknown action' });
+}
+
+function setFosterNotes_(email, content) {
+  if (!email) return json_({ success: false, error: 'email required' });
+
+  const normalized = email.trim().toLowerCase();
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName('Foster Notes');
+
+  if (!sheet) {
+    sheet = ss.insertSheet('Foster Notes');
+    sheet.getRange(1, 1, 1, 3).setValues([['Foster Email', 'Notes', 'Notes Updated At']]);
+    sheet.setFrozenRows(1);
+  }
+
+  const now = new Date().toISOString();
+
+  // Upsert: find existing row by email
+  if (sheet.getLastRow() >= 2) {
+    const emails = sheet.getRange(2, 1, sheet.getLastRow() - 1, 1).getValues();
+    for (let i = 0; i < emails.length; i++) {
+      if (String(emails[i][0]).trim().toLowerCase() === normalized) {
+        sheet.getRange(i + 2, 2, 1, 2).setValues([[content, now]]);
+        return json_({ success: true });
+      }
+    }
+  }
+
+  // Insert new row
+  sheet.appendRow([email.trim(), content, now]);
+  return json_({ success: true });
+}
+
+function json_(obj) {
+  return ContentService.createTextOutput(JSON.stringify(obj))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+/**
  * Configuration: Change these to match your Form/Sheet exactly
  */
 const PARENT_FOLDER_ID = '1DpRCk9_EzcSMqdgKHWxyNHZQPApSApoi'; // The ID of the main folder where dog folders live

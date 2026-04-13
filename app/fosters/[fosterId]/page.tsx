@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { useParams, usePathname } from 'next/navigation'
+import { useParams, usePathname, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/app/components/AuthProvider'
 import { usePeople } from '@/app/components/PeopleProvider'
 import ProtectedRoute from '@/app/components/ProtectedRoute'
@@ -24,13 +24,17 @@ type DogsApiResponse = {
 
 export default function FosterDetailsPage() {
   const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const backHref = searchParams.get('from') === 'overview' ? '/fosters/overview' : '/fosters'
+  const backLabel = searchParams.get('from') === 'overview' ? '← Back to Overview' : '← Back to Current Directory'
   const params = useParams<{ fosterId: string }>()
   const fosterId = params?.fosterId
   const { user, signOut } = useAuth()
-  const { people, setNotes } = usePeople()
+  const { people } = usePeople()
   const [notesDraft, setNotesDraft] = useState<string | null>(null)
   const [notesSaving, setNotesSaving] = useState(false)
   const [notesSaved, setNotesSaved] = useState(false)
+  const [notesFromSheet, setNotesFromSheet] = useState<{ notes: string; notesUpdatedAt: string } | null>(null)
   const [dogs, setDogs] = useState<DogRecord[]>([])
   const [isLoadingDogs, setIsLoadingDogs] = useState(true)
   const [dogsError, setDogsError] = useState<string | null>(null)
@@ -79,6 +83,18 @@ export default function FosterDetailsPage() {
     () => people.find(p => p.email?.toLowerCase() === foster?.fosterEmail?.toLowerCase()),
     [people, foster]
   )
+
+  useEffect(() => {
+    if (!foster?.fosterEmail) return
+    fetch(`/api/foster-notes?email=${encodeURIComponent(foster.fosterEmail)}`)
+      .then(r => r.json())
+      .then(data => {
+        if (data?.success) {
+          setNotesFromSheet({ notes: data.notes || '', notesUpdatedAt: data.notesUpdatedAt || '' })
+        }
+      })
+      .catch(() => {})
+  }, [foster?.fosterEmail])
 
   useEffect(() => {
     try {
@@ -174,7 +190,7 @@ export default function FosterDetailsPage() {
           </div>
 
           <div className={styles.wrap}>
-            <Link href="/fosters" className={styles.backLink}>← Back to Current Directory</Link>
+            <Link href={backHref} className={styles.backLink}>{backLabel}</Link>
 
             {isLoadingDogs && <div className={layoutStyles.loadingContainer}>Loading foster details...</div>}
             {dogsError && <div className={layoutStyles.errorText}>{dogsError}</div>}
@@ -224,14 +240,14 @@ export default function FosterDetailsPage() {
                     <h3 className={styles.sectionTitle}>Notes</h3>
                     {!notesSaving && notesSaved && <span className={styles.notesLastSaved}>Saved</span>}
                     {notesSaving && <span className={styles.notesLastSaved}>Saving...</span>}
-                    {!notesSaving && !notesSaved && person?.notesUpdatedAt && (
-                      <span className={styles.notesLastSaved}>Last saved: {formatDateShort(person.notesUpdatedAt)}</span>
+                    {!notesSaving && !notesSaved && notesFromSheet?.notesUpdatedAt && (
+                      <span className={styles.notesLastSaved}>Last saved: {formatDateShort(notesFromSheet.notesUpdatedAt)}</span>
                     )}
                   </div>
                   <textarea
                     className={styles.notesTextarea}
                     placeholder="No notes yet..."
-                    value={notesDraft ?? (person?.notes ?? '')}
+                    value={notesDraft ?? (notesFromSheet?.notes ?? '')}
                     onChange={e => {
                       setNotesDraft(e.target.value)
                       setNotesSaved(false)
@@ -239,7 +255,11 @@ export default function FosterDetailsPage() {
                     onBlur={async () => {
                       if (!foster.fosterEmail || notesDraft === null) return
                       setNotesSaving(true)
-                      await setNotes(foster.fosterEmail, notesDraft)
+                      await fetch('/api/foster-notes', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email: foster.fosterEmail, content: notesDraft }),
+                      })
                       setNotesSaving(false)
                       setNotesSaved(true)
                     }}
