@@ -121,15 +121,15 @@ function pickBestPhone(row: AsmAnimalRow): string | undefined {
 
 function buildPhotoUrls(animalId?: number) {
   if (!animalId) return undefined
-  const thumbnailUrl = buildAsmUrl({
-    method: 'animal_thumbnail',
-    animalid: String(animalId)
-  }).toString()
-  const imageUrl = buildAsmUrl({
-    method: 'animal_image',
-    animalid: String(animalId),
-    seq: '1'
-  }).toString()
+  const params = new URLSearchParams({ animalId: String(animalId) })
+  const thumbnailUrl = `/api/dogs/photo?${new URLSearchParams({
+    ...Object.fromEntries(params),
+    variant: 'thumbnail'
+  }).toString()}`
+  const imageUrl = `/api/dogs/photo?${new URLSearchParams({
+    ...Object.fromEntries(params),
+    variant: 'image'
+  }).toString()}`
   return { thumbnailUrl, imageUrl }
 }
 

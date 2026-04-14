@@ -103,6 +103,9 @@ export async function GET() {
         appliedAt: parseTimestampToIso(row['Timestamp']),
         availability: String(row['When would you like to take your foster dog home?'] || '').trim() || undefined,
         specialNeeds,
+        starred: String(row['Starred'] || '').trim().toUpperCase() === 'TRUE',
+        notes: String(row['Notes'] || '').trim() || undefined,
+        notesUpdatedAt: parseTimestampToIso(row['Notes Updated At']),
         raw: Object.fromEntries(
           Object.entries(row).map(([k, v]) => [k, v == null ? '' : String(v)])
         ) as Record<string, string>
