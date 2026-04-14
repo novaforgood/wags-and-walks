@@ -4,8 +4,9 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { usePeople } from '@/app/components/PeopleProvider'
 import { normalizeEmailKey } from '@/app/lib/peopleTypes'
+import ProtectedRoute from '@/app/components/ProtectedRoute'
 
-export default function ApplicantDetail() {
+function ApplicantDetail() {
   const params = useParams()
   const rawEmail = decodeURIComponent(params.email as string)
   const emailKey = normalizeEmailKey(rawEmail)
@@ -52,15 +53,11 @@ export default function ApplicantDetail() {
     async function fetchData() {
       try {
         console.log('Fetching details for:', emailKey)
-        const res = await fetch(
-          'https://script.google.com/macros/s/AKfycbzU2k4tlSAGwxz6G2zqx_seW0-ZQWZLbMsnzfP5MBdYXDoe49JlcRuuu5KtPuqrL-3E/exec'
-        )
+        const res = await fetch('/api/people')
         const data = await res.json()
 
-        const match = data.rows.find(
-          (row: any) =>
-            row.Email &&
-            normalizeEmailKey(row.Email) === emailKey
+        const match = (data.people ?? []).find(
+          (p: any) => normalizeEmailKey(p.email) === emailKey
         )
 
         setFetchedPerson(match || null)
@@ -251,5 +248,13 @@ export default function ApplicantDetail() {
         </div>
       </div>
     </main>
+  )
+}
+
+export default function ApplicantDetailPage() {
+  return (
+    <ProtectedRoute>
+      <ApplicantDetail />
+    </ProtectedRoute>
   )
 }

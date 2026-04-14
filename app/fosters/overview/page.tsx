@@ -286,7 +286,7 @@ export default function FostersSectionOverviewPage() {
                       <article key={row.id} className={styles.rosterCard}>
                         <div className={styles.rosterMain}>
                           <div className={styles.rosterName}>
-                            <Link href={`/fosters/${row.fosterId}`} className={styles.fosterLink}>
+                            <Link href={`/fosters/${row.fosterId}?from=overview`} className={styles.fosterLink}>
                               {row.fosterName}
                             </Link>
                           </div>

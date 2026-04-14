@@ -56,3 +56,38 @@
   color: #4b5563;
 }
 
+.notesHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.notesHeader .sectionTitle {
+  margin: 0;
+}
+
+.notesLastSaved {
+  margin-left: auto;
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+.notesTextarea {
+  width: 100%;
+  min-height: 120px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-size: 14px;
+  font-family: inherit;
+  resize: vertical;
+  box-sizing: border-box;
+  color: #1a202c;
+  outline: none;
+}
+
+.notesTextarea:focus {
+  border-color: #05aaaf;
+}
+

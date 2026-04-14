@@ -18,7 +18,7 @@ type Tab = 'candidates' | 'redflags'
 export default function CandidatesPage() {
     const pathname = usePathname()
     const router = useRouter()
-    const { people, isLoading, error, setStatus } = usePeople()
+    const { people, isLoading, error, setStatus, toggleStar } = usePeople()
     const { user, signOut } = useAuth()
     const [activeTab, setActiveTab] = useState<Tab>('candidates')
     const [selectedEmails, setSelectedEmails] = useState<Set<string>>(new Set())
@@ -62,6 +62,7 @@ export default function CandidatesPage() {
         experienceLevel: [],
         children: []
     })
+    const [showStarredOnly, setShowStarredOnly] = useState(false)
 
     // Filter people by status — candidates page shows only new and in-progress applicants
     // (current = active fosters, approved = already approved, rejected = removed)
@@ -143,8 +144,12 @@ export default function CandidatesPage() {
             })
         }
 
+        if (showStarredOnly) {
+            result = result.filter(p => p.starred)
+        }
+
         return result
-    }, [allCandidates, searchQuery, filters])
+    }, [allCandidates, searchQuery, filters, showStarredOnly])
 
     // For Red Flags tab: only show people who have flags
     const flaggedPeople = useMemo(() => {
@@ -354,7 +359,10 @@ export default function CandidatesPage() {
                     </div>
                     <div className={styles.toolbarRight}>
                         <button className={styles.toolbarBtn}>Recently added</button>
-                        <button className={`${styles.toolbarBtn} ${styles.toolbarBtnStarred}`}>Starred</button>
+                        <button
+                            className={`${styles.toolbarBtn} ${styles.toolbarBtnStarred} ${showStarredOnly ? styles.toolbarBtnActive : ''}`}
+                            onClick={() => setShowStarredOnly(v => !v)}
+                        >Starred</button>
                         <FilterDropdown people={people} filters={filters} setFilters={setFilters} />
                     </div>
                 </div>
@@ -408,6 +416,26 @@ export default function CandidatesPage() {
                                                 </td>
                                                 <td style={{ textAlign: 'right' }}>
                                                     <div className={styles.rowActions}>
+                                                        <button
+                                                            className={`${styles.actionIconBtn} ${person.starred ? styles.actionIconStarActive : styles.actionIconStar}`}
+                                                            onClick={(e) => {
+                                                                e.stopPropagation()
+                                                                toggleStar(person.email || '')
+                                                            }}
+                                                            title={person.starred ? 'Unstar' : 'Star'}
+                                                            aria-label={person.starred ? `Unstar ${name}` : `Star ${name}`}
+                                                        >
+                                                            <svg viewBox="0 0 24 24" aria-hidden="true" className={styles.actionIconSvg}>
+                                                                <path
+                                                                    d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
+                                                                    fill={person.starred ? 'currentColor' : 'none'}
+                                                                    stroke="currentColor"
+                                                                    strokeWidth="2"
+                                                                    strokeLinecap="round"
+                                                                    strokeLinejoin="round"
+                                                                />
+                                                            </svg>
+                                                        </button>
                                                         <button
                                                             className={`${styles.actionIconBtn} ${styles.actionIconAccept}`}
                                                             onClick={(e) => {

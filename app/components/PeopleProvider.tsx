@@ -17,6 +17,8 @@ type PeopleContextValue = {
   isLoading: boolean
   error: string | null
   setStatus: (email: string, status: PersonStatus) => void
+  toggleStar: (email: string) => void
+  setNotes: (email: string, content: string) => Promise<void>
   refresh: () => Promise<void>
 }
 
@@ -44,6 +46,7 @@ function writePendingQueue(queue: Record<string, PersonStatus>) {
   }
 }
 
+
 export function PeopleProvider({ children }: { children: React.ReactNode }) {
   const [people, setPeople] = useState<Person[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -58,13 +61,61 @@ export function PeopleProvider({ children }: { children: React.ReactNode }) {
   const UPDATED_BY = 'jay t'
 
   const applyPendingOptimistic = useCallback((base: Person[]) => {
-    if (pendingRef.current.size === 0) return base
     return base.map(p => {
       const key = normalizeEmailKey(p.email)
       if (!key) return p
       const pending = pendingRef.current.get(key)
-      return pending ? { ...p, status: pending } : p
+      return { ...p, ...(pending ? { status: pending } : {}) }
     })
+  }, [])
+
+  const toggleStar = useCallback((email: string) => {
+    const key = normalizeEmailKey(email)
+    if (!key) return
+
+    const person = people.find(p => normalizeEmailKey(p.email) === key)
+    if (!person) return
+    const newStarred = !person.starred
+
+    setPeople(prev => prev.map(p =>
+      normalizeEmailKey(p.email) === key ? { ...p, starred: newStarred } : p
+    ))
+
+    fetch('/api/send-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'set_starred', email, starred: newStarred })
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (!data?.success) console.error('set_starred failed:', data)
+      })
+      .catch(err => {
+        console.error('Failed to sync star:', err)
+        setPeople(prev => prev.map(p =>
+          normalizeEmailKey(p.email) === key ? { ...p, starred: !newStarred } : p
+        ))
+      })
+  }, [people])
+
+  const setNotes = useCallback(async (email: string, content: string) => {
+    const key = normalizeEmailKey(email)
+    if (!key) return
+
+    setPeople(prev =>
+      prev.map(p => normalizeEmailKey(p.email) === key ? { ...p, notes: content } : p)
+    )
+
+    await fetch('/api/send-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'set_notes', email, content })
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (!data?.success) console.error('set_notes failed:', data)
+      })
+      .catch(err => console.error('Failed to save notes:', err))
   }, [])
 
   const refresh = useCallback(async () => {
@@ -176,7 +227,7 @@ export function PeopleProvider({ children }: { children: React.ReactNode }) {
       if (status === 'approved') {
         // Fire and forget - don't block UI
         fetch(
-          'https://script.google.com/macros/s/AKfycbzU2k4tlSAGwxz6G2zqx_seW0-ZQWZLbMsnzfP5MBdYXDoe49JlcRuuu5KtPuqrL-3E/exec',
+          'https://script.google.com/macros/s/AKfycbyCk2eN4T6TTtaNF04U7nyM9TDKQOb_2Yw2UDTFbOFv6bmWxqk49sh-ndm7xzVxxskT/exec',
           {
             method: 'POST',
             mode: 'no-cors',
@@ -202,13 +253,6 @@ export function PeopleProvider({ children }: { children: React.ReactNode }) {
         const cachedPeople = JSON.parse(cachedRaw) as Person[]
         if (Array.isArray(cachedPeople) && cachedPeople.length > 0) {
           setPeople(applyPendingOptimistic(cachedPeople))
-          // We have data, so we don't need to show full page loading spinner
-          // The background refresh will update if needed
-          // setIsLoading(false) // Optional: If we want to show loading spinner for refresh, keep it true. 
-          // If we want instant feel, set false immediately.
-          // Let's set false so user sees data instantly, but toolbar shows loading indicator if implemented.
-          setIsLoading(true) // Keep true so "refreshing" indicator shows, but data is visible. 
-          // Actually, if data is visible, we shouldn't show full page loader.
         }
       }
     } catch (e) {
@@ -224,8 +268,8 @@ export function PeopleProvider({ children }: { children: React.ReactNode }) {
   }, [refresh, applyPendingOptimistic])
 
   const value = useMemo<PeopleContextValue>(
-    () => ({ people, isLoading, error, setStatus, refresh }),
-    [people, isLoading, error, setStatus, refresh]
+    () => ({ people, isLoading, error, setStatus, toggleStar, setNotes, refresh }),
+    [people, isLoading, error, setStatus, toggleStar, setNotes, refresh]
   )
 
   return <PeopleContext.Provider value={value}>{children}</PeopleContext.Provider>
