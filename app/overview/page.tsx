@@ -275,9 +275,9 @@ export default function OverviewPage() {
                                     <span className={styles.statHint}>Active on the Fosters page</span>
                                 </div>
                                 <div className={styles.statCard}>
-                                    <span className={styles.statLabel}>Approved Fosters</span>
+                                    <span className={styles.statLabel}>In Directory</span>
                                     <span className={styles.statValue}>{stats.approvedCount}</span>
-                                    <span className={styles.statHint}>Approved, awaiting placement</span>
+                                    <span className={styles.statHint}>Both approved and active fosters</span>
                                 </div>
                                 <div className={styles.statCard}>
                                     <span className={styles.statLabel}>Red Flag Candidates</span>
