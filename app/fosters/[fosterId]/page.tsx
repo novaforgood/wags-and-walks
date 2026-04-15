@@ -13,6 +13,7 @@ import {
   formatDateShort,
   type DogRecord,
 } from '@/app/lib/fosterDirectory'
+import NotesCard from '@/app/components/NotesCard'
 import layoutStyles from '../../candidates/candidates.module.css'
 import styles from './page.module.css'
 
@@ -31,11 +32,6 @@ export default function FosterDetailsPage() {
   const fosterId = params?.fosterId
   const { user, signOut } = useAuth()
   const { people } = usePeople()
-  const [notesDraft, setNotesDraft] = useState<string | null>(null)
-  const [notesSaving, setNotesSaving] = useState(false)
-  const [notesSaved, setNotesSaved] = useState(false)
-  const [notesFromSheet, setNotesFromSheet] = useState<{ notes: string; notesUpdatedAt: string } | null>(null)
-  const [isLoadingNotes, setIsLoadingNotes] = useState(true)
   const [dogs, setDogs] = useState<DogRecord[]>([])
   const [isLoadingDogs, setIsLoadingDogs] = useState(true)
   const [dogsError, setDogsError] = useState<string | null>(null)
@@ -92,25 +88,6 @@ export default function FosterDetailsPage() {
     const decoded = decodeURIComponent(fosterId)
     return decoded.includes('@') ? decoded : null
   }, [fosterId])
-
-  useEffect(() => {
-    if (!emailFromSlug) {
-      setIsLoadingNotes(false)
-      return
-    }
-    let active = true
-    fetch(`/api/foster-notes?email=${encodeURIComponent(emailFromSlug)}`)
-      .then(r => r.json())
-      .then(data => {
-        if (!active) return
-        if (data?.success) {
-          setNotesFromSheet({ notes: data.notes || '', notesUpdatedAt: data.notesUpdatedAt || '' })
-        }
-      })
-      .catch(() => {})
-      .finally(() => { if (active) setIsLoadingNotes(false) })
-    return () => { active = false }
-  }, [emailFromSlug])
 
   useEffect(() => {
     try {
@@ -252,35 +229,7 @@ export default function FosterDetailsPage() {
                 </section>
 
                 <section className={styles.card}>
-                  <div className={styles.notesHeader}>
-                    <h3 className={styles.sectionTitle}>Notes</h3>
-                    {!notesSaving && notesSaved && <span className={styles.notesLastSaved}>Saved</span>}
-                    {notesSaving && <span className={styles.notesLastSaved}>Saving...</span>}
-                    {!notesSaving && !notesSaved && notesFromSheet?.notesUpdatedAt && (
-                      <span className={styles.notesLastSaved}>Last saved: {formatDateShort(notesFromSheet.notesUpdatedAt)}</span>
-                    )}
-                  </div>
-                  <textarea
-                    className={styles.notesTextarea}
-                    placeholder={isLoadingNotes ? 'Loading...' : 'No notes yet...'}
-                    disabled={isLoadingNotes}
-                    value={notesDraft ?? (notesFromSheet?.notes ?? '')}
-                    onChange={e => {
-                      setNotesDraft(e.target.value)
-                      setNotesSaved(false)
-                    }}
-                    onBlur={async () => {
-                      if (!foster.fosterEmail || notesDraft === null) return
-                      setNotesSaving(true)
-                      await fetch('/api/foster-notes', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ email: foster.fosterEmail, content: notesDraft }),
-                      })
-                      setNotesSaving(false)
-                      setNotesSaved(true)
-                    }}
-                  />
+                  <NotesCard email={emailFromSlug} name={foster.fosterName} />
                 </section>
               </>
             )}
