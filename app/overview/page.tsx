@@ -183,7 +183,7 @@ export default function OverviewPage() {
             <div className={layoutStyles.pageWrapper} style={{ ['--app-sidebar-width' as any]: `${navWidth}px` }}>
                 <aside className={layoutStyles.sidebar}>
                     <div className={layoutStyles.sidebarLogo}>
-                        <Image src="/assets/logo.png" alt="Wags & Walks" width={160} height={60} priority />
+                        <Image src="/assets/logo.svg" alt="Wags & Walks" width={160} height={60} priority />
                     </div>
 
                     <nav className={layoutStyles.sidebarNav}>
@@ -257,7 +257,7 @@ export default function OverviewPage() {
                     {!isLoading && (
                         <div className={styles.contentPadding}>
                             <p className={styles.intro}>
-                                Snapshot of your foster pipeline and roster,                                 based on the same applicant data as
+                                Snapshot of your foster pipeline and roster, based on the same applicant data as
                                 Applicants and Fosters.
                             </p>
 
@@ -381,7 +381,7 @@ export default function OverviewPage() {
                                             className: styles.barApproved,
                                         },
                                         {
-                                            label: 'Current',
+                                            label: 'Active',
                                             count: stats.currentCount,
                                             className: styles.barCurrent,
                                         },
