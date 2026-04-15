@@ -35,6 +35,7 @@ export default function FosterDetailsPage() {
   const [notesSaving, setNotesSaving] = useState(false)
   const [notesSaved, setNotesSaved] = useState(false)
   const [notesFromSheet, setNotesFromSheet] = useState<{ notes: string; notesUpdatedAt: string } | null>(null)
+  const [isLoadingNotes, setIsLoadingNotes] = useState(true)
   const [dogs, setDogs] = useState<DogRecord[]>([])
   const [isLoadingDogs, setIsLoadingDogs] = useState(true)
   const [dogsError, setDogsError] = useState<string | null>(null)
@@ -84,17 +85,32 @@ export default function FosterDetailsPage() {
     [people, foster]
   )
 
+  // Decode the email from the slug immediately so notes can load in parallel with dogs.
+  // fosterSlug() uses encodeURIComponent(email) when an email is available.
+  const emailFromSlug = useMemo(() => {
+    if (!fosterId) return null
+    const decoded = decodeURIComponent(fosterId)
+    return decoded.includes('@') ? decoded : null
+  }, [fosterId])
+
   useEffect(() => {
-    if (!foster?.fosterEmail) return
-    fetch(`/api/foster-notes?email=${encodeURIComponent(foster.fosterEmail)}`)
+    if (!emailFromSlug) {
+      setIsLoadingNotes(false)
+      return
+    }
+    let active = true
+    fetch(`/api/foster-notes?email=${encodeURIComponent(emailFromSlug)}`)
       .then(r => r.json())
       .then(data => {
+        if (!active) return
         if (data?.success) {
           setNotesFromSheet({ notes: data.notes || '', notesUpdatedAt: data.notesUpdatedAt || '' })
         }
       })
       .catch(() => {})
-  }, [foster?.fosterEmail])
+      .finally(() => { if (active) setIsLoadingNotes(false) })
+    return () => { active = false }
+  }, [emailFromSlug])
 
   useEffect(() => {
     try {
@@ -246,7 +262,8 @@ export default function FosterDetailsPage() {
                   </div>
                   <textarea
                     className={styles.notesTextarea}
-                    placeholder="No notes yet..."
+                    placeholder={isLoadingNotes ? 'Loading...' : 'No notes yet...'}
+                    disabled={isLoadingNotes}
                     value={notesDraft ?? (notesFromSheet?.notes ?? '')}
                     onChange={e => {
                       setNotesDraft(e.target.value)
