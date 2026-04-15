@@ -183,7 +183,7 @@ export default function OverviewPage() {
             <div className={layoutStyles.pageWrapper} style={{ ['--app-sidebar-width' as any]: `${navWidth}px` }}>
                 <aside className={layoutStyles.sidebar}>
                     <div className={layoutStyles.sidebarLogo}>
-                        <Image src="/assets/logo.png" alt="Wags & Walks" width={160} height={60} priority />
+                        <Image src="/assets/logo.svg" alt="Wags & Walks" width={160} height={60} priority />
                     </div>
 
                     <nav className={layoutStyles.sidebarNav}>
@@ -270,7 +270,7 @@ export default function OverviewPage() {
                                     </span>
                                 </div>
                                 <div className={styles.statCard}>
-                                    <span className={styles.statLabel}>Current fosters</span>
+                                    <span className={styles.statLabel}>Active fosters</span>
                                     <span className={styles.statValue}>{stats.currentCount}</span>
                                     <span className={styles.statHint}>Active on the Fosters page</span>
                                 </div>
@@ -381,7 +381,7 @@ export default function OverviewPage() {
                                             className: styles.barApproved,
                                         },
                                         {
-                                            label: 'Current',
+                                            label: 'Active',
                                             count: stats.currentCount,
                                             className: styles.barCurrent,
                                         },
