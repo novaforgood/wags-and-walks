@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation'
 import { usePeople } from '@/app/components/PeopleProvider'
 import { normalizeEmailKey } from '@/app/lib/peopleTypes'
 import ProtectedRoute from '@/app/components/ProtectedRoute'
+import NotesCard from '@/app/components/NotesCard'
 
 function ApplicantDetail() {
   const params = useParams()
@@ -177,6 +178,16 @@ function ApplicantDetail() {
 
         {/* RIGHT SIDE */}
         <div style={{ flex: 1 }}>
+
+          {/* Notes */}
+          <div style={{
+            background: 'white',
+            padding: 20,
+            borderRadius: 12,
+            marginBottom: 20
+          }}>
+            <NotesCard email={email} name={firstName} />
+          </div>
 
           {/* Recent Updates */}
           <div style={{

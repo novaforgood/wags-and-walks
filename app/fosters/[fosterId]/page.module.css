@@ -91,3 +91,10 @@
   border-color: #05aaaf;
 }
 
+.notesTextarea:disabled {
+  background: #f9fafb;
+  color: #9ca3af;
+  cursor: default;
+  resize: none;
+}
+

@@ -348,6 +348,18 @@ function doPost(e) {
       }
     }
 
+    // ---- send_single_email -------------------------------------------------
+    if (action === "send_single_email") {
+      const to      = String(payload.to      || "").trim();
+      const subject = String(payload.subject || "").trim();
+      const body    = String(payload.body    || "").trim();
+      if (!to || !subject || !body) {
+        return json_({ success: false, build: CONFIG.BUILD_ID, error: "to, subject, and body are required" });
+      }
+      GmailApp.sendEmail(to, subject, body);
+      return json_({ success: true, build: CONFIG.BUILD_ID });
+    }
+
     // ---- set_starred -------------------------------------------------------
     if (action === "set_starred") {
       const result = setStarred_(payload.email, payload.starred);
