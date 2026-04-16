@@ -61,6 +61,7 @@ function dogName(dog?: DogRecord) {
 export default function FostersSectionOverviewPage() {
   const pathname = usePathname()
   const { user, signOut } = useAuth()
+  const [activeFosterCount, setActiveFosterCount] = useState<number | null>(null)
   const [dogs, setDogs] = useState<DogRecord[]>([])
   const [isLoadingDogs, setIsLoadingDogs] = useState(true)
   const [dogsError, setDogsError] = useState<string | null>(null)
@@ -102,6 +103,23 @@ export default function FostersSectionOverviewPage() {
       active = false
     }
   }, [])
+  useEffect(() => {
+  let active = true
+  async function loadFosterCount() {
+    try {
+      const res = await fetch('/api/fosters', { method: 'GET', cache: 'no-store' })
+      const data = await res.json()
+      if (!active) return
+      if (typeof data?.count === 'number') {
+        setActiveFosterCount(data.count)
+      }
+    } catch {
+      // silently fail — the stat card will just show the fallback
+    }
+  }
+  loadFosterCount()
+  return () => { active = false }
+}, [])
 
   const updates = useMemo(() => {
     return dogs.map((dog, idx) => {
@@ -267,7 +285,7 @@ export default function FostersSectionOverviewPage() {
                 </div>
                 <div className={styles.statCard}>
                   <span className={styles.statLabel}>Active foster homes</span>
-                  <span className={styles.statValue}>{activeFosters}</span>
+                  <span className={styles.statValue}>{activeFosterCount ?? activeFosters}</span>
                   <span className={styles.statHint}>Distinct foster households in ASM</span>
                 </div>
               </div>
