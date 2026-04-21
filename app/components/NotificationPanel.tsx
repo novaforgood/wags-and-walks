@@ -41,10 +41,24 @@ function taskLabel(taskType: string): string {
 }
 
 function rowToNotification(row: TaskRow, readIds: Set<string>): Notification | null {
-  if (row.status !== 'needs_review' && row.status !== 'overdue') return null
-  const id = `${row.animalId}-${row.taskType}-${row.emailSentDate}`
+  if (row.status !== 'needs_review' && row.status !== 'overdue' && row.status !== 'completed') return null
   const label = taskLabel(row.taskType)
   const name = row.fosterName || `Animal ${row.animalId}`
+
+  if (row.status === 'completed') {
+    const id = `${row.animalId}-${row.taskType}-completed-${row.completedDate}`
+    return {
+      id,
+      personName: name,
+      action: `completed ${label} for`,
+      entityName: row.dogName || undefined,
+      timestamp: new Date(row.completedDate),
+      actionLabel: 'Mark as read',
+      isRead: readIds.has(id),
+    }
+  }
+
+  const id = `${row.animalId}-${row.taskType}-${row.emailSentDate}`
   return {
     id,
     personName: name,
@@ -87,11 +101,11 @@ export default function NotificationPanel() {
         const notifs = data.rows
           .map(row => rowToNotification(row, readIds))
           .filter((n): n is Notification => n !== null)
-          // overdue first, then by timestamp descending
+          // overdue first, then needs-review, then completed; within each group newest first
           .sort((a, b) => {
-            const rankA = a.action.includes('overdue') ? 1 : 0
-            const rankB = b.action.includes('overdue') ? 1 : 0
-            if (rankB !== rankA) return rankB - rankA
+            const rank = (n: Notification) =>
+              n.action.includes('overdue') ? 2 : n.action.startsWith('completed') ? 0 : 1
+            if (rank(b) !== rank(a)) return rank(b) - rank(a)
             return b.timestamp.getTime() - a.timestamp.getTime()
           })
         setNotifications(notifs)
