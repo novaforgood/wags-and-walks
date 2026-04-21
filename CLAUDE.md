@@ -24,10 +24,12 @@ No test framework is configured.
 1. **Google Sheets → Apps Script → Next.js API routes → React context → pages**
 2. `app/api/people/route.ts` — Fetches all applicants from Google Sheets via `APPS_SCRIPT_URL` (env var), normalizes raw sheet rows into `Person` objects
 3. `app/api/send-email/route.ts` — Proxies POST/GET requests to the same Apps Script (used for status updates, emails)
-4. `app/components/PeopleProvider.tsx` — Client-side React context (`usePeople()` hook) that:
+4. `app/api/foster-notes/route.ts` — GET/POST proxy to `FOSTER_SCRIPT_URL` for reading and writing per-foster notes (GET by `?email=`, POST with `action: 'set_notes'`)
+5. `app/components/PeopleProvider.tsx` — Client-side React context (`usePeople()` hook) that:
    - Fetches from `/api/people` on mount, caches in `localStorage`
    - Provides optimistic status updates with a debounced flush queue (persisted to `localStorage` for resilience)
    - Fires a Google Apps Script webhook when a person is moved to `approved`
+   - `setNotes(email, content)` — writes notes via `/api/foster-notes`
 
 ### Person Status Pipeline
 
@@ -118,17 +120,19 @@ There are **two independent Google Sheets / Apps Script projects**. Changes to e
 - Current deployment ID: `AKfycbyCk2eN4T6TTtaNF04U7nyM9TDKQOb_2Yw2UDTFbOFv6bmWxqk49sh-ndm7xzVxxskT`
 - Called by: `/api/people` (GET rows) and `/api/send-email` (POST mutations)
 
-**Sheet 2 — Foster Tracking** (`appscript/CurrentFoster.gs`, `TaskCheck.gs`, `Code.gs`)
+**Sheet 2 — Foster Tracking** (`appscript/CurrentFoster.gs`, `TaskCheck.gs`, `Code.gs`, `ResetStatuses.gs`)
 - Standalone — **not called by the Next.js app**; runs on a schedule inside the Apps Script project
 - Deployment ID: `AKfycbxbypLoDIBYX5OaKM--nmulOHA_RtoOSN_Di_W6jBkornRP3I1tHEwMnVERmxS1X-Lh`
 - `CurrentFoster.gs` — `syncCurrentFosterDogs()`: pulls current fosters from ASM → writes to "Current Fosters" sheet
 - `TaskCheck.gs` — `checkFosterTasks()` (daily trigger at 8am): checks photo/survey task deadlines, queues email reminders, updates "Task Log" sheet. Reads form completions from "Form Responses" sheet. Currently logs only — email sending is disabled during testing.
 - `Code.gs` — `autoOrganizeFormFiles()`: form submit trigger that moves uploaded foster photos into per-dog Google Drive folders
+- `ResetStatuses.gs` — `resetAllStatusesToNew()`: bulk-resets all applicant statuses to `new` directly in the sheet (Apps Script side equivalent of `scripts/reset_status.js`)
 
 ### Environment Variables
 
 Defined in `.env.local`:
 - `APPS_SCRIPT_URL` — Sheet 1 web app URL (applicant data API)
 - `APPS_SCRIPT_KEY` — Auth key for the Apps Script
+- `FOSTER_SCRIPT_URL` — Separate Apps Script URL for foster notes read/write (`/api/foster-notes`)
 - `NEXT_PUBLIC_FIREBASE_*` — Firebase configuration (API key, auth domain, project ID, etc.)
 - `ASM_BASE_URL`, `ASM_ACCOUNT`, `ASM_USERNAME`, `ASM_PASSWORD` — ShelterManager API credentials (server-side only)

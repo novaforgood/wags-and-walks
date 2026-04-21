@@ -291,7 +291,7 @@ export default function OverviewPage() {
 
                             <div className={styles.statsGrid}>
                                 <div className={styles.statCard}>
-                                    <span className={styles.statLabel}>Foster candidates (in review)</span>
+                                    <span className={styles.statLabel}>Foster Candidates (in review)</span>
                                     <span className={styles.statValue}>{stats.pipelineCount}</span>
                                     <span className={styles.statHint}>
                                         New + in progress (matches the Applicants list)
@@ -305,12 +305,12 @@ export default function OverviewPage() {
                                 </div>
                                 {/* ──────────────────────────────────────────────────────────────── */}
                                 <div className={styles.statCard}>
-                                    <span className={styles.statLabel}>Approved (not yet current)</span>
+                                    <span className={styles.statLabel}>In Directory</span>
                                     <span className={styles.statValue}>{stats.approvedCount}</span>
-                                    <span className={styles.statHint}>Approved, awaiting placement</span>
+                                    <span className={styles.statHint}>Both approved and active fosters</span>
                                 </div>
                                 <div className={styles.statCard}>
-                                    <span className={styles.statLabel}>Red flags (in pipeline)</span>
+                                    <span className={styles.statLabel}>Red Flag Candidates</span>
                                     <span className={styles.statValue}>{stats.flaggedInPipeline}</span>
                                     <span className={styles.statHint}>Among new & in-progress with flags set</span>
                                 </div>
@@ -318,7 +318,7 @@ export default function OverviewPage() {
 
                             <div className={styles.chartsRow}>
                                 <div className={styles.panel}>
-                                    <h2 className={styles.panelTitle}>Pipeline mix</h2>
+                                    <h2 className={styles.panelTitle}>Pipeline Mix</h2>
                                     <p className={styles.panelSubtitle}>
                                         Share of records by status (people with an email in the sheet)
                                     </p>
@@ -360,7 +360,7 @@ export default function OverviewPage() {
                                 </div>
 
                                 <div className={styles.panel}>
-                                    <h2 className={styles.panelTitle}>Applications by month</h2>
+                                    <h2 className={styles.panelTitle}>Applications by Month</h2>
                                     <p className={styles.panelSubtitle}>
                                         Count of applications with a submission date (last 12 months in data)
                                     </p>
@@ -391,7 +391,7 @@ export default function OverviewPage() {
                             </div>
 
                             <div className={styles.panel}>
-                                <h2 className={styles.panelTitle}>Headcount by status</h2>
+                                <h2 className={styles.panelTitle}>Headcount by Status</h2>
                                 <p className={styles.panelSubtitle}>Raw counts across workflow stages</p>
                                 <div className={styles.statusBars}>
                                     {[
