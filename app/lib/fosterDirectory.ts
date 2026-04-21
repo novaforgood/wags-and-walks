@@ -65,7 +65,10 @@ export function fosterSlug(name: string, email?: string) {
   return encodeURIComponent(key.replace(/\s+/g, '-'))
 }
 
-export function buildFosterDirectory(dogs: DogRecord[]): FosterDirectoryItem[] {
+export function buildFosterDirectory(
+  dogs: DogRecord[],
+  taskStatusByAnimalId?: Record<string, FosterStatus>
+): FosterDirectoryItem[] {
   const grouped = new Map<string, FosterDirectoryItem>()
 
   for (let i = 0; i < dogs.length; i += 1) {
@@ -73,7 +76,8 @@ export function buildFosterDirectory(dogs: DogRecord[]): FosterDirectoryItem[] {
     const fosterName = fosterDisplayName(dog.foster)
     const fosterEmail = normalizeText(dog.foster?.email) || undefined
     const id = fosterSlug(fosterName, fosterEmail)
-    const dogStatus = toStatus(dog.movement?.daysInFoster)
+    const dogStatus =
+      taskStatusByAnimalId?.[String(dog.id)] ?? toStatus(dog.movement?.daysInFoster)
     const dogLastUpdate = dog.movement?.date
     const dogRow: FosterDog = {
       id: String(dog.id ?? `${id}-${i}`),
