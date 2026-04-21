@@ -47,6 +47,29 @@ export default function OverviewPage() {
     const pathname = usePathname()
     const { people, isLoading, error } = usePeople()
     const { user, signOut } = useAuth()
+
+    // ── ADDED: ASM foster count from /api/fosters ──────────────────────────
+    const [asmFosterCount, setAsmFosterCount] = useState<number | null>(null)
+
+    useEffect(() => {
+        let active = true
+        async function loadFosterCount() {
+            try {
+                const res = await fetch('/api/fosters', { method: 'GET', cache: 'no-store' })
+                const data = await res.json()
+                if (!active) return
+                if (typeof data?.count === 'number') {
+                    setAsmFosterCount(data.count)
+                }
+            } catch {
+                // silently fail — stat card falls back to spreadsheet count
+            }
+        }
+        loadFosterCount()
+        return () => { active = false }
+    }, [])
+    // ───────────────────────────────────────────────────────────────────────
+
     const [navWidth, setNavWidth] = useState<number>(() => {
         try {
             const raw = localStorage.getItem('app_nav_sidebar_width_v1')
@@ -119,13 +142,17 @@ export default function OverviewPage() {
 
         const statusMax = Math.max(1, newCount, inProgressCount, approvedCount, currentCount, rejectedCount)
 
-        const rosterTotal = currentCount + pipelineCount + approvedCount + rejectedCount
+        // ── CHANGED: use asmFosterCount for the donut if available ──────────
+        const activeFosterCount = asmFosterCount ?? currentCount
+        const rosterTotal = activeFosterCount + pipelineCount + approvedCount + rejectedCount
         const donutSegments = [
-            { key: 'current', label: 'Active fosters', count: currentCount, color: '#05aaaf' },
+            { key: 'current', label: 'Active fosters', count: activeFosterCount, color: '#05aaaf' },
             { key: 'pipeline', label: 'In review', count: pipelineCount, color: '#7ecbcd' },
             { key: 'approved', label: 'Approved', count: approvedCount, color: '#3a9da0' },
             { key: 'rejected', label: 'Rejected', count: rejectedCount, color: '#9e9e9e' },
         ]
+        // ────────────────────────────────────────────────────────────────────
+
         const donutGradient = buildConicGradient(
             donutSegments.map(s => ({ count: s.count, color: s.color }))
         )
@@ -136,6 +163,7 @@ export default function OverviewPage() {
             pipelineCount,
             approvedCount,
             currentCount,
+            activeFosterCount,
             rejectedCount,
             flaggedInPipeline,
             monthly,
@@ -145,7 +173,7 @@ export default function OverviewPage() {
             donutSegments,
             donutGradient,
         }
-    }, [people])
+    }, [people, asmFosterCount]) // ← CHANGED: added asmFosterCount dependency
 
     useEffect(() => {
         try {
@@ -269,11 +297,13 @@ export default function OverviewPage() {
                                         New + in progress (matches the Applicants list)
                                     </span>
                                 </div>
+                                {/* ── CHANGED: use activeFosterCount (ASM) instead of currentCount ── */}
                                 <div className={styles.statCard}>
-                                    <span className={styles.statLabel}>Active Fosters</span>
-                                    <span className={styles.statValue}>{stats.currentCount}</span>
-                                    <span className={styles.statHint}>Active on the Fosters page</span>
+                                    <span className={styles.statLabel}>Active fosters</span>
+                                    <span className={styles.statValue}>{stats.activeFosterCount}</span>
+                                    <span className={styles.statHint}>Active foster homes in ASM</span>
                                 </div>
+                                {/* ──────────────────────────────────────────────────────────────── */}
                                 <div className={styles.statCard}>
                                     <span className={styles.statLabel}>In Directory</span>
                                     <span className={styles.statValue}>{stats.approvedCount}</span>
@@ -382,7 +412,8 @@ export default function OverviewPage() {
                                         },
                                         {
                                             label: 'Active',
-                                            count: stats.currentCount,
+                                            // ── CHANGED: use activeFosterCount (ASM) ──
+                                            count: stats.activeFosterCount,
                                             className: styles.barCurrent,
                                         },
                                         {
