@@ -47,6 +47,29 @@ export default function OverviewPage() {
     const pathname = usePathname()
     const { people, isLoading, error } = usePeople()
     const { user, signOut } = useAuth()
+
+    // ── ADDED: ASM foster count from /api/fosters ──────────────────────────
+    const [asmFosterCount, setAsmFosterCount] = useState<number | null>(null)
+
+    useEffect(() => {
+        let active = true
+        async function loadFosterCount() {
+            try {
+                const res = await fetch('/api/fosters', { method: 'GET', cache: 'no-store' })
+                const data = await res.json()
+                if (!active) return
+                if (typeof data?.count === 'number') {
+                    setAsmFosterCount(data.count)
+                }
+            } catch {
+                // silently fail — stat card falls back to spreadsheet count
+            }
+        }
+        loadFosterCount()
+        return () => { active = false }
+    }, [])
+    // ───────────────────────────────────────────────────────────────────────
+
     const [navWidth, setNavWidth] = useState<number>(() => {
         try {
             const raw = localStorage.getItem('app_nav_sidebar_width_v1')
@@ -119,13 +142,17 @@ export default function OverviewPage() {
 
         const statusMax = Math.max(1, newCount, inProgressCount, approvedCount, currentCount, rejectedCount)
 
-        const rosterTotal = currentCount + pipelineCount + approvedCount + rejectedCount
+        // ── CHANGED: use asmFosterCount for the donut if available ──────────
+        const activeFosterCount = asmFosterCount ?? currentCount
+        const rosterTotal = activeFosterCount + pipelineCount + approvedCount + rejectedCount
         const donutSegments = [
-            { key: 'current', label: 'Active fosters', count: currentCount, color: '#05aaaf' },
+            { key: 'current', label: 'Active fosters', count: activeFosterCount, color: '#05aaaf' },
             { key: 'pipeline', label: 'In review', count: pipelineCount, color: '#7ecbcd' },
             { key: 'approved', label: 'Approved', count: approvedCount, color: '#3a9da0' },
             { key: 'rejected', label: 'Rejected', count: rejectedCount, color: '#9e9e9e' },
         ]
+        // ────────────────────────────────────────────────────────────────────
+
         const donutGradient = buildConicGradient(
             donutSegments.map(s => ({ count: s.count, color: s.color }))
         )
@@ -136,6 +163,7 @@ export default function OverviewPage() {
             pipelineCount,
             approvedCount,
             currentCount,
+            activeFosterCount,
             rejectedCount,
             flaggedInPipeline,
             monthly,
@@ -145,7 +173,7 @@ export default function OverviewPage() {
             donutSegments,
             donutGradient,
         }
-    }, [people])
+    }, [people, asmFosterCount]) // ← CHANGED: added asmFosterCount dependency
 
     useEffect(() => {
         try {
@@ -183,7 +211,7 @@ export default function OverviewPage() {
             <div className={layoutStyles.pageWrapper} style={{ ['--app-sidebar-width' as any]: `${navWidth}px` }}>
                 <aside className={layoutStyles.sidebar}>
                     <div className={layoutStyles.sidebarLogo}>
-                        <Image src="/assets/logo.png" alt="Wags & Walks" width={160} height={60} priority />
+                        <Image src="/assets/logo.svg" alt="Wags & Walks" width={160} height={60} priority />
                     </div>
 
                     <nav className={layoutStyles.sidebarNav}>
@@ -257,30 +285,32 @@ export default function OverviewPage() {
                     {!isLoading && (
                         <div className={styles.contentPadding}>
                             <p className={styles.intro}>
-                                Snapshot of your foster pipeline and roster,                                 based on the same applicant data as
+                                Snapshot of your foster pipeline and roster, based on the same applicant data as
                                 Applicants and Fosters.
                             </p>
 
                             <div className={styles.statsGrid}>
                                 <div className={styles.statCard}>
-                                    <span className={styles.statLabel}>Foster candidates (in review)</span>
+                                    <span className={styles.statLabel}>Foster Candidates (in review)</span>
                                     <span className={styles.statValue}>{stats.pipelineCount}</span>
                                     <span className={styles.statHint}>
                                         New + in progress (matches the Applicants list)
                                     </span>
                                 </div>
+                                {/* ── CHANGED: use activeFosterCount (ASM) instead of currentCount ── */}
                                 <div className={styles.statCard}>
-                                    <span className={styles.statLabel}>Current fosters</span>
-                                    <span className={styles.statValue}>{stats.currentCount}</span>
-                                    <span className={styles.statHint}>Active on the Fosters page</span>
+                                    <span className={styles.statLabel}>Active fosters</span>
+                                    <span className={styles.statValue}>{stats.activeFosterCount}</span>
+                                    <span className={styles.statHint}>Active foster homes in ASM</span>
                                 </div>
+                                {/* ──────────────────────────────────────────────────────────────── */}
                                 <div className={styles.statCard}>
-                                    <span className={styles.statLabel}>Approved (not yet current)</span>
+                                    <span className={styles.statLabel}>In Directory</span>
                                     <span className={styles.statValue}>{stats.approvedCount}</span>
-                                    <span className={styles.statHint}>Approved, awaiting placement</span>
+                                    <span className={styles.statHint}>Both approved and active fosters</span>
                                 </div>
                                 <div className={styles.statCard}>
-                                    <span className={styles.statLabel}>Red flags (in pipeline)</span>
+                                    <span className={styles.statLabel}>Red Flag Candidates</span>
                                     <span className={styles.statValue}>{stats.flaggedInPipeline}</span>
                                     <span className={styles.statHint}>Among new & in-progress with flags set</span>
                                 </div>
@@ -288,7 +318,7 @@ export default function OverviewPage() {
 
                             <div className={styles.chartsRow}>
                                 <div className={styles.panel}>
-                                    <h2 className={styles.panelTitle}>Pipeline mix</h2>
+                                    <h2 className={styles.panelTitle}>Pipeline Mix</h2>
                                     <p className={styles.panelSubtitle}>
                                         Share of records by status (people with an email in the sheet)
                                     </p>
@@ -330,7 +360,7 @@ export default function OverviewPage() {
                                 </div>
 
                                 <div className={styles.panel}>
-                                    <h2 className={styles.panelTitle}>Applications by month</h2>
+                                    <h2 className={styles.panelTitle}>Applications by Month</h2>
                                     <p className={styles.panelSubtitle}>
                                         Count of applications with a submission date (last 12 months in data)
                                     </p>
@@ -361,7 +391,7 @@ export default function OverviewPage() {
                             </div>
 
                             <div className={styles.panel}>
-                                <h2 className={styles.panelTitle}>Headcount by status</h2>
+                                <h2 className={styles.panelTitle}>Headcount by Status</h2>
                                 <p className={styles.panelSubtitle}>Raw counts across workflow stages</p>
                                 <div className={styles.statusBars}>
                                     {[
@@ -381,8 +411,9 @@ export default function OverviewPage() {
                                             className: styles.barApproved,
                                         },
                                         {
-                                            label: 'Current',
-                                            count: stats.currentCount,
+                                            label: 'Active',
+                                            // ── CHANGED: use activeFosterCount (ASM) ──
+                                            count: stats.activeFosterCount,
                                             className: styles.barCurrent,
                                         },
                                         {

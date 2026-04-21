@@ -66,6 +66,7 @@ function dogName(dog?: DogRecord) {
 export default function FostersSectionOverviewPage() {
   const pathname = usePathname()
   const { user, signOut } = useAuth()
+  const [activeFosterCount, setActiveFosterCount] = useState<number | null>(null)
   const [dogs, setDogs] = useState<DogRecord[]>([])
   const [isLoadingDogs, setIsLoadingDogs] = useState(true)
   const [dogsError, setDogsError] = useState<string | null>(null)
@@ -119,6 +120,23 @@ export default function FostersSectionOverviewPage() {
       active = false
     }
   }, [])
+  useEffect(() => {
+  let active = true
+  async function loadFosterCount() {
+    try {
+      const res = await fetch('/api/fosters', { method: 'GET', cache: 'no-store' })
+      const data = await res.json()
+      if (!active) return
+      if (typeof data?.count === 'number') {
+        setActiveFosterCount(data.count)
+      }
+    } catch {
+      // silently fail — the stat card will just show the fallback
+    }
+  }
+  loadFosterCount()
+  return () => { active = false }
+}, [])
 
   const updates = useMemo(() => {
     return dogs.map((dog, idx) => {
@@ -194,7 +212,7 @@ export default function FostersSectionOverviewPage() {
       <div className={layoutStyles.pageWrapper} style={{ ['--app-sidebar-width' as any]: `${navWidth}px` }}>
         <aside className={layoutStyles.sidebar}>
           <div className={layoutStyles.sidebarLogo}>
-            <Image src="/assets/logo.png" alt="Wags & Walks" width={160} height={60} priority />
+            <Image src="/assets/logo.svg" alt="Wags & Walks" width={160} height={60} priority />
           </div>
 
           <nav className={layoutStyles.sidebarNav}>
@@ -287,7 +305,7 @@ export default function FostersSectionOverviewPage() {
                 </div>
                 <div className={styles.statCard}>
                   <span className={styles.statLabel}>Active foster homes</span>
-                  <span className={styles.statValue}>{activeFosters}</span>
+                  <span className={styles.statValue}>{activeFosterCount ?? activeFosters}</span>
                   <span className={styles.statHint}>Distinct foster households in ASM</span>
                 </div>
               </div>
@@ -306,7 +324,7 @@ export default function FostersSectionOverviewPage() {
                       <article key={row.id} className={styles.rosterCard}>
                         <div className={styles.rosterMain}>
                           <div className={styles.rosterName}>
-                            <Link href={`/fosters/${row.fosterId}`} className={styles.fosterLink}>
+                            <Link href={`/fosters/${row.fosterId}?from=overview`} className={styles.fosterLink}>
                               {row.fosterName}
                             </Link>
                           </div>

@@ -3,8 +3,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { useParams, usePathname } from 'next/navigation'
+import { useParams, usePathname, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/app/components/AuthProvider'
+import { usePeople } from '@/app/components/PeopleProvider'
 import ProtectedRoute from '@/app/components/ProtectedRoute'
 import NotificationPanel from '@/app/components/NotificationPanel'
 import {
@@ -14,6 +15,7 @@ import {
   type FosterStatus,
 } from '@/app/lib/fosterDirectory'
 import type { TaskRow } from '@/app/api/tasks/route'
+import NotesCard from '@/app/components/NotesCard'
 import layoutStyles from '../../candidates/candidates.module.css'
 import styles from './page.module.css'
 
@@ -52,9 +54,13 @@ function StatusBadge({ status }: { status: string }) {
 
 export default function FosterDetailsPage() {
   const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const backHref = searchParams.get('from') === 'overview' ? '/fosters/overview' : '/fosters'
+  const backLabel = searchParams.get('from') === 'overview' ? '← Back to Overview' : '← Back to Current Directory'
   const params = useParams<{ fosterId: string }>()
   const fosterId = params?.fosterId
   const { user, signOut } = useAuth()
+  const { people } = usePeople()
   const [dogs, setDogs] = useState<DogRecord[]>([])
   const [isLoadingDogs, setIsLoadingDogs] = useState(true)
   const [dogsError, setDogsError] = useState<string | null>(null)
@@ -109,6 +115,18 @@ export default function FosterDetailsPage() {
 
   const directory = useMemo(() => buildFosterDirectory(dogs, taskStatusByAnimalId), [dogs, taskStatusByAnimalId])
   const foster = useMemo(() => directory.find(f => f.id === fosterId), [directory, fosterId])
+  const person = useMemo(
+    () => people.find(p => p.email?.toLowerCase() === foster?.fosterEmail?.toLowerCase()),
+    [people, foster]
+  )
+
+  // Decode the email from the slug immediately so notes can load in parallel with dogs.
+  // fosterSlug() uses encodeURIComponent(email) when an email is available.
+  const emailFromSlug = useMemo(() => {
+    if (!fosterId) return null
+    const decoded = decodeURIComponent(fosterId)
+    return decoded.includes('@') ? decoded : null
+  }, [fosterId])
 
   // Tasks for dogs in this foster record, grouped by animal ID
   const fosterTasksByDogId = useMemo(() => {
@@ -211,7 +229,7 @@ export default function FosterDetailsPage() {
           </div>
 
           <div className={styles.wrap}>
-            <Link href="/fosters" className={styles.backLink}>← Back to Current Directory</Link>
+            <Link href={backHref} className={styles.backLink}>{backLabel}</Link>
 
             {isLoadingDogs && <div className={layoutStyles.loadingContainer}>Loading foster details...</div>}
             {dogsError && <div className={layoutStyles.errorText}>{dogsError}</div>}
@@ -297,6 +315,33 @@ export default function FosterDetailsPage() {
                     </section>
                   )
                 })}
+                <section className={styles.card}>
+                  <h3 className={styles.sectionTitle}>Current Fostering Situation</h3>
+                  <table className={styles.table}>
+                    <thead>
+                      <tr>
+                        <th>Dog</th>
+                        <th>How long fostering</th>
+                        <th>Last update</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {foster.dogs.map(dog => (
+                        <tr key={dog.id}>
+                          <td>{dog.name}</td>
+                          <td>{typeof dog.daysInFoster === 'number' ? `${dog.daysInFoster} days` : 'Unknown'}</td>
+                          <td>{formatDateShort(dog.lastUpdate)}</td>
+                          <td>{dog.status}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </section>
+
+                <section className={styles.card}>
+                  <NotesCard email={emailFromSlug} name={foster.fosterName} />
+                </section>
               </>
             )}
           </div>
