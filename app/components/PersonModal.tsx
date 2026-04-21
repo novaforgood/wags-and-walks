@@ -4,6 +4,7 @@ import { useState } from 'react'
 
 import type { Person } from '@/app/lib/peopleTypes'
 import NotificationPanel from './NotificationPanel'
+import NotesCard from './NotesCard'
 import styles from './PersonModal.module.css'
 
 interface Props {
@@ -108,6 +109,10 @@ function ProfileTab({ person, otherEntries }: { person: Person; otherEntries: [s
                     </ThreeColGrid>
                 </Section>
             )}
+
+            <div className={styles.section}>
+                <NotesCard email={person.email} name={person.firstName} />
+            </div>
         </div>
     )
 }

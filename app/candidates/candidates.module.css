@@ -572,6 +572,32 @@
     color: #dc2626;
 }
 
+.actionIconStar {
+    color: #bbb;
+}
+
+.actionIconStar:hover {
+    color: #f5a623;
+    border-color: rgba(245, 166, 35, 0.25);
+    background: rgba(245, 166, 35, 0.08);
+}
+
+.actionIconStarActive {
+    color: #f5a623;
+    border-color: rgba(245, 166, 35, 0.3);
+    background: rgba(245, 166, 35, 0.1);
+}
+
+.actionIconStarActive:hover {
+    background: rgba(245, 166, 35, 0.18);
+}
+
+.toolbarBtnActive {
+    background: #e8f4f4;
+    border-color: #038a8d;
+    color: #038a8d;
+}
+
 .actionRejectBtn {
     background: none;
     border: none;

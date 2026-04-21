@@ -17,7 +17,7 @@ export default function FostersSubTabs({ active }: { active: Tab }) {
                     href="/fosters"
                     className={`${styles.tab} ${active === 'directory' ? styles.tabActive : ''}`}
                 >
-                    Current Directory
+                    Active Fosters
                 </Link>
                 <div className={styles.tabUnderlineFull} />
             </div>
