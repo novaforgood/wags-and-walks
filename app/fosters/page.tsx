@@ -38,6 +38,31 @@ export default function FostersPage() {
   const [isLoadingDogs, setIsLoadingDogs] = useState(true)
   const [dogsError, setDogsError] = useState<string | null>(null)
 
+  const directoryRows = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase()
+    const rows = buildFosterDirectory(dogs)
+    return rows.filter(r => {
+      const matchesStatus = statusFilter === 'all' || r.status === statusFilter
+      if (!matchesStatus) return false
+      if (!q) return true
+      return (
+        r.fosterName.toLowerCase().includes(q) ||
+        r.dogs.some(d => d.name.toLowerCase().includes(q)) ||
+        r.status.toLowerCase().includes(q)
+      )
+    })
+  }, [dogs, searchQuery, statusFilter])
+
+  const [currentPage, setCurrentPage] = useState(1)
+const ITEMS_PER_PAGE = 20
+
+const paginatedRows = useMemo(() => {
+  const start = (currentPage - 1) * ITEMS_PER_PAGE
+  return directoryRows.slice(start, start + ITEMS_PER_PAGE)
+}, [directoryRows, currentPage])
+
+const totalPages = Math.ceil(directoryRows.length / ITEMS_PER_PAGE)
+
   useEffect(() => {
     let active = true
     async function loadDogs() {
@@ -64,20 +89,9 @@ export default function FostersPage() {
     }
   }, [])
 
-  const directoryRows = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase()
-    const rows = buildFosterDirectory(dogs)
-    return rows.filter(r => {
-      const matchesStatus = statusFilter === 'all' || r.status === statusFilter
-      if (!matchesStatus) return false
-      if (!q) return true
-      return (
-        r.fosterName.toLowerCase().includes(q) ||
-        r.dogs.some(d => d.name.toLowerCase().includes(q)) ||
-        r.status.toLowerCase().includes(q)
-      )
-    })
-  }, [dogs, searchQuery, statusFilter])
+  useEffect(() => {
+  setCurrentPage(1)
+}, [searchQuery, statusFilter])
 
   useEffect(() => {
     try {
@@ -223,7 +237,7 @@ export default function FostersPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {directoryRows.map(row => (
+                    {paginatedRows.map(row => (
                       <tr key={row.id}>
                         <td>
                           <Link href={`/fosters/${row.id}`} className={styles.nameLink}>
@@ -245,7 +259,7 @@ export default function FostersPage() {
                         </td>
                       </tr>
                     ))}
-                    {directoryRows.length === 0 && !dogsError && (
+                    {paginatedRows.length === 0 && !dogsError && (
                       <tr>
                         <td colSpan={5} style={{ textAlign: 'center', padding: '32px', color: '#888' }}>
                           No directory rows found.
@@ -254,6 +268,27 @@ export default function FostersPage() {
                     )}
                   </tbody>
                 </table>
+                {totalPages > 1 && (
+  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '12px', padding: '16px' }}>
+    <button
+      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+      disabled={currentPage === 1}
+      className={styles.toolbarBtn}
+    >
+      Previous
+    </button>
+    <span style={{ fontSize: '14px', color: '#555' }}>
+      Page {currentPage} of {totalPages}
+    </span>
+    <button
+      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+      disabled={currentPage === totalPages}
+      className={styles.toolbarBtn}
+    >
+      Next
+    </button>
+  </div>
+)}
               </div>
             </div>
           )}
