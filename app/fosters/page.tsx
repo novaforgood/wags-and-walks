@@ -66,7 +66,7 @@ export default function FostersPage() {
 
   const directoryRows = useMemo(() => {
     const q = searchQuery.trim().toLowerCase()
-    const rows = buildFosterDirectory(dogs)
+    const rows = buildFosterDirectory(dogs, taskStatusByAnimalId)
     return rows.filter(r => {
       const matchesStatus = statusFilter === 'all' || r.status === statusFilter
       if (!matchesStatus) return false
@@ -77,7 +77,7 @@ export default function FostersPage() {
         r.status.toLowerCase().includes(q)
       )
     })
-  }, [dogs, searchQuery, statusFilter])
+  }, [dogs, taskStatusByAnimalId, searchQuery, statusFilter])
 
   const [currentPage, setCurrentPage] = useState(1)
 const ITEMS_PER_PAGE = 20
@@ -129,20 +129,7 @@ const totalPages = Math.ceil(directoryRows.length / ITEMS_PER_PAGE)
   useEffect(() => {
   setCurrentPage(1)
 }, [searchQuery, statusFilter])
-  const directoryRows = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase()
-    const rows = buildFosterDirectory(dogs, taskStatusByAnimalId)
-    return rows.filter(r => {
-      const matchesStatus = statusFilter === 'all' || r.status === statusFilter
-      if (!matchesStatus) return false
-      if (!q) return true
-      return (
-        r.fosterName.toLowerCase().includes(q) ||
-        r.dogs.some(d => d.name.toLowerCase().includes(q)) ||
-        r.status.toLowerCase().includes(q)
-      )
-    })
-  }, [dogs, taskStatusByAnimalId, searchQuery, statusFilter])
+
 
   useEffect(() => {
     try {
