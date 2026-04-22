@@ -42,6 +42,11 @@ function normalizeStatus(raw: unknown): PersonStatus {
   return 'new'
 }
 
+function normalizeSignedDocument(raw: unknown): 'Yes' | 'No' {
+  const value = String(raw || '').trim().toLowerCase()
+  return value === 'yes' ? 'Yes' : 'No'
+}
+
 export async function GET() {
   try {
     const url = buildAppsScriptUrl({
@@ -106,6 +111,7 @@ export async function GET() {
         starred: String(row['Starred'] || '').trim().toUpperCase() === 'TRUE',
         notes: String(row['Notes'] || '').trim() || undefined,
         notesUpdatedAt: parseTimestampToIso(row['Notes Updated At']),
+        signedDocument: normalizeSignedDocument(row['Signed Document'] ?? row['Signed document']),
         raw: Object.fromEntries(
           Object.entries(row).map(([k, v]) => [k, v == null ? '' : String(v)])
         ) as Record<string, string>

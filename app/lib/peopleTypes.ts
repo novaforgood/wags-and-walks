@@ -22,6 +22,7 @@ export type Person = {
   starred?: boolean
   notes?: string
   notesUpdatedAt?: string
+  signedDocument?: 'Yes' | 'No'
   raw?: Record<string, string>
 }
 

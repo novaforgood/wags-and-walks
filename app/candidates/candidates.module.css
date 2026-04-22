@@ -465,6 +465,17 @@
     vertical-align: middle;
 }
 
+.signedDocumentSelect {
+    border: 1px solid #bbcacb;
+    border-radius: 6px;
+    background: #fff;
+    color: #414141;
+    font-size: 13px;
+    font-family: 'Inter', sans-serif;
+    padding: 6px 8px;
+    min-width: 72px;
+}
+
 .nameCell {
     cursor: pointer;
     color: #05aaaf;
