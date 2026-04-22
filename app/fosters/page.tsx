@@ -17,9 +17,29 @@ type DogsApiResponse = {
   error?: string
 }
 
-type TasksApiResponse = {
-  success?: boolean
-  taskStatusByAnimalId?: Record<string, import('@/app/lib/fosterDirectory').FosterStatus>
+function PageButton({ onClick, disabled, active, children }: {
+  onClick: () => void, disabled?: boolean, active?: boolean, children: React.ReactNode
+}) {
+  const [hovered, setHovered] = useState(false)
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        minWidth: '32px', height: '32px', borderRadius: '6px', border: 'none',
+        background: active ? '#e8fbfe' : hovered && !disabled ? '#f0f0f0' : 'none',
+        cursor: disabled ? 'default' : 'pointer',
+        fontSize: '14px', padding: '0 8px',
+        color: active ? '#05aaaf' : disabled ? '#ccc' : hovered ? '#333' : '#555',
+        fontWeight: active ? '600' : '400',
+        transition: 'background 0.15s, color 0.15s'
+      }}
+    >
+      {children}
+    </button>
+  )
 }
 
 export default function FostersPage() {
@@ -43,6 +63,31 @@ export default function FostersPage() {
   const [isLoadingDogs, setIsLoadingDogs] = useState(true)
   const [dogsError, setDogsError] = useState<string | null>(null)
   const [taskStatusByAnimalId, setTaskStatusByAnimalId] = useState<Record<string, import('@/app/lib/fosterDirectory').FosterStatus>>({})
+
+  const directoryRows = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase()
+    const rows = buildFosterDirectory(dogs, taskStatusByAnimalId)
+    return rows.filter(r => {
+      const matchesStatus = statusFilter === 'all' || r.status === statusFilter
+      if (!matchesStatus) return false
+      if (!q) return true
+      return (
+        r.fosterName.toLowerCase().includes(q) ||
+        r.dogs.some(d => d.name.toLowerCase().includes(q)) ||
+        r.status.toLowerCase().includes(q)
+      )
+    })
+  }, [dogs, taskStatusByAnimalId, searchQuery, statusFilter])
+
+  const [currentPage, setCurrentPage] = useState(1)
+const ITEMS_PER_PAGE = 20
+
+const paginatedRows = useMemo(() => {
+  const start = (currentPage - 1) * ITEMS_PER_PAGE
+  return directoryRows.slice(start, start + ITEMS_PER_PAGE)
+}, [directoryRows, currentPage])
+
+const totalPages = Math.ceil(directoryRows.length / ITEMS_PER_PAGE)
 
   useEffect(() => {
     let active = true
@@ -81,20 +126,10 @@ export default function FostersPage() {
     }
   }, [])
 
-  const directoryRows = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase()
-    const rows = buildFosterDirectory(dogs, taskStatusByAnimalId)
-    return rows.filter(r => {
-      const matchesStatus = statusFilter === 'all' || r.status === statusFilter
-      if (!matchesStatus) return false
-      if (!q) return true
-      return (
-        r.fosterName.toLowerCase().includes(q) ||
-        r.dogs.some(d => d.name.toLowerCase().includes(q)) ||
-        r.status.toLowerCase().includes(q)
-      )
-    })
-  }, [dogs, taskStatusByAnimalId, searchQuery, statusFilter])
+  useEffect(() => {
+  setCurrentPage(1)
+}, [searchQuery, statusFilter])
+
 
   useEffect(() => {
     try {
@@ -240,7 +275,7 @@ export default function FostersPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {directoryRows.map(row => (
+                    {paginatedRows.map(row => (
                       <tr key={row.id}>
                         <td>
                           <Link href={`/fosters/${row.id}`} className={styles.nameLink}>
@@ -262,7 +297,7 @@ export default function FostersPage() {
                         </td>
                       </tr>
                     ))}
-                    {directoryRows.length === 0 && !dogsError && (
+                    {paginatedRows.length === 0 && !dogsError && (
                       <tr>
                         <td colSpan={5} style={{ textAlign: 'center', padding: '32px', color: '#888' }}>
                           No directory rows found.
@@ -271,6 +306,34 @@ export default function FostersPage() {
                     )}
                   </tbody>
                 </table>
+                {totalPages > 1 && (
+  <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '4px', padding: '16px' }}>
+    <PageButton onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>
+      ‹ Previous
+    </PageButton>
+
+    {Array.from({ length: totalPages }, (_, i) => i + 1)
+      .filter(page => page === 1 || page === totalPages || Math.abs(page - currentPage) <= 1)
+      .reduce<(number | '...')[]>((acc, page, idx, arr) => {
+        if (idx > 0 && page - (arr[idx - 1] as number) > 1) acc.push('...')
+        acc.push(page)
+        return acc
+      }, [])
+      .map((item, idx) =>
+        item === '...' ? (
+          <span key={`ellipsis-${idx}`} style={{ padding: '0 4px', color: '#888', fontSize: '14px' }}>···</span>
+        ) : (
+          <PageButton key={item} onClick={() => setCurrentPage(item as number)} active={currentPage === item}>
+            {item}
+          </PageButton>
+        )
+      )}
+
+    <PageButton onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>
+      Next ›
+    </PageButton>
+  </div>
+)}
               </div>
             </div>
           )}

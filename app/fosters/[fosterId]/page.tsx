@@ -96,6 +96,7 @@ export default function FosterDetailsPage() {
         }
         if (!active) return
         setDogs(dogsData.dogs)
+
         if (tasksRes) {
           try {
             const tasksData = (await tasksRes.json()) as TasksApiResponse
@@ -249,6 +250,7 @@ export default function FosterDetailsPage() {
                   <div className={styles.metaGrid}>
                     <div><strong>Email:</strong> {foster.fosterEmail || '—'}</div>
                     <div><strong>Dogs fostering:</strong> {foster.dogs.map(d => d.name).join(', ') || '—'}</div>
+                    <div><strong>Phone:</strong> {foster.fosterPhone || '—'}</div>
                     <div><strong>Placement date:</strong> {formatDateShort(foster.lastUpdate)}</div>
                   </div>
                 </section>
