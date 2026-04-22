@@ -14,6 +14,7 @@ import {
   type DogRecord,
 } from '@/app/lib/fosterDirectory'
 import NotesCard from '@/app/components/NotesCard'
+import FosterHistoryPanel from '@/app/components/FosterHistoryPanel'
 import layoutStyles from '../../candidates/candidates.module.css'
 import styles from './page.module.css'
 
@@ -231,6 +232,12 @@ export default function FosterDetailsPage() {
                 <section className={styles.card}>
                   <NotesCard email={emailFromSlug} name={foster.fosterName} />
                 </section>
+
+                <FosterHistoryPanel
+                  email={emailFromSlug}
+                  sectionClassName={styles.card}
+                  sectionTitleClassName={styles.sectionTitle}
+                />
               </>
             )}
           </div>

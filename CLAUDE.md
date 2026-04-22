@@ -24,12 +24,12 @@ No test framework is configured.
 1. **Google Sheets → Apps Script → Next.js API routes → React context → pages**
 2. `app/api/people/route.ts` — Fetches all applicants from Google Sheets via `APPS_SCRIPT_URL` (env var), normalizes raw sheet rows into `Person` objects
 3. `app/api/send-email/route.ts` — Proxies POST/GET requests to the same Apps Script (used for status updates, emails)
-4. `app/api/foster-notes/route.ts` — GET/POST proxy to `FOSTER_SCRIPT_URL` for reading and writing per-foster notes (GET by `?email=`, POST with `action: 'set_notes'`)
+4. `app/api/foster-notes/route.ts` — GET/POST proxy to `FOSTER_SCRIPT_URL` for reading and writing per-foster notes (GET by `?email=`, POST with `{ email, content }`)
 5. `app/components/PeopleProvider.tsx` — Client-side React context (`usePeople()` hook) that:
    - Fetches from `/api/people` on mount, caches in `localStorage`
    - Provides optimistic status updates with a debounced flush queue (persisted to `localStorage` for resilience)
    - Fires a Google Apps Script webhook when a person is moved to `approved`
-   - `setNotes(email, content)` — writes notes via `/api/foster-notes`
+   - `setNotes(email, content)` — writes applicant notes via `/api/send-email` with `action: 'set_notes'` (Sheet 1). **Different** from `NotesCard` which calls `/api/foster-notes` (Sheet 2)
 
 ### Person Status Pipeline
 
@@ -38,6 +38,8 @@ Defined in `app/lib/peopleTypes.ts`. Statuses: `new` → `in-progress` → `appr
 The API auto-promotes `new` applicants with no flags to `in-progress` (see `app/api/people/route.ts`).
 
 ### Page Structure
+
+Root `/` redirects to `/overview`.
 
 Two layout patterns coexist:
 - **`/candidates` and `/fosters`** — New sidebar layout (these pages render their own sidebar; `Navigation` component hides itself)
@@ -59,6 +61,7 @@ Two layout patterns coexist:
 - `FilterDropdown` — Multi-category filter dropdown (living situation, experience, children, dog types, pet history)
 - `NotificationPanel` — Bell icon notification dropdown with unread/read filtering (currently uses mock data)
 - `FostersSubTabs` — Tab bar (Directory / Overview / Actions) rendered inside the `/fosters` layout
+- `NotesCard` — Shared notes textarea + email compose popup (draggable). Fetches/saves directly to `/api/foster-notes` on blur. Email popup (`Send Email` button) calls `/api/send-email` with `action: 'send_single_email'`
 
 > **Layout coupling:** `/fosters`, `/fosters/overview`, `/fosters/actions`, and `/fosters/[fosterId]` all import from `candidates/candidates.module.css` for the shared sidebar shell. This is intentional — there is no separate fosters layout file.
 
@@ -72,7 +75,7 @@ CSS Modules throughout (`*.module.css`). Global styles in `app/globals.css`. Fon
 
 ### Authentication
 
-**Firebase Auth** — Email/password authentication for admin access.
+**Firebase Auth** — Email/password authentication for admin access. Root layout wraps everything as `<AuthProvider><PeopleProvider>` — auth context is always available inside people context.
 
 - `firebase.js` — Firebase initialization and auth instance export
 - `app/components/AuthProvider.tsx` — React context providing `useAuth()` hook with `signIn()`, `signOut()`, `signUp()` methods
