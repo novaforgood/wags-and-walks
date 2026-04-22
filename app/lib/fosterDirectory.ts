@@ -61,7 +61,9 @@ function dogDisplayName(dog?: DogRecord) {
 }
 
 export function fosterSlug(name: string, email?: string) {
-  const key = normalizeText(email).toLowerCase() || normalizeText(name).toLowerCase()
+  const key =
+    normalizeText(email).toLowerCase() ||
+    normalizeText(name).toLowerCase()
   return encodeURIComponent(key.replace(/\s+/g, '-'))
 }
 
@@ -70,22 +72,37 @@ const HIDDEN_DOG_PREFIXES = ['*fta', '*ufta', '*sts', '*ff', '*adopting']
 export function shouldHideDog(name?: string): boolean {
   if (!name) return false
   const lower = name.trim().toLowerCase()
+
   if (lower.includes('(w/')) return true
   if (lower.startsWith('*poss ff')) return false
-  return HIDDEN_DOG_PREFIXES.some(prefix => lower.startsWith(prefix))
+
+  return HIDDEN_DOG_PREFIXES.some(prefix =>
+    lower.startsWith(prefix)
+  )
 }
 
-export function buildFosterDirectory(dogs: DogRecord[]): FosterDirectoryItem[] {
+export function buildFosterDirectory(
+  dogs: DogRecord[],
+  taskStatusByAnimalId?: Record<string, FosterStatus>
+): FosterDirectoryItem[] {
   const grouped = new Map<string, FosterDirectoryItem>()
 
   for (let i = 0; i < dogs.length; i += 1) {
     const dog = dogs[i]
+
+    // filter hidden dogs
     if (shouldHideDog(dog.name)) continue
+
     const fosterName = fosterDisplayName(dog.foster)
     const fosterEmail = normalizeText(dog.foster?.email) || undefined
     const id = fosterSlug(fosterName, fosterEmail)
-    const dogStatus = toStatus(dog.movement?.daysInFoster)
+
+    const dogStatus =
+      taskStatusByAnimalId?.[String(dog.id)] ??
+      toStatus(dog.movement?.daysInFoster)
+
     const dogLastUpdate = dog.movement?.date
+
     const dogRow: FosterDog = {
       id: String(dog.id ?? `${id}-${i}`),
       name: dogDisplayName(dog),
@@ -95,6 +112,7 @@ export function buildFosterDirectory(dogs: DogRecord[]): FosterDirectoryItem[] {
     }
 
     const existing = grouped.get(id)
+
     if (!existing) {
       grouped.set(id, {
         id,
@@ -108,21 +126,31 @@ export function buildFosterDirectory(dogs: DogRecord[]): FosterDirectoryItem[] {
     }
 
     existing.dogs.push(dogRow)
+
     if (statusRank(dogStatus) > statusRank(existing.status)) {
       existing.status = dogStatus
     }
-    if (!existing.lastUpdate || (dogLastUpdate && dogLastUpdate > existing.lastUpdate)) {
+
+    if (
+      !existing.lastUpdate ||
+      (dogLastUpdate && dogLastUpdate > existing.lastUpdate)
+    ) {
       existing.lastUpdate = dogLastUpdate
     }
   }
 
-  return Array.from(grouped.values()).sort((a, b) => a.fosterName.localeCompare(b.fosterName))
+  return Array.from(grouped.values()).sort((a, b) =>
+    a.fosterName.localeCompare(b.fosterName)
+  )
 }
 
 export function formatDateShort(value?: string) {
   if (!value) return 'Unknown'
   const d = new Date(value)
   if (Number.isNaN(d.getTime())) return 'Unknown'
-  return `${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear().toString().slice(-2)}`
+  return `${d.getMonth() + 1}/${d.getDate()}/${d
+    .getFullYear()
+    .toString()
+    .slice(-2)}`
 }
 

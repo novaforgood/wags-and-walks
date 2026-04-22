@@ -62,6 +62,7 @@ export default function FostersPage() {
   const [dogs, setDogs] = useState<DogRecord[]>([])
   const [isLoadingDogs, setIsLoadingDogs] = useState(true)
   const [dogsError, setDogsError] = useState<string | null>(null)
+  const [taskStatusByAnimalId, setTaskStatusByAnimalId] = useState<Record<string, import('@/app/lib/fosterDirectory').FosterStatus>>({})
 
   const directoryRows = useMemo(() => {
     const q = searchQuery.trim().toLowerCase()
@@ -90,17 +91,28 @@ const totalPages = Math.ceil(directoryRows.length / ITEMS_PER_PAGE)
 
   useEffect(() => {
     let active = true
-    async function loadDogs() {
+    async function loadData() {
       setIsLoadingDogs(true)
       setDogsError(null)
       try {
-        const response = await fetch('/api/dogs', { method: 'GET', cache: 'no-store' })
-        const data = (await response.json()) as DogsApiResponse
-        if (!response.ok || !data?.success || !Array.isArray(data.dogs)) {
-          throw new Error(data?.error || 'Failed to load current directory from Shelter Manager')
+        const [dogsRes, tasksRes] = await Promise.all([
+          fetch('/api/dogs', { cache: 'no-store' }),
+          fetch('/api/tasks', { cache: 'no-store' }).catch(() => null),
+        ])
+        const dogsData = (await dogsRes.json()) as DogsApiResponse
+        if (!dogsRes.ok || !dogsData?.success || !Array.isArray(dogsData.dogs)) {
+          throw new Error(dogsData?.error || 'Failed to load current directory from Shelter Manager')
         }
         if (!active) return
-        setDogs(data.dogs)
+        setDogs(dogsData.dogs)
+        if (tasksRes) {
+          try {
+            const tasksData = (await tasksRes.json()) as TasksApiResponse
+            if (tasksData?.taskStatusByAnimalId) {
+              setTaskStatusByAnimalId(tasksData.taskStatusByAnimalId)
+            }
+          } catch { /* tasks not available yet */ }
+        }
       } catch (error) {
         if (!active) return
         setDogsError(error instanceof Error ? error.message : 'Failed to load current directory from Shelter Manager')
@@ -108,7 +120,7 @@ const totalPages = Math.ceil(directoryRows.length / ITEMS_PER_PAGE)
         if (active) setIsLoadingDogs(false)
       }
     }
-    loadDogs()
+    loadData()
     return () => {
       active = false
     }
@@ -117,6 +129,20 @@ const totalPages = Math.ceil(directoryRows.length / ITEMS_PER_PAGE)
   useEffect(() => {
   setCurrentPage(1)
 }, [searchQuery, statusFilter])
+  const directoryRows = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase()
+    const rows = buildFosterDirectory(dogs, taskStatusByAnimalId)
+    return rows.filter(r => {
+      const matchesStatus = statusFilter === 'all' || r.status === statusFilter
+      if (!matchesStatus) return false
+      if (!q) return true
+      return (
+        r.fosterName.toLowerCase().includes(q) ||
+        r.dogs.some(d => d.name.toLowerCase().includes(q)) ||
+        r.status.toLowerCase().includes(q)
+      )
+    })
+  }, [dogs, taskStatusByAnimalId, searchQuery, statusFilter])
 
   useEffect(() => {
     try {

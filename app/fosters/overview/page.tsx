@@ -36,6 +36,11 @@ type DogsApiResponse = {
   error?: string
 }
 
+type TasksApiResponse = {
+  success?: boolean
+  taskStatusByAnimalId?: Record<string, 'Good' | 'Needs Review' | 'Overdue'>
+}
+
 type UpdateRow = {
   id: string
   fosterName: string
@@ -65,6 +70,7 @@ export default function FostersSectionOverviewPage() {
   const [dogs, setDogs] = useState<DogRecord[]>([])
   const [isLoadingDogs, setIsLoadingDogs] = useState(true)
   const [dogsError, setDogsError] = useState<string | null>(null)
+  const [taskStatusByAnimalId, setTaskStatusByAnimalId] = useState<Record<string, 'Good' | 'Needs Review' | 'Overdue'>>({})
   const [navWidth, setNavWidth] = useState<number>(() => {
     try {
       const raw = localStorage.getItem('app_nav_sidebar_width_v1')
@@ -80,17 +86,28 @@ export default function FostersSectionOverviewPage() {
 
   useEffect(() => {
     let active = true
-    async function loadDogs() {
+    async function loadData() {
       setIsLoadingDogs(true)
       setDogsError(null)
       try {
-        const response = await fetch('/api/dogs', { method: 'GET', cache: 'no-store' })
-        const data = (await response.json()) as DogsApiResponse
-        if (!response.ok || !data?.success || !Array.isArray(data.dogs)) {
-          throw new Error(data?.error || 'Failed to load overview from Shelter Manager')
+        const [dogsRes, tasksRes] = await Promise.all([
+          fetch('/api/dogs', { cache: 'no-store' }),
+          fetch('/api/tasks', { cache: 'no-store' }).catch(() => null),
+        ])
+        const dogsData = (await dogsRes.json()) as DogsApiResponse
+        if (!dogsRes.ok || !dogsData?.success || !Array.isArray(dogsData.dogs)) {
+          throw new Error(dogsData?.error || 'Failed to load overview from Shelter Manager')
         }
         if (!active) return
-        setDogs(data.dogs)
+        setDogs(dogsData.dogs)
+        if (tasksRes) {
+          try {
+            const tasksData = (await tasksRes.json()) as TasksApiResponse
+            if (tasksData?.taskStatusByAnimalId) {
+              setTaskStatusByAnimalId(tasksData.taskStatusByAnimalId)
+            }
+          } catch { /* tasks not available yet */ }
+        }
       } catch (error) {
         if (!active) return
         setDogsError(error instanceof Error ? error.message : 'Failed to load overview from Shelter Manager')
@@ -98,7 +115,7 @@ export default function FostersSectionOverviewPage() {
         if (active) setIsLoadingDogs(false)
       }
     }
-    loadDogs()
+    loadData()
     return () => {
       active = false
     }
@@ -125,21 +142,24 @@ export default function FostersSectionOverviewPage() {
     return dogs.map((dog, idx) => {
       const uploadedPhoto = Boolean(dog.photo?.imageUrl)
       const days = dog.movement?.daysInFoster
-      const overdue = (days ?? 0) > 30 && !uploadedPhoto
-      const needsReview = !overdue && ((days ?? 0) > 14 || !uploadedPhoto)
       const fosterName = nameOf(dog.foster)
+      const taskStatus = taskStatusByAnimalId[String(dog.id)]
+      const status: UpdateRow['status'] = taskStatus ?? (
+        (days ?? 0) > 30 && !uploadedPhoto ? 'Overdue' :
+        (days ?? 0) > 14 || !uploadedPhoto ? 'Needs Review' : 'Good'
+      )
       return {
         id: `${dog.id ?? idx}`,
         fosterName,
         dogName: dogName(dog),
         uploadedPhoto,
-        status: overdue ? 'Overdue' : needsReview ? 'Needs Review' : 'Good',
+        status,
         daysInFoster: days,
         lastUpdate: dog.movement?.date,
         fosterId: fosterSlug(fosterName, dog.foster?.email),
       } satisfies UpdateRow
     })
-  }, [dogs])
+  }, [dogs, taskStatusByAnimalId])
 
   const overdueCount = useMemo(() => updates.filter(r => r.status === 'Overdue').length, [updates])
   const needsReviewCount = useMemo(() => updates.filter(r => r.status === 'Needs Review').length, [updates])
