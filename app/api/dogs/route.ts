@@ -1,3 +1,11 @@
+// ASM sometimes emits control characters in text fields and trailing commas (JSONC-style).
+function sanitizeAsmJson(raw: string): string {
+  // eslint-disable-next-line no-control-regex
+  return raw
+    .replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g, ' ')
+    .replace(/,(\s*[}\]])/g, '$1')
+}
+
 const ASM_BASE_URL = process.env.ASM_BASE_URL
 const ASM_ACCOUNT = process.env.ASM_ACCOUNT
 const ASM_USERNAME = process.env.ASM_USERNAME
@@ -205,14 +213,25 @@ export async function GET() {
       cache: 'no-store'
     })
 
-    const text = await response.text()
+    const raw = await response.text()
+    const text = sanitizeAsmJson(raw)
     let payload: unknown
 
     try {
       payload = JSON.parse(text)
-    } catch {
+    } catch (parseErr) {
+      const msg = parseErr instanceof Error ? parseErr.message : String(parseErr)
+      const posMatch = msg.match(/position (\d+)/)
+      const pos = posMatch ? Number(posMatch[1]) : 21690
+      const window = 120
+      const rawSnippet = raw.slice(Math.max(0, pos - window), pos + window)
+      const sanitizedSnippet = text.slice(Math.max(0, pos - window), pos + window)
+      console.error('ASM JSON parse error:', msg)
+      console.error('RAW context   :', JSON.stringify(rawSnippet))
+      console.error('SANITIZED ctx :', JSON.stringify(sanitizedSnippet))
+      console.error('Char codes at pos:', [...raw.slice(pos, pos + 10)].map(c => c.charCodeAt(0)))
       return Response.json(
-        { success: false, error: 'ASM response was not valid JSON', bodyPreview: text.slice(0, 500) },
+        { success: false, error: `ASM response was not valid JSON: ${msg}`, bodyPreview: raw.slice(0, 500) },
         { status: 502 }
       )
     }
