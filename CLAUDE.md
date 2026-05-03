@@ -26,7 +26,9 @@ No test framework is configured.
 3. `app/api/send-email/route.ts` — Proxies POST/GET requests to the same Apps Script (used for status updates, emails)
 4. `app/api/foster-notes/route.ts` — GET/POST proxy to `FOSTER_SCRIPT_URL` for reading and writing per-foster notes (GET by `?email=`, POST with `{ email, content }`)
 5. `app/api/foster-history/route.ts` — GET proxy to ASM `json_report` method; returns full foster history for all fosterers or a single one (`?email=`). Uses `ASM_API_KEY` (not username/password)
-5. `app/components/PeopleProvider.tsx` — Client-side React context (`usePeople()` hook) that:
+6. `app/api/fosters/route.ts` — Returns `{ count }` of active foster dogs from ASM (used by overview stats). Uses the same `json_shelter_animals` method as `/api/dogs` but returns only the count.
+7. `app/api/tasks/route.ts` — GET proxy to `TASK_SCRIPT_URL`; fetches the task log from Sheet 2 (`action=taskLog`). Returns `{ rows: TaskRow[], taskStatusByAnimalId }` where `taskStatusByAnimalId` maps animal IDs to their worst active `FosterStatus` (used by the fosters directory and overview to show task health badges).
+8. `app/components/PeopleProvider.tsx` — Client-side React context (`usePeople()` hook) that:
    - Fetches from `/api/people` on mount, caches in `localStorage`
    - Provides optimistic status updates with a debounced flush queue (persisted to `localStorage` for resilience)
    - Fires a Google Apps Script webhook when a person is moved to `approved`
@@ -127,10 +129,10 @@ There are **two independent Google Sheets / Apps Script projects**. Changes to e
 - Called by: `/api/people` (GET rows) and `/api/send-email` (POST mutations)
 
 **Sheet 2 — Foster Tracking** (`appscript/CurrentFoster.gs`, `TaskCheck.gs`, `Code.gs`, `ResetStatuses.gs`)
-- Standalone — **not called by the Next.js app**; runs on a schedule inside the Apps Script project
+- Partially called by the Next.js app via `/api/tasks` (task log); other functions run on a schedule inside Apps Script
 - Deployment ID: stored in `.env.local` as `FOSTER_SCRIPT_DEPLOYMENT_ID`
 - `CurrentFoster.gs` — `syncCurrentFosterDogs()`: pulls current fosters from ASM → writes to "Current Fosters" sheet
-- `TaskCheck.gs` — `checkFosterTasks()` (daily trigger at 8am): checks photo/survey task deadlines, queues email reminders, updates "Task Log" sheet. Reads form completions from "Form Responses" sheet. Currently logs only — email sending is disabled during testing.
+- `TaskCheck.gs` — `checkFosterTasks()` (daily trigger at 8am): checks photo/survey task deadlines, queues email reminders, updates "Task Log" sheet. Reads form completions from "Form Responses" sheet. Currently logs only — email sending is disabled during testing. Also exposes `action=taskLog` which `/api/tasks` calls.
 - `Code.gs` — `autoOrganizeFormFiles()`: form submit trigger that moves uploaded foster photos into per-dog Google Drive folders
 - `ResetStatuses.gs` — `resetAllStatusesToNew()`: bulk-resets all applicant statuses to `new` directly in the sheet (Apps Script side equivalent of `scripts/reset_status.js`)
 
@@ -143,3 +145,4 @@ Defined in `.env.local`:
 - `NEXT_PUBLIC_FIREBASE_*` — Firebase configuration (API key, auth domain, project ID, etc.)
 - `ASM_BASE_URL`, `ASM_ACCOUNT`, `ASM_USERNAME`, `ASM_PASSWORD` — ShelterManager API credentials used by `/api/dogs` (server-side only)
 - `ASM_API_KEY`, `ASM_REPORT_TITLE` — Used by `/api/foster-history` to call the ASM `json_report` method (different auth scheme from dogs route; `ASM_REPORT_TITLE` defaults to `'Foster History API'`)
+- `TASK_SCRIPT_URL` — Sheet 2 Apps Script URL used by `/api/tasks` to fetch the task log. If unset, the route returns an empty result rather than erroring.
