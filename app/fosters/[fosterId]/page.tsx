@@ -32,6 +32,14 @@ type TasksApiResponse = {
   taskStatusByAnimalId?: Record<string, FosterStatus>
 }
 
+type ScheduledEmail = {
+  id: string
+  title: string
+  scheduledDate: string // ISO date string
+  subject: string
+  body: string
+}
+
 const TASK_LABELS: Record<string, string> = {
   PHOTOS: 'Photo upload',
   SURVEY: 'Foster survey',
@@ -53,6 +61,262 @@ function StatusBadge({ status }: { status: string }) {
   return <span className={cls}>{status || 'Good'}</span>
 }
 
+// --- Shared hover button styles injected once ---
+const updatesButtonStyles = `
+  .upd-btn { transition: background 0.15s; }
+  .upd-btn-neutral:hover { background: #f3f4f6 !important; }
+  .upd-btn-cancel:hover  { background: #fff1f1 !important; }
+  .upd-btn-primary:hover { background: #3d8a7d !important; }
+  .upd-btn-send:hover    { background: #3d8a7d !important; }
+`
+
+// --- Shared Email Modal (used for both Edit and Send Now) ---
+type EmailModalProps = {
+  title: string
+  fosterEmail: string
+  subject: string
+  body: string
+  primaryLabel: string
+  onPrimary: (subject: string, body: string) => void
+  onClose: () => void
+  extraActions?: React.ReactNode
+}
+
+function EmailModal({ title, fosterEmail, subject: initSubject, body: initBody, primaryLabel, onPrimary, onClose, extraActions }: EmailModalProps) {
+  const [subject, setSubject] = useState(initSubject)
+  const [body, setBody] = useState(initBody)
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
+    }}>
+      <style>{updatesButtonStyles}</style>
+      <div style={{
+        background: '#fff', borderRadius: 12, padding: '28px 32px', width: 480,
+        maxWidth: '95vw', boxShadow: '0 8px 32px rgba(0,0,0,0.18)', position: 'relative',
+      }}>
+        <button
+          onClick={onClose}
+          className="upd-btn upd-btn-neutral"
+          style={{
+            position: 'absolute', top: 14, right: 16, background: 'none',
+            border: 'none', fontSize: 20, cursor: 'pointer', color: '#888', lineHeight: 1, borderRadius: 4,
+          }}
+          aria-label="Close"
+        >×</button>
+
+        <h3 style={{ margin: '0 0 4px', fontSize: 17, fontWeight: 600 }}>{title}</h3>
+        <p style={{ margin: '0 0 18px', fontSize: 13, color: '#888' }}>To: {fosterEmail}</p>
+
+        <label style={{ display: 'block', fontSize: 13, color: '#666', marginBottom: 4 }}>Subject</label>
+        <input
+          value={subject}
+          onChange={e => setSubject(e.target.value)}
+          style={{
+            width: '100%', padding: '8px 12px', borderRadius: 7, border: '1px solid #d1d5db',
+            fontSize: 14, marginBottom: 14, boxSizing: 'border-box', fontFamily: 'inherit',
+          }}
+        />
+
+        <label style={{ display: 'block', fontSize: 13, color: '#666', marginBottom: 4 }}>Message</label>
+        <textarea
+          value={body}
+          onChange={e => setBody(e.target.value)}
+          rows={5}
+          style={{
+            width: '100%', padding: '8px 12px', borderRadius: 7, border: '1px solid #d1d5db',
+            fontSize: 14, marginBottom: 20, boxSizing: 'border-box', resize: 'vertical', fontFamily: 'inherit',
+          }}
+        />
+
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+          {extraActions}
+          <button
+            onClick={() => onPrimary(subject, body)}
+            className="upd-btn upd-btn-primary"
+            style={{
+              padding: '8px 18px', borderRadius: 7, border: 'none',
+              background: '#4a9d8f', color: '#fff', fontSize: 14, cursor: 'pointer', fontWeight: 600,
+            }}
+          >
+            {primaryLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// --- Updates Section ---
+type UpdatesSectionProps = {
+  fosterEmail: string
+  scheduledEmails: ScheduledEmail[]
+  onEmailsChange: (emails: ScheduledEmail[]) => void
+}
+
+function UpdatesSection({ fosterEmail, scheduledEmails, onEmailsChange }: UpdatesSectionProps) {
+  const [editingEmail, setEditingEmail] = useState<ScheduledEmail | null>(null)
+  const [showSendNow, setShowSendNow] = useState(false)
+
+  function addDays(dateStr: string, days: number): string {
+    const d = new Date(dateStr)
+    d.setDate(d.getDate() + days)
+    return d.toISOString()
+  }
+
+  function handleSave(updated: ScheduledEmail) {
+    onEmailsChange(scheduledEmails.map(e => e.id === updated.id ? updated : e))
+    setEditingEmail(null)
+  }
+
+  function handleCancelScheduled(id: string) {
+    onEmailsChange(scheduledEmails.filter(e => e.id !== id))
+    setEditingEmail(null)
+  }
+
+  function handleSnooze(email: ScheduledEmail) {
+    const snoozed = { ...email, scheduledDate: addDays(email.scheduledDate, 3) }
+    onEmailsChange(scheduledEmails.map(e => e.id === email.id ? snoozed : e))
+    setEditingEmail(null)
+  }
+
+  function handleSendNow(_subject: string, _body: string) {
+    // Wire to your send API here
+    setShowSendNow(false)
+  }
+
+  return (
+    <>
+      <style>{updatesButtonStyles}</style>
+      <section className={styles.card}>
+        <h3 className={styles.sectionTitle}>Updates</h3>
+
+        {scheduledEmails.length === 0 && (
+          <p className={styles.hint}>No scheduled emails.</p>
+        )}
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {scheduledEmails.map(email => (
+            <div
+              key={email.id}
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: '10px 14px', borderRadius: 8, border: '1px solid #e5e7eb',
+                background: '#f9fafb', flexWrap: 'wrap', gap: 8,
+              }}
+            >
+              <span style={{ fontSize: 14, fontWeight: 500, color: '#111827', flex: 1, minWidth: 140 }}>
+                {email.title}
+              </span>
+              <span style={{ fontSize: 13, color: '#6b7280', marginRight: 12, whiteSpace: 'nowrap' }}>
+                {formatDateShort(email.scheduledDate)}
+              </span>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <button
+                  onClick={() => setEditingEmail(email)}
+                  className="upd-btn upd-btn-neutral"
+                  style={{
+                    padding: '5px 12px', borderRadius: 6, border: '1px solid #d1d5db',
+                    background: '#fff', color: '#374151', fontSize: 13, cursor: 'pointer', fontWeight: 500,
+                  }}
+                >
+                  Edit
+                </button>
+                <button
+                  onClick={() => handleCancelScheduled(email.id)}
+                  className="upd-btn upd-btn-cancel"
+                  style={{
+                    padding: '5px 12px', borderRadius: 6, border: '1px solid #fca5a5',
+                    background: '#fff', color: '#dc2626', fontSize: 13, cursor: 'pointer', fontWeight: 500,
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => handleSnooze(email)}
+                  className="upd-btn upd-btn-neutral"
+                  style={{
+                    padding: '5px 12px', borderRadius: 6, border: '1px solid #d1d5db',
+                    background: '#fff', color: '#374151', fontSize: 13, cursor: 'pointer', fontWeight: 500,
+                  }}
+                >
+                  Snooze
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Send Email Now */}
+        <div style={{ marginTop: 14 }}>
+          <button
+            onClick={() => setShowSendNow(true)}
+            className="upd-btn upd-btn-send"
+            style={{
+              padding: '8px 18px', borderRadius: 7, border: 'none',
+              background: '#4a9d8f', color: '#fff', fontSize: 14, cursor: 'pointer', fontWeight: 600,
+            }}
+          >
+            Send Email Now
+          </button>
+        </div>
+      </section>
+
+      {/* Edit scheduled email modal */}
+      {editingEmail && (
+        <EmailModal
+          title="Edit Scheduled Email"
+          fosterEmail={fosterEmail}
+          subject={editingEmail.subject}
+          body={editingEmail.body}
+          primaryLabel="Save"
+          onPrimary={(subject, body) => handleSave({ ...editingEmail, subject, body })}
+          onClose={() => setEditingEmail(null)}
+          extraActions={
+            <>
+              <button
+                onClick={() => handleCancelScheduled(editingEmail.id)}
+                className="upd-btn upd-btn-cancel"
+                style={{
+                  padding: '8px 16px', borderRadius: 7, border: '1px solid #fca5a5',
+                  background: '#fff', color: '#dc2626', fontSize: 14, cursor: 'pointer', fontWeight: 500,
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleSnooze(editingEmail)}
+                className="upd-btn upd-btn-neutral"
+                style={{
+                  padding: '8px 16px', borderRadius: 7, border: '1px solid #d1d5db',
+                  background: '#f9fafb', color: '#374151', fontSize: 14, cursor: 'pointer', fontWeight: 500,
+                }}
+              >
+                Snooze (+3 days)
+              </button>
+            </>
+          }
+        />
+      )}
+
+      {/* Send Email Now modal */}
+      {showSendNow && (
+        <EmailModal
+          title="Send Email"
+          fosterEmail={fosterEmail}
+          subject="Checking in!"
+          body={`Hey *${fosterEmail.split('@')[0]}, checking in on ...`}
+          primaryLabel="Send"
+          onPrimary={handleSendNow}
+          onClose={() => setShowSendNow(false)}
+        />
+      )}
+    </>
+  )
+}
+
+// --- Main Page ---
 export default function FosterDetailsPage() {
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -79,6 +343,24 @@ export default function FosterDetailsPage() {
   const [isResizingNav, setIsResizingNav] = useState(false)
   const navStartXRef = useRef(0)
   const navStartWRef = useRef(208)
+
+  // Scheduled emails state — in production these would be loaded from your API
+  const [scheduledEmails, setScheduledEmails] = useState<ScheduledEmail[]>([
+    {
+      id: 'survey-1',
+      title: 'Survey Reminder',
+      scheduledDate: new Date('2026-05-02').toISOString(),
+      subject: 'Foster Survey',
+      body: 'Hey, checking in! Could you please fill out the foster survey?',
+    },
+    {
+      id: 'photos-1',
+      title: 'Photos Reminder',
+      scheduledDate: new Date('2026-05-06').toISOString(),
+      subject: 'Photo Upload Reminder',
+      body: 'Hey, we\'d love to see some photos of your foster pup! Could you upload some when you get a chance?',
+    },
+  ])
 
   useEffect(() => {
     let active = true
@@ -122,15 +404,12 @@ export default function FosterDetailsPage() {
     [people, foster]
   )
 
-  // Decode the email from the slug immediately so notes can load in parallel with dogs.
-  // fosterSlug() uses encodeURIComponent(email) when an email is available.
   const emailFromSlug = useMemo(() => {
     if (!fosterId) return null
     const decoded = decodeURIComponent(fosterId)
     return decoded.includes('@') ? decoded : null
   }, [fosterId])
 
-  // Tasks for dogs in this foster record, grouped by animal ID
   const fosterTasksByDogId = useMemo(() => {
     if (!foster) return new Map<string, TaskRow[]>()
     const dogIds = new Set(foster.dogs.map(d => d.id))
@@ -318,6 +597,8 @@ export default function FosterDetailsPage() {
                     </section>
                   )
                 })}
+
+                {/* Current Fostering Situation */}
                 <section className={styles.card}>
                   <h3 className={styles.sectionTitle}>Current Fostering Situation</h3>
                   <table className={styles.table}>
@@ -342,8 +623,16 @@ export default function FosterDetailsPage() {
                   </table>
                 </section>
 
+                {/* Updates — scheduled emails */}
+                <UpdatesSection
+                  fosterEmail={foster.fosterEmail ?? ''}
+                  scheduledEmails={scheduledEmails}
+                  onEmailsChange={setScheduledEmails}
+                />
+
                 <section className={styles.card}>
-                  <NotesCard email={emailFromSlug} name={foster.fosterName} />
+                  {/* Pass hideSendEmail to suppress the built-in Send Email button — add that prop to NotesCard */}
+                  <NotesCard email={emailFromSlug} name={foster.fosterName} hideSendEmail />
                 </section>
 
                 <FosterHistoryPanel
