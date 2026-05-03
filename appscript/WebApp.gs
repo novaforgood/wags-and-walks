@@ -69,7 +69,10 @@ const CONFIG = {
 
     // Foster notes
     NOTES: "Notes",
-    NOTES_UPDATED_AT: "Notes Updated At"
+    NOTES_UPDATED_AT: "Notes Updated At",
+
+    // Applicant paperwork
+    SIGNED_DOCUMENT: "Signed Document"
   },
 
   REVIEW_VALUES: {

@@ -18,7 +18,7 @@ type Tab = 'candidates' | 'redflags'
 export default function CandidatesPage() {
     const pathname = usePathname()
     const router = useRouter()
-    const { people, isLoading, error, setStatus, toggleStar } = usePeople()
+    const { people, isLoading, error, setStatus, toggleStar, setSignedDocument } = usePeople()
     const { user, signOut } = useAuth()
     const [activeTab, setActiveTab] = useState<Tab>('candidates')
     const [selectedEmails, setSelectedEmails] = useState<Set<string>>(new Set())
@@ -396,6 +396,7 @@ export default function CandidatesPage() {
                                         const isSelected = selectedEmails.has(email)
                                         const name = `${person.firstName ?? ''} ${person.lastName ?? ''}`.trim() || 'Unknown'
                                         const flagsDisplay = getRedFlagsDisplay(person)
+                                        const signedDocument = person.signedDocument ?? 'No'
 
                                         return (
                                             <tr
@@ -409,7 +410,20 @@ export default function CandidatesPage() {
                                                 {/* TODO: Replace with person.raw?.['Orientation date'] when column exists in sheet */}
                                                 <td>TBD</td>
                                                 {/* TODO: Replace with person.raw?.['Signed document'] when column exists in sheet */}
-                                                <td>No</td>
+                                                <td>
+                                                    <select
+                                                        className={styles.signedDocumentSelect}
+                                                        value={signedDocument}
+                                                        onChange={(e) => {
+                                                            const value = e.target.value as 'Yes' | 'No'
+                                                            setSignedDocument(email, value)
+                                                        }}
+                                                        aria-label={`Signed document for ${name}`}
+                                                    >
+                                                        <option value="No">No</option>
+                                                        <option value="Yes">Yes</option>
+                                                    </select>
+                                                </td>
                                                 <td>{getStatusDisplay(person)}</td>
                                                 <td className={hasFlags(person) ? styles.flagYes : styles.flagNone}>
                                                     {flagsDisplay === 'None' ? 'None' : 'Yes'}

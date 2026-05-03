@@ -18,6 +18,7 @@ type PeopleContextValue = {
   error: string | null
   setStatus: (email: string, status: PersonStatus) => void
   toggleStar: (email: string) => void
+  setSignedDocument: (email: string, value: 'Yes' | 'No') => Promise<void>
   setNotes: (email: string, content: string) => Promise<void>
   refresh: () => Promise<void>
 }
@@ -116,6 +117,51 @@ export function PeopleProvider({ children }: { children: React.ReactNode }) {
         if (!data?.success) console.error('set_notes failed:', data)
       })
       .catch(err => console.error('Failed to save notes:', err))
+  }, [])
+
+  const setSignedDocument = useCallback(async (email: string, value: 'Yes' | 'No') => {
+    const key = normalizeEmailKey(email)
+    if (!key) return
+
+    // Optimistic UI update.
+    setPeople(prev =>
+      prev.map(p => (normalizeEmailKey(p.email) === key ? { ...p, signedDocument: value } : p))
+    )
+
+    try {
+      const response = await fetch('/api/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'set_signed_document',
+          email,
+          value
+        })
+      })
+      const data = (await response.json()) as { success?: boolean; value?: string; message?: string }
+      const isExpectedSignedDocumentResponse =
+        typeof data?.value === 'string' &&
+        (data.value === 'Yes' || data.value === 'No')
+
+      if (!response.ok || !data?.success || !isExpectedSignedDocumentResponse) {
+        const details = data?.message ? ` (${data.message})` : ''
+        throw new Error(`set_signed_document failed${details}`)
+      }
+    } catch (err) {
+      console.error('Failed to save signed document:', err)
+      // Revert optimistic update on failure.
+      setPeople(prev =>
+        prev.map(p => {
+          if (normalizeEmailKey(p.email) !== key) return p
+          const fallback = String(p.raw?.['Signed Document'] ?? p.raw?.['Signed document'] ?? '')
+            .trim()
+            .toLowerCase() === 'yes'
+            ? 'Yes'
+            : 'No'
+          return { ...p, signedDocument: fallback }
+        })
+      )
+    }
   }, [])
 
   const refresh = useCallback(async () => {
@@ -268,8 +314,8 @@ export function PeopleProvider({ children }: { children: React.ReactNode }) {
   }, [refresh, applyPendingOptimistic])
 
   const value = useMemo<PeopleContextValue>(
-    () => ({ people, isLoading, error, setStatus, toggleStar, setNotes, refresh }),
-    [people, isLoading, error, setStatus, toggleStar, setNotes, refresh]
+    () => ({ people, isLoading, error, setStatus, toggleStar, setSignedDocument, setNotes, refresh }),
+    [people, isLoading, error, setStatus, toggleStar, setSignedDocument, setNotes, refresh]
   )
 
   return <PeopleContext.Provider value={value}>{children}</PeopleContext.Provider>

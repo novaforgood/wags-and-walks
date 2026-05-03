@@ -17,6 +17,31 @@ type DogsApiResponse = {
   error?: string
 }
 
+function PageButton({ onClick, disabled, active, children }: {
+  onClick: () => void, disabled?: boolean, active?: boolean, children: React.ReactNode
+}) {
+  const [hovered, setHovered] = useState(false)
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        minWidth: '32px', height: '32px', borderRadius: '6px', border: 'none',
+        background: active ? '#e8fbfe' : hovered && !disabled ? '#f0f0f0' : 'none',
+        cursor: disabled ? 'default' : 'pointer',
+        fontSize: '14px', padding: '0 8px',
+        color: active ? '#05aaaf' : disabled ? '#ccc' : hovered ? '#333' : '#555',
+        fontWeight: active ? '600' : '400',
+        transition: 'background 0.15s, color 0.15s'
+      }}
+    >
+      {children}
+    </button>
+  )
+}
+
 export default function FostersPage() {
   const pathname = usePathname()
   const { user, signOut } = useAuth()
@@ -37,36 +62,11 @@ export default function FostersPage() {
   const [dogs, setDogs] = useState<DogRecord[]>([])
   const [isLoadingDogs, setIsLoadingDogs] = useState(true)
   const [dogsError, setDogsError] = useState<string | null>(null)
-
-  useEffect(() => {
-    let active = true
-    async function loadDogs() {
-      setIsLoadingDogs(true)
-      setDogsError(null)
-      try {
-        const response = await fetch('/api/dogs', { method: 'GET', cache: 'no-store' })
-        const data = (await response.json()) as DogsApiResponse
-        if (!response.ok || !data?.success || !Array.isArray(data.dogs)) {
-          throw new Error(data?.error || 'Failed to load current directory from Shelter Manager')
-        }
-        if (!active) return
-        setDogs(data.dogs)
-      } catch (error) {
-        if (!active) return
-        setDogsError(error instanceof Error ? error.message : 'Failed to load current directory from Shelter Manager')
-      } finally {
-        if (active) setIsLoadingDogs(false)
-      }
-    }
-    loadDogs()
-    return () => {
-      active = false
-    }
-  }, [])
+  const [taskStatusByAnimalId, setTaskStatusByAnimalId] = useState<Record<string, import('@/app/lib/fosterDirectory').FosterStatus>>({})
 
   const directoryRows = useMemo(() => {
     const q = searchQuery.trim().toLowerCase()
-    const rows = buildFosterDirectory(dogs)
+    const rows = buildFosterDirectory(dogs, taskStatusByAnimalId)
     return rows.filter(r => {
       const matchesStatus = statusFilter === 'all' || r.status === statusFilter
       if (!matchesStatus) return false
@@ -77,7 +77,59 @@ export default function FostersPage() {
         r.status.toLowerCase().includes(q)
       )
     })
-  }, [dogs, searchQuery, statusFilter])
+  }, [dogs, taskStatusByAnimalId, searchQuery, statusFilter])
+
+  const [currentPage, setCurrentPage] = useState(1)
+const ITEMS_PER_PAGE = 20
+
+const paginatedRows = useMemo(() => {
+  const start = (currentPage - 1) * ITEMS_PER_PAGE
+  return directoryRows.slice(start, start + ITEMS_PER_PAGE)
+}, [directoryRows, currentPage])
+
+const totalPages = Math.ceil(directoryRows.length / ITEMS_PER_PAGE)
+
+  useEffect(() => {
+    let active = true
+    async function loadData() {
+      setIsLoadingDogs(true)
+      setDogsError(null)
+      try {
+        const [dogsRes, tasksRes] = await Promise.all([
+          fetch('/api/dogs', { cache: 'no-store' }),
+          fetch('/api/tasks', { cache: 'no-store' }).catch(() => null),
+        ])
+        const dogsData = (await dogsRes.json()) as DogsApiResponse
+        if (!dogsRes.ok || !dogsData?.success || !Array.isArray(dogsData.dogs)) {
+          throw new Error(dogsData?.error || 'Failed to load current directory from Shelter Manager')
+        }
+        if (!active) return
+        setDogs(dogsData.dogs)
+        if (tasksRes) {
+          try {
+            const tasksData = (await tasksRes.json()) as TasksApiResponse
+            if (tasksData?.taskStatusByAnimalId) {
+              setTaskStatusByAnimalId(tasksData.taskStatusByAnimalId)
+            }
+          } catch { /* tasks not available yet */ }
+        }
+      } catch (error) {
+        if (!active) return
+        setDogsError(error instanceof Error ? error.message : 'Failed to load current directory from Shelter Manager')
+      } finally {
+        if (active) setIsLoadingDogs(false)
+      }
+    }
+    loadData()
+    return () => {
+      active = false
+    }
+  }, [])
+
+  useEffect(() => {
+  setCurrentPage(1)
+}, [searchQuery, statusFilter])
+
 
   useEffect(() => {
     try {
@@ -223,7 +275,7 @@ export default function FostersPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {directoryRows.map(row => (
+                    {paginatedRows.map(row => (
                       <tr key={row.id}>
                         <td>
                           <Link href={`/fosters/${row.id}`} className={styles.nameLink}>
@@ -245,7 +297,7 @@ export default function FostersPage() {
                         </td>
                       </tr>
                     ))}
-                    {directoryRows.length === 0 && !dogsError && (
+                    {paginatedRows.length === 0 && !dogsError && (
                       <tr>
                         <td colSpan={5} style={{ textAlign: 'center', padding: '32px', color: '#888' }}>
                           No directory rows found.
@@ -254,6 +306,34 @@ export default function FostersPage() {
                     )}
                   </tbody>
                 </table>
+                {totalPages > 1 && (
+  <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '4px', padding: '16px' }}>
+    <PageButton onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>
+      ‹ Previous
+    </PageButton>
+
+    {Array.from({ length: totalPages }, (_, i) => i + 1)
+      .filter(page => page === 1 || page === totalPages || Math.abs(page - currentPage) <= 1)
+      .reduce<(number | '...')[]>((acc, page, idx, arr) => {
+        if (idx > 0 && page - (arr[idx - 1] as number) > 1) acc.push('...')
+        acc.push(page)
+        return acc
+      }, [])
+      .map((item, idx) =>
+        item === '...' ? (
+          <span key={`ellipsis-${idx}`} style={{ padding: '0 4px', color: '#888', fontSize: '14px' }}>···</span>
+        ) : (
+          <PageButton key={item} onClick={() => setCurrentPage(item as number)} active={currentPage === item}>
+            {item}
+          </PageButton>
+        )
+      )}
+
+    <PageButton onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>
+      Next ›
+    </PageButton>
+  </div>
+)}
               </div>
             </div>
           )}
