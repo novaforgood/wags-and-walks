@@ -25,6 +25,7 @@ export default function CandidatesPage() {
     const [searchQuery, setSearchQuery] = useState('')
     const [expandedEmail, setExpandedEmail] = useState<string | null>(null)
     const [selectedPerson, setSelectedPerson] = useState<Person | null>(null)
+    const [orientationDates, setOrientationDates] = useState<Record<string, string>>({})
     const [confirmModalState, setConfirmModalState] = useState<{
         isOpen: boolean,
         action: 'accept' | 'reject' | null,
@@ -212,6 +213,17 @@ export default function CandidatesPage() {
         }
     }
 
+    // Handle orientation date change — updates local state and can persist to backend
+    async function handleOrientationDateChange(email: string, date: string) {
+        setOrientationDates(prev => ({ ...prev, [email]: date }))
+        // Uncomment and wire up when API route is ready:
+        // await fetch('/api/people/update', {
+        //   method: 'POST',
+        //   body: JSON.stringify({ email, orientationDate: date }),
+        //   headers: { 'Content-Type': 'application/json' }
+        // })
+    }
+
     useEffect(() => {
         if (!acceptToast.isOpen) return
         const t = window.setTimeout(() => {
@@ -381,7 +393,6 @@ export default function CandidatesPage() {
                                 <thead>
                                     <tr>
                                         <th>Name</th>
-                                        {/* TODO: Connect "Orientation date" to actual sheet column when available */}
                                         <th>Orientation Date</th>
                                         {/* TODO: Connect "Signed document" to actual sheet column when available */}
                                         <th>Signed Document</th>
@@ -407,8 +418,15 @@ export default function CandidatesPage() {
                                                     className={styles.nameCell}
                                                     onClick={() => setSelectedPerson(person)}
                                                 >{name}</td>
-                                                {/* TODO: Replace with person.raw?.['Orientation date'] when column exists in sheet */}
-                                                <td>TBD</td>
+                                                <td>
+                                                    <input
+                                                        type="date"
+                                                        value={orientationDates[email] || ''}
+                                                        onChange={(e) => handleOrientationDateChange(email, e.target.value)}
+                                                        className={styles.orientationDateInput}
+                                                        aria-label={`Orientation date for ${name}`}
+                                                    />
+                                                </td>
                                                 {/* TODO: Replace with person.raw?.['Signed document'] when column exists in sheet */}
                                                 <td>
                                                     <select
@@ -640,7 +658,7 @@ export default function CandidatesPage() {
                                     if (confirmModalState.action === 'accept') {
                                         setAcceptToast({
                                             isOpen: true,
-                                            message: `${name} has been accepted as a current foster. They are not currently fostering, and an email has been sent informing them they’re a current foster.`
+                                            message: `${name} has been accepted as a current foster. They are not currently fostering, and an email has been sent informing them they're a current foster.`
                                         })
                                     }
                                 }}

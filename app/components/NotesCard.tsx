@@ -7,9 +7,10 @@ import styles from './NotesCard.module.css'
 interface Props {
   email: string | null | undefined
   name?: string
+  hideSendEmail?: boolean
 }
 
-export default function NotesCard({ email, name }: Props) {
+export default function NotesCard({ email, name, hideSendEmail }: Props) {
   // Notes state
   const [draft, setDraft] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -116,7 +117,7 @@ export default function NotesCard({ email, name }: Props) {
           {!saving && !saved && notesFromSheet?.notesUpdatedAt && (
             <span className={styles.status}>Last saved: {formatDateShort(notesFromSheet.notesUpdatedAt)}</span>
           )}
-          {email && (
+          {email && !hideSendEmail && (
             <button type="button" className={styles.sendBtn} onClick={openPopup}>
               Send Email
             </button>
@@ -170,6 +171,7 @@ export default function NotesCard({ email, name }: Props) {
                 type="text"
                 value={subject}
                 onChange={e => setSubject(e.target.value)}
+                style={{ fontFamily: 'inherit' }}
               />
             </div>
             <div className={styles.popupField}>
@@ -178,6 +180,7 @@ export default function NotesCard({ email, name }: Props) {
                 className={styles.popupTextarea}
                 value={body}
                 onChange={e => setBody(e.target.value)}
+                style={{ fontFamily: 'inherit' }}
               />
             </div>
           </div>
