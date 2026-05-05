@@ -16,6 +16,7 @@ export type TaskRow = {
   fosterName: string
   fosterEmail: string
   status: TaskStatus
+  driveLink: string
 }
 
 // Status is pre-computed by the Apps Script and stored in the sheet's Status column.
@@ -77,6 +78,7 @@ export async function GET() {
         fosterName: String(r.fosterName ?? '').trim(),
         fosterEmail: String(r.fosterEmail ?? '').trim(),
         status: deriveStatus(sheetStatus, completedDate, retiredDate),
+        driveLink: String(r.driveLink ?? r.driveFolder ?? r.folderUrl ?? r.photoFolder ?? '').trim(),
       }
     })
 
