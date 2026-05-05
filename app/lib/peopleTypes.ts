@@ -14,7 +14,16 @@ export type Person = {
   lastName?: string
   email?: string
   phone?: string
+  address?: string
   age?: string
+  occupation?: string
+  livingArrangement?: string
+  currentPets?: string
+  currentPetDetails?: string
+  dogDaytime?: string
+  dogNight?: string
+  referralSource?: string
+  source?: string
   status?: PersonStatus
   appliedAt?: string
   availability?: string

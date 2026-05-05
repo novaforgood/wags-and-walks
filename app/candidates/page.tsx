@@ -411,7 +411,7 @@ export default function CandidatesPage() {
 
                                         return (
                                             <tr
-                                                key={email}
+                                                key={person.rowIndex ?? `${email}-${i}`}
                                                 className={isSelected ? styles.rowSelected : ''}
                                             >
                                                 <td

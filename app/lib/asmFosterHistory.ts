@@ -126,7 +126,10 @@ export async function fetchAsmFosterHistory(): Promise<AsmFosterRow[]> {
       throw new Error(`ASM report request failed: ${res.status} ${res.statusText}`)
     }
 
-    const data = await res.json()
+    const raw = await res.text()
+    // eslint-disable-next-line no-control-regex
+    const text = raw.replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g, ' ').replace(/,(\s*[}\]])/g, '$1')
+    const data: unknown = JSON.parse(text)
 
     if (!Array.isArray(data)) {
       throw new Error('ASM response was not an array')

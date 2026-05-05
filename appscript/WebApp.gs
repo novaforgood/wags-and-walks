@@ -12,17 +12,40 @@
  * CONFIG
  **************************************/
 const CONFIG = {
-  SHEET_NAME: "Form Responses 1",
+  SHEET_NAME: "Sheet1",
 
   // Flagging input headers (must match your sheet headers exactly)
   HEADERS: {
-    TIMESTAMP: "Timestamp",
-    FIRST: "First Name",
-    LAST: "Last Name",
+    TIMESTAMP: "Submitted On",
+    NAME: "Name",
     EMAIL: "Email",
-    AGE: "How old are you?",
-    OWNED_PET: "Have you ever owned a pet before?",
-    DOG_EXPERIENCE: "How would you rate your experience with dogs?"
+    PHONE: "Phone",
+    ADDRESS: "Address",
+    AGE: "How old are you",
+    OCCUPATION: "What do you do for a living",
+    CHILDREN: "How many children are in your home",
+    CHILDREN_AGES: "How old are they Check all that apply",
+    ADDITIONAL_ADULTS: "Other than yourself how many additional adults do you share your home with",
+    ADULT_AGES: "How old are they",
+    ADULT_RELATIONSHIP: "What is their relationship to you",
+    LIVING_ARRANGEMENT: "What is your living arrangement",
+    OWNED_PET: "Have you ever owned a pet before",
+    PET_TYPES: "What kind of pets have you owned check all that apply",
+    CURRENT_PETS: "Do you currently have any pets at home",
+    CURRENT_PET_DETAILS: "Please list ALL pets that you CURRENTLY own Include type dogcat breed age gender length of time in your care etc",
+    PETS_SPAYED: "Are your current pets spayedneutered",
+    DOG_DAYTIME: "Where will your foster dog be when you are not home",
+    DOG_NIGHT: "Where will your foster dog sleep during the night",
+    DOG_EXPERIENCE: "How would you rate your experience with dogs",
+    AVAILABILITY: "When would you like to take your foster dog home",
+    SPECIAL_NEEDS: "Are you willing to foster dogs with special needs If so please check all that apply below",
+    SIZE_PREFERENCE: "Please share your preferences in terms of size breed energy level etc Fosters for large dogs 45 lbs are always our biggest need Please note that you do not need a house or yard to foster a large dog Many bigger dogs are just fine in apartments and our team will pair you with a dog that will be a great match",
+    MEDICAL_NEEDS: "Are you willing to foster dogs with medical needs",
+    PREGNANT_MAMAS: "Are you willing to foster pregnant mamas andor mamas and their litters",
+    BEHAVIOR_REHAB: "Are you willing to foster dogs that need training upkeepbehavior rehabilitation",
+    REFERRAL_SOURCE: "How did you hear about us",
+    REFERRAL_NAME: "If someone referred you please list their name here so we may thank them",
+    SOURCE: "Source"
   },
 
   // Output columns we create/write
@@ -394,9 +417,11 @@ function doPost(e) {
       return json_(Object.assign({}, result, { build: CONFIG.BUILD_ID }));
     }
 
-    // ---- set_signed_document ------------------------------------------------
-    if (action === "set_signed_document") {
-      const result = setSignedDocument_(payload.email, payload.value);
+    // ---- create_person -----------------------------------------------------
+    // Idempotent: no-ops if email already exists. Used to register ASM-only
+    // fosters so notes and status can be tracked for them in Sheet 1.
+    if (action === "create_person") {
+      const result = createPerson_(payload.name, payload.email, payload.source || "ASM");
       return json_(Object.assign({}, result, { build: CONFIG.BUILD_ID }));
     }
 
@@ -429,8 +454,7 @@ function doPost(e) {
     const newHeaders = getHeaders_(sheet);
 
     const col = resolveColumns_(newHeaders, [
-      CONFIG.HEADERS.FIRST,
-      CONFIG.HEADERS.LAST,
+      CONFIG.HEADERS.NAME,
       CONFIG.HEADERS.EMAIL,
       CONFIG.OUTPUT_HEADERS.REVIEW,
       CONFIG.OUTPUT_HEADERS.EMAIL_SENT,
@@ -446,10 +470,14 @@ function doPost(e) {
     const values = sheet.getRange(2, 1, lastRow - 1, lastCol).getValues();
 
     let candidates = values.map(function(row, i) {
+      var fullName = String(row[col[CONFIG.HEADERS.NAME] - 1] || "").trim();
+      var lastSpace = fullName.lastIndexOf(" ");
+      var firstName = lastSpace > 0 ? fullName.slice(0, lastSpace) : fullName;
+      var lastName = lastSpace > 0 ? fullName.slice(lastSpace + 1) : "";
       return {
         rowIndex: i + 2,
-        firstName: String(row[col[CONFIG.HEADERS.FIRST] - 1] || "").trim(),
-        lastName: String(row[col[CONFIG.HEADERS.LAST] - 1] || "").trim(),
+        firstName: firstName,
+        lastName: lastName,
         email: String(row[col[CONFIG.HEADERS.EMAIL] - 1] || "").trim(),
         review: String(row[col[CONFIG.OUTPUT_HEADERS.REVIEW] - 1] || "").trim(),
         emailSent: String(row[col[CONFIG.OUTPUT_HEADERS.EMAIL_SENT] - 1] || "").trim()
@@ -704,41 +732,47 @@ function setNotes_(email, content) {
   return { success: false, error: "Email not found" };
 }
 
-function setSignedDocument_(email, value) {
+function createPerson_(name, email, source) {
+  if (!email) return { success: false, error: "email is required" };
+  const emailKey = String(email).trim().toLowerCase();
+  const nameVal = String(name || "").trim();
+
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName(CONFIG.SHEET_NAME);
   if (!sheet) return { success: false, error: "Sheet not found" };
 
-  const normalizedValue = String(value || "").trim().toLowerCase();
-  if (normalizedValue !== "yes" && normalizedValue !== "no") {
-    return { success: false, error: "value must be Yes or No" };
-  }
-  const writeValue = normalizedValue === "yes" ? "Yes" : "No";
-
   const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
 
-  ensureOutputColumns_(sheet, headers, [CONFIG.OUTPUT_HEADERS.SIGNED_DOCUMENT]);
+  ensureOutputColumns_(sheet, headers, [CONFIG.HEADERS.SOURCE]);
 
   const freshHeaders = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
   const emailCol = freshHeaders.findIndex(function(h) { return String(h).trim().toLowerCase() === "email"; });
-  const signedDocCol = freshHeaders.findIndex(function(h) { return String(h).trim() === CONFIG.OUTPUT_HEADERS.SIGNED_DOCUMENT; });
+  const sourceCol = freshHeaders.findIndex(function(h) { return String(h).trim() === CONFIG.HEADERS.SOURCE; });
 
-  if (emailCol === -1 || signedDocCol === -1) {
-    return { success: false, error: "Required column not found" };
-  }
+  if (emailCol === -1) return { success: false, error: "Email column not found" };
 
   const lastRow = sheet.getLastRow();
-  if (lastRow < 2) return { success: false, error: "No data rows" };
-
-  const emailData = sheet.getRange(2, emailCol + 1, lastRow - 1, 1).getValues();
-  for (let i = 0; i < emailData.length; i++) {
-    if (String(emailData[i][0]).trim().toLowerCase() === String(email).trim().toLowerCase()) {
-      sheet.getRange(i + 2, signedDocCol + 1).setValue(writeValue);
-      SpreadsheetApp.flush();
-      return { success: true, email: email, value: writeValue };
+  if (lastRow >= 2) {
+    const emailData = sheet.getRange(2, emailCol + 1, lastRow - 1, 1).getValues();
+    for (var i = 0; i < emailData.length; i++) {
+      if (String(emailData[i][0]).trim().toLowerCase() === emailKey) {
+        return { success: true, created: false, message: "Person already exists" };
+      }
     }
   }
-  return { success: false, error: "Email not found" };
+
+  const newRow = new Array(freshHeaders.length).fill("");
+  const nameCol = freshHeaders.findIndex(function(h) { return String(h).trim() === CONFIG.HEADERS.NAME; });
+  const tsCol = freshHeaders.findIndex(function(h) { return String(h).trim() === CONFIG.HEADERS.TIMESTAMP; });
+
+  if (nameCol !== -1) newRow[nameCol] = nameVal;
+  newRow[emailCol] = email;
+  if (tsCol !== -1) newRow[tsCol] = new Date();
+  if (sourceCol !== -1) newRow[sourceCol] = source || "ASM";
+
+  sheet.appendRow(newRow);
+  SpreadsheetApp.flush();
+  return { success: true, created: true };
 }
 
 function computeFlagsForRow_(row, col) {

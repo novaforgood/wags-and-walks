@@ -444,6 +444,7 @@ export default function FosterDetailsPage() {
   const [isResizingNav, setIsResizingNav] = useState(false)
   const navStartXRef = useRef(0)
   const navStartWRef = useRef(208)
+  const asmRegisteredRef = useRef(false)
 
   // Scheduled emails — loaded from API, persisted in Google Sheets
   const [scheduledEmails, setScheduledEmails] = useState<ScheduledEmail[]>([])
@@ -507,6 +508,28 @@ export default function FosterDetailsPage() {
     [people, foster]
   )
 
+  // When a foster exists in ASM but has no matching Sheet 1 record, create a minimal
+  // record so notes and status can be tracked for them going forward.
+  useEffect(() => {
+    if (!foster || person || asmRegisteredRef.current) return
+    if (!foster.fosterEmail) return
+    asmRegisteredRef.current = true
+    fetch('/api/send-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'create_person',
+        name: foster.fosterName,
+        email: foster.fosterEmail,
+        source: 'ASM',
+      }),
+    }).catch(() => {
+      asmRegisteredRef.current = false
+    })
+  }, [foster, person])
+
+  // Decode the email from the slug immediately so notes can load in parallel with dogs.
+  // fosterSlug() uses encodeURIComponent(email) when an email is available.
   const emailFromSlug = useMemo(() => {
     if (!fosterId) return null
     const decoded = decodeURIComponent(fosterId)
@@ -555,7 +578,7 @@ export default function FosterDetailsPage() {
       <div className={layoutStyles.pageWrapper} style={{ ['--app-sidebar-width' as any]: `${navWidth}px` }}>
         <aside className={layoutStyles.sidebar}>
           <div className={layoutStyles.sidebarLogo}>
-            <Image src="/assets/logo.png" alt="Wags & Walks" width={160} height={60} priority />
+            <Image src="/assets/logo.svg" alt="Wags & Walks" width={160} height={60} priority />
           </div>
           <nav className={layoutStyles.sidebarNav}>
             <Link href="/overview" className={layoutStyles.navItem}>

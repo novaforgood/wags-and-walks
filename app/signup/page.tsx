@@ -66,7 +66,7 @@ export default function SignUpPage() {
             {/* Logo */}
             <div className={styles.logoContainer}>
                 <Image
-                    src="/assets/logo.png"
+                    src="/assets/logo.svg"
                     alt="Wags & Walks"
                     width={180}
                     height={68}
