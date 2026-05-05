@@ -107,8 +107,8 @@ function DogTable({ dogs, showEndDate }: { dogs: FosterDog[]; showEndDate: boole
         </tr>
       </thead>
       <tbody>
-        {dogs.map(dog => (
-          <tr key={`${dog.animalId}-${dog.fosterStartDate}`} style={{ borderBottom: '1px solid #f0f4f4' }}>
+        {dogs.map((dog, i) => (
+          <tr key={`${dog.animalId}-${dog.fosterStartDate}-${i}`} style={{ borderBottom: '1px solid #f0f4f4' }}>
             <Td>{dog.name ?? '—'}</Td>
             <Td>{dog.breed ?? '—'}</Td>
             <Td>{dog.sex ?? '—'}</Td>
