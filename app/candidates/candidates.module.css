@@ -1199,3 +1199,29 @@
         padding: 10px 12px;
     }
 }
+
+.orientationDateInput {
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 14px;
+  font-family: inherit;
+  cursor: pointer;
+  color: #5bb8c4;
+  background: white;
+}
+
+.orientationDateInput:focus {
+  outline: none;
+  border-color: #5bb8c4;
+}
+
+.orientationDateInput::-webkit-datetime-edit-fields-wrapper {
+  color: #000000;
+}
+
+.orientationDateInput::-webkit-calendar-picker-indicator {
+  color: #000000;
+  cursor: pointer;
+  filter: invert(60%) sepia(40%) saturate(400%) hue-rotate(150deg);
+}

@@ -386,6 +386,25 @@ function doPost(e) {
       return json_({ success: true, build: CONFIG.BUILD_ID });
     }
 
+    // ---- scheduled emails --------------------------------------------------
+    if (
+      action === "schedule_email" ||
+      action === "list_scheduled" ||
+      action === "update_scheduled" ||
+      action === "delete_scheduled" ||
+      action === "due_scheduled"
+    ) {
+      const actionMap = {
+        list_scheduled:   "list",
+        schedule_email:   "create",
+        update_scheduled: "update",
+        delete_scheduled: "delete",
+        due_scheduled:    "due",
+      };
+      const result = handleScheduledEmails_(actionMap[action], payload);
+      return json_(Object.assign({}, result, { build: CONFIG.BUILD_ID }));
+    }
+
     // ---- set_starred -------------------------------------------------------
     if (action === "set_starred") {
       const result = setStarred_(payload.email, payload.starred);
@@ -555,6 +574,94 @@ function doPost(e) {
   } catch (err) {
     return json_({ success: false, build: CONFIG.BUILD_ID, error: String(err) });
   }
+}
+
+/**************************************
+ * Scheduled emails handler
+ **************************************/
+function handleScheduledEmails_(action, data) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName("ScheduledEmails");
+
+  // Auto-create the sheet if it doesn't exist yet
+  if (!sheet) {
+    sheet = ss.insertSheet("ScheduledEmails");
+    sheet.appendRow(["id", "fosterId", "to", "title", "subject", "body", "scheduledDate", "status", "createdAt"]);
+  }
+
+  if (action === "list") {
+    const rows = sheet.getDataRange().getValues();
+    const headers = rows[0];
+    const emails = rows.slice(1)
+      .map(function(row) {
+        var obj = {};
+        headers.forEach(function(h, i) { obj[h] = row[i]; });
+        return obj;
+      })
+      .filter(function(e) { return e.id; });
+    return { success: true, emails: emails };
+  }
+
+  if (action === "create") {
+    sheet.appendRow([
+      data.id,
+      data.fosterId || "",
+      data.to,
+      data.title,
+      data.subject,
+      data.body,
+      data.scheduledDate,
+      "scheduled",
+      new Date().toISOString()
+    ]);
+    SpreadsheetApp.flush();
+    return { success: true };
+  }
+
+  if (action === "update") {
+    const rows = sheet.getDataRange().getValues();
+    for (var i = 1; i < rows.length; i++) {
+      if (rows[i][0] === data.id) {
+        if (data.subject !== undefined)       sheet.getRange(i + 1, 5).setValue(data.subject);
+        if (data.body !== undefined)          sheet.getRange(i + 1, 6).setValue(data.body);
+        if (data.scheduledDate !== undefined) sheet.getRange(i + 1, 7).setValue(data.scheduledDate);
+        if (data.status !== undefined)        sheet.getRange(i + 1, 8).setValue(data.status);
+        SpreadsheetApp.flush();
+        return { success: true };
+      }
+    }
+    return { success: false, error: "Not found" };
+  }
+
+  if (action === "delete") {
+    const rows = sheet.getDataRange().getValues();
+    for (var i = 1; i < rows.length; i++) {
+      if (rows[i][0] === data.id) {
+        sheet.deleteRow(i + 1);
+        SpreadsheetApp.flush();
+        return { success: true };
+      }
+    }
+    return { success: false, error: "Not found" };
+  }
+
+  if (action === "due") {
+    const rows = sheet.getDataRange().getValues();
+    const headers = rows[0];
+    const now = new Date();
+    const due = rows.slice(1)
+      .map(function(row) {
+        var obj = {};
+        headers.forEach(function(h, i) { obj[h] = row[i]; });
+        return obj;
+      })
+      .filter(function(e) {
+        return e.id && e.status === "scheduled" && new Date(e.scheduledDate) <= now;
+      });
+    return { success: true, emails: due };
+  }
+
+  return { success: false, error: "Unknown action: " + action };
 }
 
 /**************************************
