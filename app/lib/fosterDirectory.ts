@@ -146,6 +146,16 @@ export function buildFosterDirectory(
 
 export function formatDateShort(value?: string) {
   if (!value) return 'Unknown'
+  // Match YYYY-MM-DD optionally followed by a time component. Parse the date
+  // parts directly to avoid UTC-shift bugs (e.g. "2026-05-05" rendering as 5/4
+  // in negative-offset timezones because Date treats it as UTC midnight).
+  const m = value.match(/^(\d{4})-(\d{2})-(\d{2})/)
+  if (m) {
+    const year = Number(m[1])
+    const month = Number(m[2])
+    const day = Number(m[3])
+    return `${month}/${day}/${year.toString().slice(-2)}`
+  }
   const d = new Date(value)
   if (Number.isNaN(d.getTime())) return 'Unknown'
   return `${d.getMonth() + 1}/${d.getDate()}/${d
