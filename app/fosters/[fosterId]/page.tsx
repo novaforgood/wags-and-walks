@@ -297,7 +297,24 @@ export default function FosterDetailsPage() {
                                 <td>{taskLabel(t.taskType)}</td>
                                 <td>{t.emailSentDate ? formatDateShort(t.emailSentDate) : '—'}</td>
                                 <td>{t.followUpSent ? formatDateShort(t.followUpSent) : '—'}</td>
-                                <td>{t.completedDate ? formatDateShort(t.completedDate) : '—'}</td>
+                                <td>
+                                  {t.completedDate ? (
+                                    t.driveLink ? (
+                                      <a
+                                        href={t.driveLink}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className={styles.driveLink}
+                                        title="Open Drive folder"
+                                      >
+                                        {formatDateShort(t.completedDate)}
+                                        <span aria-hidden="true" style={{ marginLeft: 6 }}>📁</span>
+                                      </a>
+                                    ) : (
+                                      formatDateShort(t.completedDate)
+                                    )
+                                  ) : '—'}
+                                </td>
                                 <td><StatusBadge status={
                                   t.status === 'overdue' ? 'Overdue' :
                                   t.status === 'needs_review' ? 'Needs Review' :

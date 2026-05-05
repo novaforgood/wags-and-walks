@@ -11,6 +11,7 @@ type Notification = {
   entityName?: string
   timestamp: Date
   actionLabel: string
+  actionHref?: string
   isRead: boolean
 }
 
@@ -47,13 +48,16 @@ function rowToNotification(row: TaskRow, readIds: Set<string>): Notification | n
 
   if (row.status === 'completed') {
     const id = `${row.animalId}-${row.taskType}-completed-${row.completedDate}`
+    const isPhotoTask = row.taskType.startsWith('PHOTOS')
+    const hasDriveLink = isPhotoTask && !!row.driveLink
     return {
       id,
       personName: name,
       action: `completed ${label} for`,
       entityName: row.dogName || undefined,
       timestamp: new Date(row.completedDate),
-      actionLabel: 'Mark as read',
+      actionLabel: hasDriveLink ? 'See Photos' : 'Mark as read',
+      actionHref: hasDriveLink ? row.driveLink : undefined,
       isRead: readIds.has(id),
     }
   }
@@ -207,12 +211,24 @@ export default function NotificationPanel() {
                   <div className={styles.cardTimestamp}>
                     {formatTimestamp(n.timestamp)}
                   </div>
-                  <button
-                    className={styles.cardAction}
-                    onClick={() => markAsRead(n.id)}
-                  >
-                    {n.actionLabel}
-                  </button>
+                  {n.actionHref ? (
+                    <a
+                      className={styles.cardAction}
+                      href={n.actionHref}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => markAsRead(n.id)}
+                    >
+                      {n.actionLabel}
+                    </a>
+                  ) : (
+                    <button
+                      className={styles.cardAction}
+                      onClick={() => markAsRead(n.id)}
+                    >
+                      {n.actionLabel}
+                    </button>
+                  )}
                 </div>
               ))
             )}

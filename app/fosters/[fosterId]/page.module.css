@@ -126,6 +126,20 @@
   font-weight: 600;
   background: #f1f5f9;
   color: #64748b;
+}
+
+.driveLink {
+  color: #05aaaf;
+  text-decoration: none;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+}
+
+.driveLink:hover {
+  text-decoration: underline;
+}
+
 .notesHeader {
   display: flex;
   align-items: center;
