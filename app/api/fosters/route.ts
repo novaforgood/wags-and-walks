@@ -12,7 +12,7 @@ export async function GET() {
   try {
     const res = await fetch(url, {
       headers: { Accept: 'application/json' },
-      cache: 'no-store',
+      next: { revalidate: 300 },
     })
 
     if (!res.ok) {
@@ -37,6 +37,10 @@ export async function GET() {
 
     return Response.json({
       count: fosterDogs.length,
+    }, {
+      headers: {
+        'Cache-Control': 's-maxage=300, stale-while-revalidate=60'
+      }
     })
   } catch (err) {
     return Response.json({ error: 'Server error' }, { status: 500 })

@@ -210,7 +210,7 @@ export async function GET() {
 
     const response = await fetch(url.toString(), {
       method: 'GET',
-      cache: 'no-store'
+      next: { revalidate: 300 }
     })
 
     const raw = await response.text()
@@ -244,7 +244,8 @@ export async function GET() {
     }
 
     const rows = extractRows(payload)
-    const dogs = rows.map(mapDog)
+    const allDogs = rows.map(mapDog)
+    const dogs = allDogs.filter(dog => dog.movement?.inFoster)
 
     return Response.json(
       {
@@ -254,7 +255,7 @@ export async function GET() {
       },
       {
         headers: {
-          'Cache-Control': 'no-store, max-age=0'
+          'Cache-Control': 's-maxage=300, stale-while-revalidate=60'
         }
       }
     )
