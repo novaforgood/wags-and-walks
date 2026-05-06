@@ -529,6 +529,7 @@ export default function CandidatesPage() {
                                 <table className={styles.table}>
                                     <thead>
                                         <tr>
+                                            <th style={{ width: 40 }}></th>
                                             <th>Name</th>
                                             <th>Red flags</th>
                                             <th></th>
@@ -539,7 +540,8 @@ export default function CandidatesPage() {
                                             const email = person.email || String(i)
                                             const isSelected = selectedEmails.has(email)
                                             const name = `${person.firstName ?? ''} ${person.lastName ?? ''}`.trim() || 'Unknown'
-                                            const flagsText = getRedFlagsDisplay(person)
+                                            const flagTokens = getRedFlagTokens(person)
+                                            const flagsNatural = flagTokens.map(formatRedFlagLabel).join(', ') || getRedFlagsDisplay(person)
 
                                             return (
                                                 <tr
@@ -548,18 +550,39 @@ export default function CandidatesPage() {
                                                     onClick={() => setExpandedEmail(expandedEmail === email ? null : email)}
                                                     style={{ cursor: 'pointer' }}
                                                 >
+                                                    <td onClick={(e) => e.stopPropagation()}>
+                                                        <input
+                                                            type="checkbox"
+                                                            className={styles.rowCheckbox}
+                                                            checked={isSelected}
+                                                            onChange={() => toggleSelect(person.email)}
+                                                        />
+                                                    </td>
                                                     <td>{name}</td>
-                                                    <td className={styles.flagText}>{flagsText}</td>
+                                                    <td className={styles.flagText}>{flagsNatural}</td>
                                                     <td>
-                                                        <button
-                                                            className={styles.selectBtn}
-                                                            onClick={(e) => {
-                                                                e.stopPropagation()
-                                                                toggleSelect(person.email)
-                                                            }}
-                                                        >
-                                                            Select
-                                                        </button>
+                                                        <div className={styles.redFlagRowActions}>
+                                                            <button
+                                                                className={styles.redFlagAcceptBtn}
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation()
+                                                                    const rect = e.currentTarget.getBoundingClientRect()
+                                                                    setConfirmModalState({ isOpen: true, action: 'accept', person, x: rect.left + rect.width / 2, y: rect.top })
+                                                                }}
+                                                            >
+                                                                Accept
+                                                            </button>
+                                                            <button
+                                                                className={styles.redFlagRejectBtn}
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation()
+                                                                    const rect = e.currentTarget.getBoundingClientRect()
+                                                                    setConfirmModalState({ isOpen: true, action: 'reject', person, x: rect.left + rect.width / 2, y: rect.top })
+                                                                }}
+                                                            >
+                                                                Reject
+                                                            </button>
+                                                        </div>
                                                     </td>
                                                 </tr>
                                             )

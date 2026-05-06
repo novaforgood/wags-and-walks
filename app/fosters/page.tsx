@@ -17,6 +17,11 @@ type DogsApiResponse = {
   error?: string
 }
 
+type TasksApiResponse = {
+  success?: boolean
+  taskStatusByAnimalId?: Record<string, 'Good' | 'Needs Review' | 'Overdue'>
+}
+
 function PageButton({ onClick, disabled, active, children }: {
   onClick: () => void, disabled?: boolean, active?: boolean, children: React.ReactNode
 }) {
@@ -80,14 +85,14 @@ export default function FostersPage() {
   }, [dogs, taskStatusByAnimalId, searchQuery, statusFilter])
 
   const [currentPage, setCurrentPage] = useState(1)
-const ITEMS_PER_PAGE = 20
+  const ITEMS_PER_PAGE = 20
 
-const paginatedRows = useMemo(() => {
-  const start = (currentPage - 1) * ITEMS_PER_PAGE
-  return directoryRows.slice(start, start + ITEMS_PER_PAGE)
-}, [directoryRows, currentPage])
+  const paginatedRows = useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE
+    return directoryRows.slice(start, start + ITEMS_PER_PAGE)
+  }, [directoryRows, currentPage])
 
-const totalPages = Math.ceil(directoryRows.length / ITEMS_PER_PAGE)
+  const totalPages = Math.ceil(directoryRows.length / ITEMS_PER_PAGE)
 
   useEffect(() => {
     let active = true
@@ -127,8 +132,8 @@ const totalPages = Math.ceil(directoryRows.length / ITEMS_PER_PAGE)
   }, [])
 
   useEffect(() => {
-  setCurrentPage(1)
-}, [searchQuery, statusFilter])
+    setCurrentPage(1)
+  }, [searchQuery, statusFilter])
 
 
   useEffect(() => {
@@ -307,33 +312,33 @@ const totalPages = Math.ceil(directoryRows.length / ITEMS_PER_PAGE)
                   </tbody>
                 </table>
                 {totalPages > 1 && (
-  <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '4px', padding: '16px' }}>
-    <PageButton onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>
-      ‹ Previous
-    </PageButton>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '4px', padding: '16px' }}>
+                    <PageButton onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>
+                      ‹ Previous
+                    </PageButton>
 
-    {Array.from({ length: totalPages }, (_, i) => i + 1)
-      .filter(page => page === 1 || page === totalPages || Math.abs(page - currentPage) <= 1)
-      .reduce<(number | '...')[]>((acc, page, idx, arr) => {
-        if (idx > 0 && page - (arr[idx - 1] as number) > 1) acc.push('...')
-        acc.push(page)
-        return acc
-      }, [])
-      .map((item, idx) =>
-        item === '...' ? (
-          <span key={`ellipsis-${idx}`} style={{ padding: '0 4px', color: '#888', fontSize: '14px' }}>···</span>
-        ) : (
-          <PageButton key={item} onClick={() => setCurrentPage(item as number)} active={currentPage === item}>
-            {item}
-          </PageButton>
-        )
-      )}
+                    {Array.from({ length: totalPages }, (_, i) => i + 1)
+                      .filter(page => page === 1 || page === totalPages || Math.abs(page - currentPage) <= 1)
+                      .reduce<(number | '...')[]>((acc, page, idx, arr) => {
+                        if (idx > 0 && page - (arr[idx - 1] as number) > 1) acc.push('...')
+                        acc.push(page)
+                        return acc
+                      }, [])
+                      .map((item, idx) =>
+                        item === '...' ? (
+                          <span key={`ellipsis-${idx}`} style={{ padding: '0 4px', color: '#888', fontSize: '14px' }}>···</span>
+                        ) : (
+                          <PageButton key={item} onClick={() => setCurrentPage(item as number)} active={currentPage === item}>
+                            {item}
+                          </PageButton>
+                        )
+                      )}
 
-    <PageButton onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>
-      Next ›
-    </PageButton>
-  </div>
-)}
+                    <PageButton onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>
+                      Next ›
+                    </PageButton>
+                  </div>
+                )}
               </div>
             </div>
           )}

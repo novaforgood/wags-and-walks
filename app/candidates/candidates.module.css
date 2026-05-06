@@ -212,8 +212,7 @@
     align-items: center;
     justify-content: space-between;
     padding: 20px 40px;
-    background: #fbfbfb;
-    border-bottom: 1px solid #fbfbfb;
+    background: #f3f7f7;
 }
 
 .topBarTitle {
@@ -505,7 +504,7 @@
 }
 
 .table tbody tr:hover {
-    background: #f0f5f5;
+    background: unset;
 }
 
 .rowSelected {
@@ -536,6 +535,60 @@
     align-items: center;
     justify-content: flex-end;
     gap: 10px;
+}
+
+.redFlagRowActions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.redFlagAcceptBtn {
+    height: 32px;
+    padding: 0 18px;
+    border: none;
+    border-radius: 8px;
+    background: #05aaaf;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    font-family: 'Inter', sans-serif;
+    transition: background 0.15s;
+    white-space: nowrap;
+}
+
+.redFlagAcceptBtn:hover {
+    background: #038a8e;
+}
+
+.redFlagRejectBtn {
+    height: 32px;
+    padding: 0 18px;
+    border: none;
+    border-radius: 8px;
+    background: #ef4444;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    font-family: 'Inter', sans-serif;
+    transition: background 0.15s;
+    white-space: nowrap;
+}
+
+.redFlagRejectBtn:hover {
+    background: #dc2626;
+}
+
+.rowCheckbox {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    accent-color: #05aaaf;
+    display: block;
+    margin: 0 auto;
 }
 
 /* Applicants table: icon actions (accept/reject) */

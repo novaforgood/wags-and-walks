@@ -121,22 +121,22 @@ export default function FostersSectionOverviewPage() {
     }
   }, [])
   useEffect(() => {
-  let active = true
-  async function loadFosterCount() {
-    try {
-      const res = await fetch('/api/fosters', { method: 'GET', cache: 'no-store' })
-      const data = await res.json()
-      if (!active) return
-      if (typeof data?.count === 'number') {
-        setActiveFosterCount(data.count)
+    let active = true
+    async function loadFosterCount() {
+      try {
+        const res = await fetch('/api/fosters', { method: 'GET', cache: 'no-store' })
+        const data = await res.json()
+        if (!active) return
+        if (typeof data?.count === 'number') {
+          setActiveFosterCount(data.count)
+        }
+      } catch {
+        // silently fail — the stat card will just show the fallback
       }
-    } catch {
-      // silently fail — the stat card will just show the fallback
     }
-  }
-  loadFosterCount()
-  return () => { active = false }
-}, [])
+    loadFosterCount()
+    return () => { active = false }
+  }, [])
 
   const updates = useMemo(() => {
     return dogs.map((dog, idx) => {
@@ -146,7 +146,7 @@ export default function FostersSectionOverviewPage() {
       const taskStatus = taskStatusByAnimalId[String(dog.id)]
       const status: UpdateRow['status'] = taskStatus ?? (
         (days ?? 0) > 30 && !uploadedPhoto ? 'Overdue' :
-        (days ?? 0) > 14 || !uploadedPhoto ? 'Needs Review' : 'Good'
+          (days ?? 0) > 14 || !uploadedPhoto ? 'Needs Review' : 'Good'
       )
       return {
         id: `${dog.id ?? idx}`,
@@ -280,12 +280,6 @@ export default function FostersSectionOverviewPage() {
 
           {!isLoadingDogs && (
             <div className={styles.wrap}>
-              <section className={styles.heroPanel}>
-                <p className={styles.intro}>
-                  Action overview for active fosters. Prioritize overdue photo updates first, then dogs
-                  that are trending toward overdue.
-                </p>
-              </section>
 
               <div className={styles.statsGrid}>
                 <div className={styles.statCard}>

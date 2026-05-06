@@ -235,9 +235,8 @@ export default function OverviewPage() {
                         </Link>
                         <Link
                             href="/fosters/overview"
-                            className={`${layoutStyles.navItem} ${
-                                pathname?.startsWith('/fosters') ? layoutStyles.navItemActive : ''
-                            }`}
+                            className={`${layoutStyles.navItem} ${pathname?.startsWith('/fosters') ? layoutStyles.navItemActive : ''
+                                }`}
                         >
                             <img src="/assets/fosters.svg" alt="" width={18} height={18} />
                             Fosters
@@ -284,10 +283,6 @@ export default function OverviewPage() {
 
                     {!isLoading && (
                         <div className={styles.contentPadding}>
-                            <p className={styles.intro}>
-                                Snapshot of your foster pipeline and roster, based on the same applicant data as
-                                Applicants and Fosters.
-                            </p>
 
                             <div className={styles.statsGrid}>
                                 <div className={styles.statCard}>
