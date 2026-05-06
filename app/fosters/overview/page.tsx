@@ -36,9 +36,16 @@ type DogsApiResponse = {
   error?: string
 }
 
+type TaskRowLite = {
+  animalId: string
+  taskType: string
+  status: 'pending' | 'needs_review' | 'overdue' | 'completed' | 'retired'
+}
+
 type TasksApiResponse = {
   success?: boolean
   taskStatusByAnimalId?: Record<string, 'Good' | 'Needs Review' | 'Overdue'>
+  rows?: TaskRowLite[]
 }
 
 type UpdateRow = {
@@ -71,6 +78,7 @@ export default function FostersSectionOverviewPage() {
   const [isLoadingDogs, setIsLoadingDogs] = useState(true)
   const [dogsError, setDogsError] = useState<string | null>(null)
   const [taskStatusByAnimalId, setTaskStatusByAnimalId] = useState<Record<string, 'Good' | 'Needs Review' | 'Overdue'>>({})
+  const [openPhotoAnimalIds, setOpenPhotoAnimalIds] = useState<Set<string>>(new Set())
   const [navWidth, setNavWidth] = useState<number>(() => {
     try {
       const raw = localStorage.getItem('app_nav_sidebar_width_v1')
@@ -105,6 +113,16 @@ export default function FostersSectionOverviewPage() {
             const tasksData = (await tasksRes.json()) as TasksApiResponse
             if (tasksData?.taskStatusByAnimalId) {
               setTaskStatusByAnimalId(tasksData.taskStatusByAnimalId)
+            }
+            if (Array.isArray(tasksData?.rows)) {
+              const photoIds = new Set<string>()
+              for (const r of tasksData.rows) {
+                const open = r.status === 'pending' || r.status === 'needs_review' || r.status === 'overdue'
+                if (open && r.animalId && r.taskType?.startsWith('PHOTOS_')) {
+                  photoIds.add(r.animalId)
+                }
+              }
+              setOpenPhotoAnimalIds(photoIds)
             }
           } catch { /* tasks not available yet */ }
         }
@@ -143,27 +161,24 @@ export default function FostersSectionOverviewPage() {
       const uploadedPhoto = Boolean(dog.photo?.imageUrl)
       const days = dog.movement?.daysInFoster
       const fosterName = nameOf(dog.foster)
-      const taskStatus = taskStatusByAnimalId[String(dog.id)]
-      const status: UpdateRow['status'] = taskStatus ?? (
-        (days ?? 0) > 30 && !uploadedPhoto ? 'Overdue' :
-        (days ?? 0) > 14 || !uploadedPhoto ? 'Needs Review' : 'Good'
-      )
+      const animalId = String(dog.id ?? '')
+      const status: UpdateRow['status'] = taskStatusByAnimalId[animalId] ?? 'Good'
+      const hasOpenPhotoTask = openPhotoAnimalIds.has(animalId)
       return {
         id: `${dog.id ?? idx}`,
         fosterName,
         dogName: dogName(dog),
-        uploadedPhoto,
+        uploadedPhoto: uploadedPhoto && !hasOpenPhotoTask,
         status,
         daysInFoster: days,
         lastUpdate: dog.movement?.date,
         fosterId: fosterSlug(fosterName, dog.foster?.email),
       } satisfies UpdateRow
     })
-  }, [dogs, taskStatusByAnimalId])
+  }, [dogs, taskStatusByAnimalId, openPhotoAnimalIds])
 
   const overdueCount = useMemo(() => updates.filter(r => r.status === 'Overdue').length, [updates])
   const needsReviewCount = useMemo(() => updates.filter(r => r.status === 'Needs Review').length, [updates])
-  const noPhotoCount = useMemo(() => updates.filter(r => !r.uploadedPhoto).length, [updates])
   const activeFosters = useMemo(() => buildFosterDirectory(dogs).length, [dogs])
   const priorityQueue = useMemo(() => {
     return [...updates]
@@ -291,17 +306,12 @@ export default function FostersSectionOverviewPage() {
                 <div className={styles.statCard}>
                   <span className={styles.statLabel}>Overdue tasks</span>
                   <span className={styles.statValue}>{overdueCount}</span>
-                  <span className={styles.statHint}>Past 30 days with no photo update</span>
+                  <span className={styles.statHint}>Missed 2 Follow-Ups</span>
                 </div>
                 <div className={styles.statCard}>
                   <span className={styles.statLabel}>Needs review soon</span>
                   <span className={styles.statValue}>{needsReviewCount}</span>
-                  <span className={styles.statHint}>14-30 days or missing updates</span>
-                </div>
-                <div className={styles.statCard}>
-                  <span className={styles.statLabel}>No photo updates</span>
-                  <span className={styles.statValue}>{noPhotoCount}</span>
-                  <span className={styles.statHint}>Dogs currently missing photo evidence</span>
+                  <span className={styles.statHint}>Missed 1 Follow-Up</span>
                 </div>
                 <div className={styles.statCard}>
                   <span className={styles.statLabel}>Active foster homes</span>
