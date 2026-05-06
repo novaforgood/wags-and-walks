@@ -84,15 +84,16 @@ export default function FostersPage() {
     })
   }, [dogs, taskStatusByAnimalId, searchQuery, statusFilter])
 
+  const tableWrapperRef = useRef<HTMLDivElement>(null)
+  const [itemsPerPage, setItemsPerPage] = useState(15)
   const [currentPage, setCurrentPage] = useState(1)
-  const ITEMS_PER_PAGE = 20
 
   const paginatedRows = useMemo(() => {
-    const start = (currentPage - 1) * ITEMS_PER_PAGE
-    return directoryRows.slice(start, start + ITEMS_PER_PAGE)
-  }, [directoryRows, currentPage])
+    const start = (currentPage - 1) * itemsPerPage
+    return directoryRows.slice(start, start + itemsPerPage)
+  }, [directoryRows, currentPage, itemsPerPage])
 
-  const totalPages = Math.ceil(directoryRows.length / ITEMS_PER_PAGE)
+  const totalPages = Math.ceil(directoryRows.length / itemsPerPage)
 
   useEffect(() => {
     let active = true
@@ -134,6 +135,23 @@ export default function FostersPage() {
   useEffect(() => {
     setCurrentPage(1)
   }, [searchQuery, statusFilter])
+
+  useEffect(() => {
+    const el = tableWrapperRef.current
+    if (!el) return
+    function calc() {
+      const firstRow = el!.querySelector('tbody tr') as HTMLElement | null
+      const rowH = firstRow ? firstRow.getBoundingClientRect().height : 40
+      const thead = el!.querySelector('thead') as HTMLElement | null
+      const theadH = thead ? thead.getBoundingClientRect().height : 50
+      const available = el!.clientHeight - theadH - 92
+      setItemsPerPage(Math.max(5, Math.floor(available / rowH)))
+    }
+    calc()
+    const ro = new ResizeObserver(calc)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
 
 
   useEffect(() => {
@@ -267,7 +285,7 @@ export default function FostersPage() {
           {dogsError && <div className={styles.errorText}>{dogsError}</div>}
 
           {!isLoadingDogs && (
-            <div className={styles.tableWrapper}>
+            <div className={styles.tableWrapper} ref={tableWrapperRef}>
               <div className={styles.tableContainer}>
                 <table className={styles.table}>
                   <thead>

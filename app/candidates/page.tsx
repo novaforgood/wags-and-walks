@@ -13,14 +13,37 @@ import FilterDropdown, { FilterState } from '@/app/components/FilterDropdown'
 import type { Person } from '@/app/lib/peopleTypes'
 import styles from './candidates.module.css'
 
-type Tab = 'candidates' | 'redflags'
+
+function PageButton({ onClick, disabled, active, children }: {
+    onClick: () => void, disabled?: boolean, active?: boolean, children: React.ReactNode
+}) {
+    const [hovered, setHovered] = useState(false)
+    return (
+        <button
+            onClick={onClick}
+            disabled={disabled}
+            onMouseEnter={() => setHovered(true)}
+            onMouseLeave={() => setHovered(false)}
+            style={{
+                minWidth: '32px', height: '32px', borderRadius: '6px', border: 'none',
+                background: active ? '#e8fbfe' : hovered && !disabled ? '#f0f0f0' : 'none',
+                cursor: disabled ? 'default' : 'pointer',
+                fontSize: '14px', padding: '0 8px',
+                color: active ? '#05aaaf' : disabled ? '#ccc' : hovered ? '#333' : '#555',
+                fontWeight: active ? '600' : '400',
+                transition: 'background 0.15s, color 0.15s'
+            }}
+        >
+            {children}
+        </button>
+    )
+}
 
 export default function CandidatesPage() {
     const pathname = usePathname()
     const router = useRouter()
     const { people, isLoading, error, setStatus, toggleStar, setSignedDocument } = usePeople()
     const { user, signOut } = useAuth()
-    const [activeTab, setActiveTab] = useState<Tab>('candidates')
     const [selectedEmails, setSelectedEmails] = useState<Set<string>>(new Set())
     const [searchQuery, setSearchQuery] = useState('')
     const [expandedEmail, setExpandedEmail] = useState<string | null>(null)
@@ -44,6 +67,9 @@ export default function CandidatesPage() {
         message: string
     }>({ isOpen: false, message: '' })
 
+    const tableWrapperRef = useRef<HTMLDivElement>(null)
+    const [itemsPerPage, setItemsPerPage] = useState(15)
+
     const [navWidth, setNavWidth] = useState<number>(() => {
         try {
             const raw = localStorage.getItem('app_nav_sidebar_width_v1')
@@ -64,6 +90,7 @@ export default function CandidatesPage() {
         children: []
     })
     const [showStarredOnly, setShowStarredOnly] = useState(false)
+    const [showFlaggedOnly, setShowFlaggedOnly] = useState(false)
 
     // Filter people by status — candidates page shows only new and in-progress applicants
     // (current = active fosters, approved = already approved, rejected = removed)
@@ -149,16 +176,22 @@ export default function CandidatesPage() {
             result = result.filter(p => p.starred)
         }
 
-        return result
-    }, [allCandidates, searchQuery, filters, showStarredOnly])
+        if (showFlaggedOnly) {
+            result = result.filter(p => {
+                const flags = String(p.raw?.['Flags'] || '').trim().toLowerCase()
+                return flags && flags !== 'ok' && flags !== 'none'
+            })
+        }
 
-    // For Red Flags tab: only show people who have flags
-    const flaggedPeople = useMemo(() => {
-        return filtered.filter(p => {
-            const flags = String(p.raw?.['Flags'] || '').trim().toLowerCase()
-            return flags && flags !== 'ok' && flags !== 'none'
-        })
-    }, [filtered])
+        return result
+    }, [allCandidates, searchQuery, filters, showStarredOnly, showFlaggedOnly])
+
+    const [currentPage, setCurrentPage] = useState(1)
+    const totalPages = Math.ceil(filtered.length / itemsPerPage)
+    const paginatedFiltered = useMemo(() => {
+        const start = (currentPage - 1) * itemsPerPage
+        return filtered.slice(start, start + itemsPerPage)
+    }, [filtered, currentPage, itemsPerPage])
 
     const toggleSelect = (email: string | undefined) => {
         if (!email) return
@@ -225,6 +258,10 @@ export default function CandidatesPage() {
     }
 
     useEffect(() => {
+        setCurrentPage(1)
+    }, [searchQuery, filters, showStarredOnly, showFlaggedOnly])
+
+    useEffect(() => {
         if (!acceptToast.isOpen) return
         const t = window.setTimeout(() => {
             setAcceptToast({ isOpen: false, message: '' })
@@ -265,6 +302,24 @@ export default function CandidatesPage() {
             window.removeEventListener('pointercancel', onUp)
         }
     }, [isResizingNav])
+
+    useEffect(() => {
+        const el = tableWrapperRef.current
+        if (!el) return
+        function calc() {
+            const firstRow = el!.querySelector('tbody tr') as HTMLElement | null
+            const rowH = firstRow ? firstRow.getBoundingClientRect().height : 48
+            // subtract: thead + pagination (~64px) + wrapper bottom padding (16px) + buffer (12px)
+            const thead = el!.querySelector('thead') as HTMLElement | null
+            const theadH = thead ? thead.getBoundingClientRect().height : 50
+            const available = el!.clientHeight - theadH - 92
+            setItemsPerPage(Math.max(5, Math.floor(available / rowH)))
+        }
+        calc()
+        const ro = new ResizeObserver(calc)
+        ro.observe(el)
+        return () => ro.disconnect()
+    }, [])
 
     return (
         <ProtectedRoute>
@@ -336,25 +391,6 @@ export default function CandidatesPage() {
                     <NotificationPanel />
                 </div>
 
-                {/* Tabs */}
-                <div className={styles.tabSection}>
-                    <div className={styles.tabRow}>
-                        <button
-                            className={`${styles.tab} ${activeTab === 'candidates' ? styles.tabActive : ''}`}
-                            onClick={() => setActiveTab('candidates')}
-                        >
-                            Applicants
-                        </button>
-                        <button
-                            className={`${styles.tab} ${activeTab === 'redflags' ? styles.tabActive : ''}`}
-                            onClick={() => setActiveTab('redflags')}
-                        >
-                            Red Flags
-                        </button>
-                        <div className={styles.tabUnderlineFull} />
-                    </div>
-                </div>
-
                 {/* Toolbar */}
                 <div className={styles.toolbar}>
                     <div className={styles.searchWrapper}>
@@ -375,6 +411,10 @@ export default function CandidatesPage() {
                             className={`${styles.toolbarBtn} ${styles.toolbarBtnStarred} ${showStarredOnly ? styles.toolbarBtnActive : ''}`}
                             onClick={() => setShowStarredOnly(v => !v)}
                         >Starred</button>
+                        <button
+                            className={`${styles.toolbarBtn} ${showFlaggedOnly ? styles.toolbarBtnActive : ''}`}
+                            onClick={() => setShowFlaggedOnly(v => !v)}
+                        >Red Flags</button>
                         <FilterDropdown people={people} filters={filters} setFilters={setFilters} />
                     </div>
                 </div>
@@ -385,10 +425,8 @@ export default function CandidatesPage() {
                 )}
                 {error && <div className={styles.errorText}>{error}</div>}
 
-                {/* ---- Applicants Tab ---- */}
-                {activeTab === 'candidates' && (
-                    <div className={styles.tableWrapper}>
-                        <div className={styles.tableContainer}>
+                <div className={styles.tableWrapper} ref={tableWrapperRef}>
+                    <div className={styles.tableContainer}>
                             <table className={styles.table}>
                                 <thead>
                                     <tr>
@@ -402,11 +440,14 @@ export default function CandidatesPage() {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {filtered.map((person, i) => {
+                                    {paginatedFiltered.map((person, i) => {
                                         const email = person.email || String(i)
                                         const isSelected = selectedEmails.has(email)
                                         const name = `${person.firstName ?? ''} ${person.lastName ?? ''}`.trim() || 'Unknown'
-                                        const flagsDisplay = getRedFlagsDisplay(person)
+                                        const flagTokens = getRedFlagTokens(person)
+                                        const flagsDisplay = flagTokens.length > 0
+                                            ? flagTokens.map(formatRedFlagLabel).join(', ')
+                                            : 'None'
                                         const signedDocument = person.signedDocument ?? 'No'
 
                                         return (
@@ -443,8 +484,8 @@ export default function CandidatesPage() {
                                                     </select>
                                                 </td>
                                                 <td>{getStatusDisplay(person)}</td>
-                                                <td className={hasFlags(person) ? styles.flagYes : styles.flagNone}>
-                                                    {flagsDisplay === 'None' ? 'None' : 'Yes'}
+                                                <td className={flagTokens.length > 0 ? styles.flagYes : styles.flagNone}>
+                                                    {flagsDisplay}
                                                 </td>
                                                 <td style={{ textAlign: 'right' }}>
                                                     <div className={styles.rowActions}>
@@ -516,129 +557,35 @@ export default function CandidatesPage() {
                                     })}
                                 </tbody>
                             </table>
-                        </div>
-                    </div>
-                )}
-
-                {/* ---- Red Flags Tab ---- */}
-                {activeTab === 'redflags' && (
-                    <div className={styles.redFlagsLayout}>
-                        {/* Table column */}
-                        <div className={`${styles.redFlagsTableCol} ${expandedEmail ? styles.redFlagsTableColWithPanel : ''}`}>
-                            <div className={styles.tableContainer}>
-                                <table className={styles.table}>
-                                    <thead>
-                                        <tr>
-                                            <th style={{ width: 40 }}></th>
-                                            <th>Name</th>
-                                            <th>Red flags</th>
-                                            <th></th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {flaggedPeople.map((person, i) => {
-                                            const email = person.email || String(i)
-                                            const isSelected = selectedEmails.has(email)
-                                            const name = `${person.firstName ?? ''} ${person.lastName ?? ''}`.trim() || 'Unknown'
-                                            const flagTokens = getRedFlagTokens(person)
-                                            const flagsNatural = flagTokens.map(formatRedFlagLabel).join(', ') || getRedFlagsDisplay(person)
-
-                                            return (
-                                                <tr
-                                                    key={email}
-                                                    className={isSelected ? styles.rowSelected : ''}
-                                                    onClick={() => setExpandedEmail(expandedEmail === email ? null : email)}
-                                                    style={{ cursor: 'pointer' }}
-                                                >
-                                                    <td onClick={(e) => e.stopPropagation()}>
-                                                        <input
-                                                            type="checkbox"
-                                                            className={styles.rowCheckbox}
-                                                            checked={isSelected}
-                                                            onChange={() => toggleSelect(person.email)}
-                                                        />
-                                                    </td>
-                                                    <td>{name}</td>
-                                                    <td className={styles.flagText}>{flagsNatural}</td>
-                                                    <td>
-                                                        <div className={styles.redFlagRowActions}>
-                                                            <button
-                                                                className={styles.redFlagAcceptBtn}
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation()
-                                                                    const rect = e.currentTarget.getBoundingClientRect()
-                                                                    setConfirmModalState({ isOpen: true, action: 'accept', person, x: rect.left + rect.width / 2, y: rect.top })
-                                                                }}
-                                                            >
-                                                                Accept
-                                                            </button>
-                                                            <button
-                                                                className={styles.redFlagRejectBtn}
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation()
-                                                                    const rect = e.currentTarget.getBoundingClientRect()
-                                                                    setConfirmModalState({ isOpen: true, action: 'reject', person, x: rect.left + rect.width / 2, y: rect.top })
-                                                                }}
-                                                            >
-                                                                Reject
-                                                            </button>
-                                                        </div>
-                                                    </td>
-                                                </tr>
+                            {totalPages > 1 && (
+                                <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '4px', padding: '16px' }}>
+                                    <PageButton onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>
+                                        ‹ Previous
+                                    </PageButton>
+                                    {Array.from({ length: totalPages }, (_, i) => i + 1)
+                                        .filter(page => page === 1 || page === totalPages || Math.abs(page - currentPage) <= 1)
+                                        .reduce<(number | '...')[]>((acc, page, idx, arr) => {
+                                            if (idx > 0 && page - (arr[idx - 1] as number) > 1) acc.push('...')
+                                            acc.push(page)
+                                            return acc
+                                        }, [])
+                                        .map((item, idx) =>
+                                            item === '...' ? (
+                                                <span key={`ellipsis-${idx}`} style={{ padding: '0 4px', color: '#888', fontSize: '14px' }}>···</span>
+                                            ) : (
+                                                <PageButton key={item} onClick={() => setCurrentPage(item as number)} active={currentPage === item}>
+                                                    {item}
+                                                </PageButton>
                                             )
-                                        })}
-                                    </tbody>
-                                </table>
-                            </div>
+                                        )}
+                                    <PageButton onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>
+                                        Next ›
+                                    </PageButton>
+                                </div>
+                            )}
                         </div>
-
-                        {/* Side panel — shown only when a row is selected */}
-                        {expandedEmail && (() => {
-                                const person = flaggedPeople.find(p => p.email === expandedEmail)
-                                if (!person) return null
-                                const name = `${person.firstName ?? ''} ${person.lastName ?? ''}`.trim() || 'Unknown'
-                                const flagTokens = getRedFlagTokens(person)
-                                return (
-                                    <div className={styles.sidePanel}>
-                                        <div className={styles.sidePanelTopBlock}>
-                                            <div className={styles.sidePanelNameTitle}>{name}</div>
-                                        </div>
-                                        <div className={styles.sidePanelContent}>
-                                            {flagTokens.map(flag => (
-                                                <span key={flag} className={styles.redFlagBadge}>
-                                                    {formatRedFlagLabel(flag)}
-                                                </span>
-                                            ))}
-                                        </div>
-                                        <button
-                                            className={styles.viewMoreBtn}
-                                            onClick={() => setSelectedPerson(person)}
-                                        >
-                                            View more
-                                        </button>
-                                        <div className={styles.actionButtons}>
-                                            <button
-                                                className={styles.acceptBtn}
-                                                onClick={(e) => {
-                                                    const rect = e.currentTarget.getBoundingClientRect()
-                                                    setConfirmModalState({ isOpen: true, action: 'accept', person, x: rect.left + rect.width / 2, y: rect.top })
-                                                }}
-                                            >Accept</button>
-                                            <button
-                                                className={styles.rejectBtn}
-                                                onClick={(e) => {
-                                                    const rect = e.currentTarget.getBoundingClientRect()
-                                                    setConfirmModalState({ isOpen: true, action: 'reject', person, x: rect.left + rect.width / 2, y: rect.top })
-                                                }}
-                                            >Reject</button>
-                                        </div>
-                                    </div>
-                                )
-                            })()}
                     </div>
-                )}
-            </div>
-
+                </div>
             {/* Person detail modal */}
             <PersonModal person={selectedPerson} onClose={() => setSelectedPerson(null)} />
 

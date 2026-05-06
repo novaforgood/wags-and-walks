@@ -33,7 +33,7 @@
 /* ---- Layout ---- */
 .pageWrapper {
     display: flex;
-    min-height: 100vh;
+    height: 100vh;
     background: #f3f7f7;
     font-family: 'Inter', sans-serif;
     align-items: stretch;
@@ -49,6 +49,11 @@
     flex-direction: column;
     padding: 0;
     overflow: clip;
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    z-index: 100;
 }
 
 .navResizeHandle {
@@ -56,12 +61,14 @@
     flex-shrink: 0;
     cursor: col-resize;
     align-self: stretch;
-    position: relative;
+    position: fixed;
+    top: 0;
+    left: var(--app-sidebar-width, 208px);
+    height: 100vh;
     background: transparent;
     touch-action: none;
-    /* Overlap the sidebar edge so it doesn't look like a strip */
     margin-left: -6px;
-    z-index: 5;
+    z-index: 101;
 }
 
 .navResizeHandle::after {
@@ -201,22 +208,26 @@
 /* ---- Main Content ---- */
 .mainContent {
     flex: 1;
+    margin-left: calc(var(--app-sidebar-width, 208px) + 6px);
     background: #f3f7f7;
     display: flex;
     flex-direction: column;
     min-width: 0;
+    height: 100vh;
+    overflow: auto;
 }
 
 .topBar {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 20px 40px;
+    padding: 20px 52px;
     background: #f3f7f7;
+    flex-shrink: 0;
 }
 
 .topBarTitle {
-    font-size: 24px;
+    font-size: 36px;
     font-weight: 700;
     color: black;
     margin: 0;
@@ -231,7 +242,7 @@
 
 /* ---- Tabs ---- */
 .tabSection {
-    padding: 24px 40px 0;
+    padding: 12px 40px 0;
 }
 
 .tabRow {
@@ -275,7 +286,7 @@
 
 .tabActive {
     color: black;
-    font-weight: 500;
+    font-weight: 700;
     border-bottom-color: #05aaaf;
 }
 
@@ -284,7 +295,7 @@
     display: flex;
     align-items: center;
     gap: 16px;
-    padding: 16px 40px 16px;
+    padding: 10px 40px 10px;
     width: 100%;
     max-width: 100%;
     box-sizing: border-box;
@@ -409,18 +420,22 @@
 
 /* ---- Table ---- */
 .tableWrapper {
-    padding: 0 40px 40px;
-    overflow-x: auto;
+    padding: 0 40px 16px;
     flex: 1;
+    min-height: 0;
+    overflow: auto;
+    display: flex;
+    flex-direction: column;
 }
 
 .tableContainer {
     background: white;
     border-radius: 8px;
-    overflow: hidden;
     width: 100%;
     max-width: 100%;
     box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
 }
 
 /* .tableContainerNarrow: Red Flags tab uses flex proportions instead of a fixed max-width */
@@ -441,7 +456,7 @@
 
 .table th {
     text-align: left;
-    font-weight: 400;
+    font-weight: 700;
     font-size: 14px;
     color: black;
     padding: 16px 16px;
@@ -459,7 +474,7 @@
 }
 
 .table td {
-    padding: 8px 16px;
+    padding: 6px 16px;
     color: black;
     vertical-align: middle;
 }
@@ -471,7 +486,7 @@
     color: #414141;
     font-size: 13px;
     font-family: 'Inter', sans-serif;
-    padding: 6px 8px;
+    padding: 3px 8px;
     min-width: 72px;
 }
 
@@ -1256,8 +1271,8 @@
 .orientationDateInput {
   border: 1px solid #ddd;
   border-radius: 6px;
-  padding: 4px 8px;
-  font-size: 14px;
+  padding: 2px 6px;
+  font-size: 13px;
   font-family: inherit;
   cursor: pointer;
   color: #5bb8c4;
