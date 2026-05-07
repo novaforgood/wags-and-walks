@@ -309,10 +309,10 @@ export default function CandidatesPage() {
         function calc() {
             const firstRow = el!.querySelector('tbody tr') as HTMLElement | null
             const rowH = firstRow ? firstRow.getBoundingClientRect().height : 48
-            // subtract: thead + pagination (~64px) + wrapper bottom padding (16px) + buffer (12px)
+            // subtract: thead + pagination (~56px) + wrapper bottom padding (16px)
             const thead = el!.querySelector('thead') as HTMLElement | null
             const theadH = thead ? thead.getBoundingClientRect().height : 50
-            const available = el!.clientHeight - theadH - 92
+            const available = el!.clientHeight - theadH - 72
             setItemsPerPage(Math.max(5, Math.floor(available / rowH)))
         }
         calc()
@@ -558,7 +558,7 @@ export default function CandidatesPage() {
                                 </tbody>
                             </table>
                             {totalPages > 1 && (
-                                <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '4px', padding: '16px' }}>
+                                <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '4px', padding: '12px 16px' }}>
                                     <PageButton onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>
                                         ‹ Previous
                                     </PageButton>

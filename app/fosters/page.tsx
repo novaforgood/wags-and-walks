@@ -144,7 +144,8 @@ export default function FostersPage() {
       const rowH = firstRow ? firstRow.getBoundingClientRect().height : 40
       const thead = el!.querySelector('thead') as HTMLElement | null
       const theadH = thead ? thead.getBoundingClientRect().height : 50
-      const available = el!.clientHeight - theadH - 92
+      // subtract: thead + pagination (~56px) + wrapper bottom padding (16px)
+      const available = el!.clientHeight - theadH - 72
       setItemsPerPage(Math.max(5, Math.floor(available / rowH)))
     }
     calc()
@@ -330,7 +331,7 @@ export default function FostersPage() {
                   </tbody>
                 </table>
                 {totalPages > 1 && (
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '4px', padding: '16px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '4px', padding: '12px 16px' }}>
                     <PageButton onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>
                       ‹ Previous
                     </PageButton>
