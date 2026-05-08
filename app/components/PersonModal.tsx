@@ -5,6 +5,7 @@ import { useState } from 'react'
 import type { Person } from '@/app/lib/peopleTypes'
 import NotificationPanel from './NotificationPanel'
 import NotesCard from './NotesCard'
+import FosterHistoryPanel from './FosterHistoryPanel'
 import styles from './PersonModal.module.css'
 
 interface Props {
@@ -12,7 +13,7 @@ interface Props {
     onClose: () => void
 }
 
-type ProfileTab = 'profile'
+type ModalTab = 'profile' | 'foster-history'
 
 // Raw keys already rendered in the structured sections — skip from the "Other" dump
 const SHOWN_RAW_KEYS = new Set([
@@ -23,7 +24,7 @@ const SHOWN_RAW_KEYS = new Set([
 ])
 
 export default function PersonModal({ person, onClose }: Props) {
-    const [activeTab] = useState<ProfileTab>('profile')
+    const [activeTab, setActiveTab] = useState<ModalTab>('profile')
 
     if (!person) return null
 
@@ -57,10 +58,18 @@ export default function PersonModal({ person, onClose }: Props) {
             <div className={styles.tabRow}>
                 <div className={styles.tabs}>
                     <button
-                        className={`${styles.tab} ${styles.tabActive}`}
+                        className={`${styles.tab} ${activeTab === 'profile' ? styles.tabActive : styles.tabInactive}`}
                         type="button"
+                        onClick={() => setActiveTab('profile')}
                     >
                         Profile
+                    </button>
+                    <button
+                        className={`${styles.tab} ${activeTab === 'foster-history' ? styles.tabActive : styles.tabInactive}`}
+                        type="button"
+                        onClick={() => setActiveTab('foster-history')}
+                    >
+                        Foster History
                     </button>
                 </div>
                 <button className={styles.closeBtn} onClick={onClose} aria-label="Close">✕</button>
@@ -68,7 +77,14 @@ export default function PersonModal({ person, onClose }: Props) {
 
             {/* Content */}
             <div className={styles.content}>
-                <ProfileTab person={person} otherEntries={otherEntries} />
+                {activeTab === 'profile' && (
+                    <ProfileTab person={person} otherEntries={otherEntries} />
+                )}
+                {activeTab === 'foster-history' && (
+                    <div className={styles.profileContent}>
+                        <FosterHistoryPanel email={person.email} />
+                    </div>
+                )}
             </div>
         </div>
     )

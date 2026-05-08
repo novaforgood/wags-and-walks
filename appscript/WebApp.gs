@@ -12,17 +12,40 @@
  * CONFIG
  **************************************/
 const CONFIG = {
-  SHEET_NAME: "Form Responses 1",
+  SHEET_NAME: "Sheet1",
 
   // Flagging input headers (must match your sheet headers exactly)
   HEADERS: {
-    TIMESTAMP: "Timestamp",
-    FIRST: "First Name",
-    LAST: "Last Name",
+    TIMESTAMP: "Submitted On",
+    NAME: "Name",
     EMAIL: "Email",
-    AGE: "How old are you?",
-    OWNED_PET: "Have you ever owned a pet before?",
-    DOG_EXPERIENCE: "How would you rate your experience with dogs?"
+    PHONE: "Phone",
+    ADDRESS: "Address",
+    AGE: "How old are you",
+    OCCUPATION: "What do you do for a living",
+    CHILDREN: "How many children are in your home",
+    CHILDREN_AGES: "How old are they Check all that apply",
+    ADDITIONAL_ADULTS: "Other than yourself how many additional adults do you share your home with",
+    ADULT_AGES: "How old are they",
+    ADULT_RELATIONSHIP: "What is their relationship to you",
+    LIVING_ARRANGEMENT: "What is your living arrangement",
+    OWNED_PET: "Have you ever owned a pet before",
+    PET_TYPES: "What kind of pets have you owned check all that apply",
+    CURRENT_PETS: "Do you currently have any pets at home",
+    CURRENT_PET_DETAILS: "Please list ALL pets that you CURRENTLY own Include type dogcat breed age gender length of time in your care etc",
+    PETS_SPAYED: "Are your current pets spayedneutered",
+    DOG_DAYTIME: "Where will your foster dog be when you are not home",
+    DOG_NIGHT: "Where will your foster dog sleep during the night",
+    DOG_EXPERIENCE: "How would you rate your experience with dogs",
+    AVAILABILITY: "When would you like to take your foster dog home",
+    SPECIAL_NEEDS: "Are you willing to foster dogs with special needs If so please check all that apply below",
+    SIZE_PREFERENCE: "Please share your preferences in terms of size breed energy level etc Fosters for large dogs 45 lbs are always our biggest need Please note that you do not need a house or yard to foster a large dog Many bigger dogs are just fine in apartments and our team will pair you with a dog that will be a great match",
+    MEDICAL_NEEDS: "Are you willing to foster dogs with medical needs",
+    PREGNANT_MAMAS: "Are you willing to foster pregnant mamas andor mamas and their litters",
+    BEHAVIOR_REHAB: "Are you willing to foster dogs that need training upkeepbehavior rehabilitation",
+    REFERRAL_SOURCE: "How did you hear about us",
+    REFERRAL_NAME: "If someone referred you please list their name here so we may thank them",
+    SOURCE: "Source"
   },
 
   // Output columns we create/write
@@ -46,7 +69,10 @@ const CONFIG = {
 
     // Foster notes
     NOTES: "Notes",
-    NOTES_UPDATED_AT: "Notes Updated At"
+    NOTES_UPDATED_AT: "Notes Updated At",
+
+    // Applicant paperwork
+    SIGNED_DOCUMENT: "Signed Document"
   },
 
   REVIEW_VALUES: {
@@ -360,6 +386,25 @@ function doPost(e) {
       return json_({ success: true, build: CONFIG.BUILD_ID });
     }
 
+    // ---- scheduled emails --------------------------------------------------
+    if (
+      action === "schedule_email" ||
+      action === "list_scheduled" ||
+      action === "update_scheduled" ||
+      action === "delete_scheduled" ||
+      action === "due_scheduled"
+    ) {
+      const actionMap = {
+        list_scheduled:   "list",
+        schedule_email:   "create",
+        update_scheduled: "update",
+        delete_scheduled: "delete",
+        due_scheduled:    "due",
+      };
+      const result = handleScheduledEmails_(actionMap[action], payload);
+      return json_(Object.assign({}, result, { build: CONFIG.BUILD_ID }));
+    }
+
     // ---- set_starred -------------------------------------------------------
     if (action === "set_starred") {
       const result = setStarred_(payload.email, payload.starred);
@@ -369,6 +414,14 @@ function doPost(e) {
     // ---- set_notes ---------------------------------------------------------
     if (action === "set_notes") {
       const result = setNotes_(payload.email, payload.content);
+      return json_(Object.assign({}, result, { build: CONFIG.BUILD_ID }));
+    }
+
+    // ---- create_person -----------------------------------------------------
+    // Idempotent: no-ops if email already exists. Used to register ASM-only
+    // fosters so notes and status can be tracked for them in Sheet 1.
+    if (action === "create_person") {
+      const result = createPerson_(payload.name, payload.email, payload.source || "ASM");
       return json_(Object.assign({}, result, { build: CONFIG.BUILD_ID }));
     }
 
@@ -401,8 +454,7 @@ function doPost(e) {
     const newHeaders = getHeaders_(sheet);
 
     const col = resolveColumns_(newHeaders, [
-      CONFIG.HEADERS.FIRST,
-      CONFIG.HEADERS.LAST,
+      CONFIG.HEADERS.NAME,
       CONFIG.HEADERS.EMAIL,
       CONFIG.OUTPUT_HEADERS.REVIEW,
       CONFIG.OUTPUT_HEADERS.EMAIL_SENT,
@@ -418,10 +470,14 @@ function doPost(e) {
     const values = sheet.getRange(2, 1, lastRow - 1, lastCol).getValues();
 
     let candidates = values.map(function(row, i) {
+      var fullName = String(row[col[CONFIG.HEADERS.NAME] - 1] || "").trim();
+      var lastSpace = fullName.lastIndexOf(" ");
+      var firstName = lastSpace > 0 ? fullName.slice(0, lastSpace) : fullName;
+      var lastName = lastSpace > 0 ? fullName.slice(lastSpace + 1) : "";
       return {
         rowIndex: i + 2,
-        firstName: String(row[col[CONFIG.HEADERS.FIRST] - 1] || "").trim(),
-        lastName: String(row[col[CONFIG.HEADERS.LAST] - 1] || "").trim(),
+        firstName: firstName,
+        lastName: lastName,
         email: String(row[col[CONFIG.HEADERS.EMAIL] - 1] || "").trim(),
         review: String(row[col[CONFIG.OUTPUT_HEADERS.REVIEW] - 1] || "").trim(),
         emailSent: String(row[col[CONFIG.OUTPUT_HEADERS.EMAIL_SENT] - 1] || "").trim()
@@ -521,6 +577,94 @@ function doPost(e) {
 }
 
 /**************************************
+ * Scheduled emails handler
+ **************************************/
+function handleScheduledEmails_(action, data) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName("ScheduledEmails");
+
+  // Auto-create the sheet if it doesn't exist yet
+  if (!sheet) {
+    sheet = ss.insertSheet("ScheduledEmails");
+    sheet.appendRow(["id", "fosterId", "to", "title", "subject", "body", "scheduledDate", "status", "createdAt"]);
+  }
+
+  if (action === "list") {
+    const rows = sheet.getDataRange().getValues();
+    const headers = rows[0];
+    const emails = rows.slice(1)
+      .map(function(row) {
+        var obj = {};
+        headers.forEach(function(h, i) { obj[h] = row[i]; });
+        return obj;
+      })
+      .filter(function(e) { return e.id; });
+    return { success: true, emails: emails };
+  }
+
+  if (action === "create") {
+    sheet.appendRow([
+      data.id,
+      data.fosterId || "",
+      data.to,
+      data.title,
+      data.subject,
+      data.body,
+      data.scheduledDate,
+      "scheduled",
+      new Date().toISOString()
+    ]);
+    SpreadsheetApp.flush();
+    return { success: true };
+  }
+
+  if (action === "update") {
+    const rows = sheet.getDataRange().getValues();
+    for (var i = 1; i < rows.length; i++) {
+      if (rows[i][0] === data.id) {
+        if (data.subject !== undefined)       sheet.getRange(i + 1, 5).setValue(data.subject);
+        if (data.body !== undefined)          sheet.getRange(i + 1, 6).setValue(data.body);
+        if (data.scheduledDate !== undefined) sheet.getRange(i + 1, 7).setValue(data.scheduledDate);
+        if (data.status !== undefined)        sheet.getRange(i + 1, 8).setValue(data.status);
+        SpreadsheetApp.flush();
+        return { success: true };
+      }
+    }
+    return { success: false, error: "Not found" };
+  }
+
+  if (action === "delete") {
+    const rows = sheet.getDataRange().getValues();
+    for (var i = 1; i < rows.length; i++) {
+      if (rows[i][0] === data.id) {
+        sheet.deleteRow(i + 1);
+        SpreadsheetApp.flush();
+        return { success: true };
+      }
+    }
+    return { success: false, error: "Not found" };
+  }
+
+  if (action === "due") {
+    const rows = sheet.getDataRange().getValues();
+    const headers = rows[0];
+    const now = new Date();
+    const due = rows.slice(1)
+      .map(function(row) {
+        var obj = {};
+        headers.forEach(function(h, i) { obj[h] = row[i]; });
+        return obj;
+      })
+      .filter(function(e) {
+        return e.id && e.status === "scheduled" && new Date(e.scheduledDate) <= now;
+      });
+    return { success: true, emails: due };
+  }
+
+  return { success: false, error: "Unknown action: " + action };
+}
+
+/**************************************
  * Internal helpers
  **************************************/
 function setStarred_(email, starred) {
@@ -586,6 +730,49 @@ function setNotes_(email, content) {
     }
   }
   return { success: false, error: "Email not found" };
+}
+
+function createPerson_(name, email, source) {
+  if (!email) return { success: false, error: "email is required" };
+  const emailKey = String(email).trim().toLowerCase();
+  const nameVal = String(name || "").trim();
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(CONFIG.SHEET_NAME);
+  if (!sheet) return { success: false, error: "Sheet not found" };
+
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+
+  ensureOutputColumns_(sheet, headers, [CONFIG.HEADERS.SOURCE]);
+
+  const freshHeaders = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  const emailCol = freshHeaders.findIndex(function(h) { return String(h).trim().toLowerCase() === "email"; });
+  const sourceCol = freshHeaders.findIndex(function(h) { return String(h).trim() === CONFIG.HEADERS.SOURCE; });
+
+  if (emailCol === -1) return { success: false, error: "Email column not found" };
+
+  const lastRow = sheet.getLastRow();
+  if (lastRow >= 2) {
+    const emailData = sheet.getRange(2, emailCol + 1, lastRow - 1, 1).getValues();
+    for (var i = 0; i < emailData.length; i++) {
+      if (String(emailData[i][0]).trim().toLowerCase() === emailKey) {
+        return { success: true, created: false, message: "Person already exists" };
+      }
+    }
+  }
+
+  const newRow = new Array(freshHeaders.length).fill("");
+  const nameCol = freshHeaders.findIndex(function(h) { return String(h).trim() === CONFIG.HEADERS.NAME; });
+  const tsCol = freshHeaders.findIndex(function(h) { return String(h).trim() === CONFIG.HEADERS.TIMESTAMP; });
+
+  if (nameCol !== -1) newRow[nameCol] = nameVal;
+  newRow[emailCol] = email;
+  if (tsCol !== -1) newRow[tsCol] = new Date();
+  if (sourceCol !== -1) newRow[sourceCol] = source || "ASM";
+
+  sheet.appendRow(newRow);
+  SpreadsheetApp.flush();
+  return { success: true, created: true };
 }
 
 function computeFlagsForRow_(row, col) {

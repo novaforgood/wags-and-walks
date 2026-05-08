@@ -318,6 +318,7 @@ export default function FosterDetailsPage() {
         }
         if (!active) return
         setDogs(dogsData.dogs)
+
         if (tasksRes) {
           try {
             const tasksData = (await tasksRes.json()) as TasksApiResponse
@@ -343,6 +344,26 @@ export default function FosterDetailsPage() {
     [people, foster]
   )
 
+  // When a foster exists in ASM but has no matching Sheet 1 record, create a minimal
+  // record so notes and status can be tracked for them going forward.
+  useEffect(() => {
+    if (!foster || person || asmRegisteredRef.current) return
+    if (!foster.fosterEmail) return
+    asmRegisteredRef.current = true
+    fetch('/api/send-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'create_person',
+        name: foster.fosterName,
+        email: foster.fosterEmail,
+        source: 'ASM',
+      }),
+    }).catch(() => {
+      asmRegisteredRef.current = false
+    })
+  }, [foster, person])
+
   // Decode the email from the slug immediately so notes can load in parallel with dogs.
   // fosterSlug() uses encodeURIComponent(email) when an email is available.
   const emailFromSlug = useMemo(() => {
@@ -351,7 +372,6 @@ export default function FosterDetailsPage() {
     return decoded.includes('@') ? decoded : null
   }, [fosterId])
 
-  // Tasks for dogs in this foster record, grouped by animal ID
   const fosterTasksByDogId = useMemo(() => {
     if (!foster) return new Map<string, TaskRow[]>()
     const dogIds = new Set(foster.dogs.map(d => d.id))
@@ -394,7 +414,7 @@ export default function FosterDetailsPage() {
       <div className={layoutStyles.pageWrapper} style={{ ['--app-sidebar-width' as any]: `${navWidth}px` }}>
         <aside className={layoutStyles.sidebar}>
           <div className={layoutStyles.sidebarLogo}>
-            <Image src="/assets/logo.png" alt="Wags & Walks" width={160} height={60} priority />
+            <Image src="/assets/logo.svg" alt="Wags & Walks" width={160} height={60} priority />
           </div>
           <nav className={layoutStyles.sidebarNav}>
             <Link href="/overview" className={layoutStyles.navItem}>
@@ -462,47 +482,108 @@ export default function FosterDetailsPage() {
 
             {!isLoadingDogs && foster && (
               <>
-                {/* Summary card */}
-                <section className={styles.card}>
-                  <div className={styles.titleRow}>
-                    <h2 className={styles.title}>{foster.fosterName}</h2>
-                    <StatusBadge status={foster.status} />
+                <section className={styles.hero}>
+                  <div className={styles.avatar}>
+                    {(foster.fosterName || '?').charAt(0).toUpperCase()}
                   </div>
-                  <div className={styles.metaGrid}>
-                    <div><strong>Email:</strong> {foster.fosterEmail || '—'}</div>
-                    <div><strong>Dogs fostering:</strong> {foster.dogs.map(d => d.name).join(', ') || '—'}</div>
-                    <div><strong>Placement date:</strong> {formatDateShort(foster.lastUpdate)}</div>
+                  <div className={styles.heroBody}>
+                    <div className={styles.heroNameRow}>
+                      <h2 className={styles.heroName}>{foster.fosterName}</h2>
+                      <StatusBadge status={foster.status} />
+                    </div>
+                    <div className={styles.chipRow}>
+                      {foster.fosterEmail && (
+                        <a href={`mailto:${foster.fosterEmail}`} className={styles.chip} style={{ textDecoration: 'none' }}>
+                          <span className={styles.chipIcon}>✉</span>{foster.fosterEmail}
+                        </a>
+                      )}
+                      {foster.fosterPhone && (
+                        <span className={styles.chip}>
+                          <span className={styles.chipIcon}>☎</span>{foster.fosterPhone}
+                        </span>
+                      )}
+                      <span className={styles.chip}>
+                        <span className={styles.chipIcon}>🐾</span>
+                        {foster.dogs.length} dog{foster.dogs.length === 1 ? '' : 's'}: {foster.dogs.map(d => d.name).join(', ') || '—'}
+                      </span>
+                      <span className={styles.chip}>
+                        <span className={styles.chipIcon}>📅</span>Placed {formatDateShort(foster.lastUpdate)}
+                      </span>
+                    </div>
                   </div>
                 </section>
 
-                {/* Per-dog task cards */}
-                {foster.dogs.map(dog => {
+                <div className={styles.tabBar}>
+                  {([
+                    { id: 'overview', label: 'Overview' },
+                    { id: 'tasks', label: `Tasks${(() => {
+                      const total = foster.dogs.reduce((acc, d) => {
+                        const t = fosterTasksByDogId.get(d.id) ?? []
+                        return acc + t.filter(x => x.status !== 'retired' && x.status !== 'completed').length
+                      }, 0)
+                      return total > 0 ? ` (${total})` : ''
+                    })()}` },
+                    { id: 'communication', label: 'Communication' },
+                    { id: 'notes', label: 'Notes' },
+                    { id: 'history', label: 'History' },
+                  ] as const).map(t => (
+                    <button
+                      key={t.id}
+                      className={`${styles.tabBtn} ${activeTab === t.id ? styles.tabBtnActive : ''}`}
+                      onClick={() => setActiveTab(t.id)}
+                    >
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+
+                {activeTab === 'overview' && (
+                  <div className={styles.tabPanel}>
+                    {foster.dogs.map(dog => {
+                      const tasks = fosterTasksByDogId.get(dog.id) ?? []
+                      const activeTasks = tasks.filter(t => t.status !== 'retired' && t.status !== 'completed')
+                      const lastEmailSent = tasks.map(t => t.emailSentDate).filter(Boolean).sort().at(-1)
+                      return (
+                        <section key={dog.id} className={styles.card}>
+                          <div className={styles.dogHeader}>
+                            <h3 className={styles.sectionTitle} style={{ margin: 0 }}>{dog.name}</h3>
+                            <StatusBadge status={dog.status} />
+                          </div>
+                          <div className={styles.statGrid}>
+                            <div className={styles.stat}>
+                              <div className={styles.statLabel}>Days in foster</div>
+                              <div className={styles.statValue}>{typeof dog.daysInFoster === 'number' ? dog.daysInFoster : '—'}</div>
+                            </div>
+                            <div className={styles.stat}>
+                              <div className={styles.statLabel}>Open tasks</div>
+                              <div className={styles.statValue}>{activeTasks.length}</div>
+                            </div>
+                            <div className={styles.stat}>
+                              <div className={styles.statLabel}>Last email</div>
+                              <div className={styles.statValue} style={{ fontSize: 14 }}>{lastEmailSent ? formatDateShort(lastEmailSent) : '—'}</div>
+                            </div>
+                            <div className={styles.stat}>
+                              <div className={styles.statLabel}>Last update</div>
+                              <div className={styles.statValue} style={{ fontSize: 14 }}>{formatDateShort(dog.lastUpdate)}</div>
+                            </div>
+                          </div>
+                        </section>
+                      )
+                    })}
+                  </div>
+                )}
+
+                {activeTab === 'tasks' && (
+                  <div className={styles.tabPanel}>
+                    {foster.dogs.map(dog => {
                   const tasks = fosterTasksByDogId.get(dog.id) ?? []
-                  const activeTasks = tasks.filter(t => t.status !== 'retired' && t.status !== 'completed')
-                  const lastEmailSent = tasks
-                    .map(t => t.emailSentDate)
-                    .filter(Boolean)
-                    .sort()
-                    .at(-1)
-                  const lastFollowUp = tasks
-                    .map(t => t.followUpSent)
-                    .filter(Boolean)
-                    .sort()
-                    .at(-1)
 
                   return (
                     <section key={dog.id} className={styles.card}>
                       <div className={styles.dogHeader}>
-                        <h3 className={styles.sectionTitle}>{dog.name}</h3>
+                        <h3 className={styles.sectionTitle} style={{ margin: 0 }}>{dog.name}</h3>
                         <StatusBadge status={dog.status} />
                       </div>
-                      <div className={styles.metaGrid} style={{ marginBottom: 16 }}>
-                        <div><strong>Days in foster:</strong> {typeof dog.daysInFoster === 'number' ? `${dog.daysInFoster} days` : '—'}</div>
-                        <div><strong>Last email sent:</strong> {lastEmailSent ? formatDateShort(lastEmailSent) : '—'}</div>
-                        <div><strong>Last follow-up:</strong> {lastFollowUp ? formatDateShort(lastFollowUp) : '—'}</div>
-                        <div><strong>Open tasks:</strong> {activeTasks.length}</div>
-                      </div>
-
                       {tasks.length > 0 && (
                         <table className={styles.table}>
                           <thead>
@@ -555,29 +636,8 @@ export default function FosterDetailsPage() {
                     </section>
                   )
                 })}
-                <section className={styles.card}>
-                  <h3 className={styles.sectionTitle}>Current Fostering Situation</h3>
-                  <table className={styles.table}>
-                    <thead>
-                      <tr>
-                        <th>Dog</th>
-                        <th>How long fostering</th>
-                        <th>Last update</th>
-                        <th>Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {foster.dogs.map(dog => (
-                        <tr key={dog.id}>
-                          <td>{dog.name}</td>
-                          <td>{typeof dog.daysInFoster === 'number' ? `${dog.daysInFoster} days` : 'Unknown'}</td>
-                          <td>{formatDateShort(dog.lastUpdate)}</td>
-                          <td>{dog.status}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </section>
+                  </div>
+                )}
 
                 {activeTab === 'communication' && (
                   <div className={styles.tabPanel}>

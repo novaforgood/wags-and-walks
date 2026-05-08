@@ -42,6 +42,11 @@ function normalizeStatus(raw: unknown): PersonStatus {
   return 'new'
 }
 
+function normalizeSignedDocument(raw: unknown): 'Yes' | 'No' {
+  const value = String(raw || '').trim().toLowerCase()
+  return value === 'yes' ? 'Yes' : 'No'
+}
+
 export async function GET() {
   try {
     const url = buildAppsScriptUrl({
@@ -68,9 +73,7 @@ export async function GET() {
 
     const people: Person[] = data.rows.map(row => {
       const specialRaw = String(
-        row[
-        'Are you willing to foster dogs with special needs? If so, please check all that apply below.'
-        ] || ''
+        row['Are you willing to foster dogs with special needs If so please check all that apply below'] || ''
       )
       const specialNeeds = specialRaw
         ? Array.from(
@@ -92,20 +95,35 @@ export async function GET() {
         status = 'in-progress'
       }
 
+      const fullName = String(row['Name'] || '').trim()
+      const lastSpace = fullName.lastIndexOf(' ')
+      const firstName = lastSpace > 0 ? fullName.slice(0, lastSpace) : fullName || undefined
+      const lastName = lastSpace > 0 ? fullName.slice(lastSpace + 1) : undefined
+
       return {
         rowIndex: Number.isFinite(Number(row.rowIndex)) ? Number(row.rowIndex) : undefined,
-        firstName: String(row['First Name'] || '').trim() || undefined,
-        lastName: String(row['Last Name'] || '').trim() || undefined,
+        firstName,
+        lastName,
         email: String(row['Email'] || '').trim() || undefined,
         phone: String(row['Phone'] || '').trim() || undefined,
-        age: String(row['How old are you?'] || '').trim() || undefined,
+        address: String(row['Address'] || '').trim() || undefined,
+        age: String(row['How old are you'] || '').trim() || undefined,
+        occupation: String(row['What do you do for a living'] || '').trim() || undefined,
+        livingArrangement: String(row['What is your living arrangement'] || '').trim() || undefined,
+        currentPets: String(row['Do you currently have any pets at home'] || '').trim() || undefined,
+        currentPetDetails: String(row['Please list ALL pets that you CURRENTLY own Include type dogcat breed age gender length of time in your care etc'] || '').trim() || undefined,
+        dogDaytime: String(row['Where will your foster dog be when you are not home'] || '').trim() || undefined,
+        dogNight: String(row['Where will your foster dog sleep during the night'] || '').trim() || undefined,
+        referralSource: String(row['How did you hear about us'] || '').trim() || undefined,
+        source: String(row['Source'] || '').trim() || undefined,
         status,
-        appliedAt: parseTimestampToIso(row['Timestamp']),
-        availability: String(row['When would you like to take your foster dog home?'] || '').trim() || undefined,
+        appliedAt: parseTimestampToIso(row['Submitted On']),
+        availability: String(row['When would you like to take your foster dog home'] || '').trim() || undefined,
         specialNeeds,
         starred: String(row['Starred'] || '').trim().toUpperCase() === 'TRUE',
         notes: String(row['Notes'] || '').trim() || undefined,
         notesUpdatedAt: parseTimestampToIso(row['Notes Updated At']),
+        signedDocument: normalizeSignedDocument(row['Signed Document'] ?? row['Signed document']),
         raw: Object.fromEntries(
           Object.entries(row).map(([k, v]) => [k, v == null ? '' : String(v)])
         ) as Record<string, string>

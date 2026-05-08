@@ -12,6 +12,7 @@ export type DogRecord = {
     firstName?: string
     lastName?: string
     email?: string
+    phone?: string
   }
 }
 
@@ -30,6 +31,7 @@ export type FosterDirectoryItem = {
   dogs: FosterDog[]
   status: FosterStatus
   lastUpdate?: string
+  fosterPhone?: string
 }
 
 export function toStatus(days?: number): FosterStatus {
@@ -118,6 +120,7 @@ export function buildFosterDirectory(
         id,
         fosterName,
         fosterEmail,
+        fosterPhone: normalizeText(dog.foster?.phone) || undefined,
         dogs: [dogRow],
         status: dogStatus,
         lastUpdate: dogLastUpdate,
