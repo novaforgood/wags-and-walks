@@ -16,6 +16,7 @@ import {
 } from '@/app/lib/fosterDirectory'
 import type { TaskRow } from '@/app/api/tasks/route'
 import NotesCard from '@/app/components/NotesCard'
+import FosterHistoryPanel from '@/app/components/FosterHistoryPanel'
 import layoutStyles from '../../candidates/candidates.module.css'
 import styles from './page.module.css'
 
@@ -52,6 +53,225 @@ function StatusBadge({ status }: { status: string }) {
   return <span className={cls}>{status || 'Good'}</span>
 }
 
+type FosterDirectoryItem = ReturnType<typeof buildFosterDirectory>[number]
+
+function parseYmdOrDate(value?: string) {
+  if (!value) return null
+  const m = value.match(/^(\d{4})-(\d{2})-(\d{2})/)
+  if (m) {
+    const year = Number(m[1])
+    const month = Number(m[2]) - 1
+    const day = Number(m[3])
+    return new Date(year, month, day)
+  }
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return null
+  d.setHours(0, 0, 0, 0)
+  return d
+}
+
+function addDaysYmd(value: string, days: number) {
+  const date = parseYmdOrDate(value)
+  if (!date) return ''
+  date.setDate(date.getDate() + days)
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function deriveScheduledDateForSnooze(task: TaskRow) {
+  if (task.snoozeUntil) return task.snoozeUntil
+  if (task.scheduledDate) return task.scheduledDate
+  const latestSent = task.followUpSent || task.emailSentDate
+  if (latestSent) return addDaysYmd(latestSent, 3)
+  return ''
+}
+
+function ScheduledEmailsSection({
+  foster,
+  tasks,
+  allTasks,
+  onTasksChange,
+}: {
+  foster: FosterDirectoryItem
+  tasks: TaskRow[]
+  allTasks: TaskRow[]
+  onTasksChange: (rows: TaskRow[]) => void
+}) {
+  const activeTasks = tasks.filter(t => t.status !== 'retired')
+  const [editingKey, setEditingKey] = useState<string | null>(null)
+  const [draft, setDraft] = useState('')
+  const [savingKey, setSavingKey] = useState<string | null>(null)
+
+  function keyFor(t: TaskRow) { return `${t.animalId}|${t.taskType}` }
+
+  async function persist(t: TaskRow, scheduledEmail: string) {
+    const k = keyFor(t)
+    setSavingKey(k)
+    try {
+      const res = await fetch('/api/tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ animalId: t.animalId, taskType: t.taskType, scheduledEmail }),
+      })
+      const data = await res.json().catch(() => ({ success: false }))
+      if (!data?.success) throw new Error(data?.error || 'Failed to save')
+      onTasksChange(allTasks.map(r =>
+        r.animalId === t.animalId && r.taskType === t.taskType ? { ...r, scheduledEmail } : r
+      ))
+    } finally {
+      setSavingKey(null)
+    }
+  }
+
+  async function snooze(t: TaskRow, days: number) {
+    const k = keyFor(t)
+    setSavingKey(k)
+    try {
+      // Apps Script snoozeTask computes `today + days`, so translate the desired
+      // base date (scheduled date) into an offset-from-today.
+      const base = deriveScheduledDateForSnooze(t)
+      const baseDate = parseYmdOrDate(base)
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      const offsetFromToday = baseDate
+        ? Math.round((baseDate.getTime() - today.getTime()) / 86400000)
+        : 0
+      const effectiveDays = offsetFromToday + days
+      const res = await fetch('/api/tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'snooze',
+          animalId: t.animalId,
+          taskType: t.taskType,
+          days: effectiveDays,
+          scheduledDate: base,
+        }),
+      })
+      const data = await res.json().catch(() => ({ success: false })) as { success?: boolean; snoozeUntil?: string; error?: string }
+      if (!data?.success) throw new Error(data?.error || 'Failed to snooze')
+      const until = data.snoozeUntil ?? ''
+      onTasksChange(allTasks.map(r =>
+        r.animalId === t.animalId && r.taskType === t.taskType ? { ...r, snoozeUntil: until } : r
+      ))
+    } finally {
+      setSavingKey(null)
+    }
+  }
+
+  if (activeTasks.length === 0) {
+    return (
+      <section className={styles.card}>
+        <h3 className={styles.sectionTitle}>Scheduled Emails</h3>
+        <p className={styles.hint}>No active tasks for {foster.fosterName}.</p>
+      </section>
+    )
+  }
+
+  return (
+    <section className={styles.card}>
+      <h3 className={styles.sectionTitle}>Scheduled Emails</h3>
+      <p className={styles.hint} style={{ marginBottom: 14, fontSize: 13 }}>
+        Each active task has a default email queued for the next follow-up. Edit it below or cancel to clear.
+      </p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {activeTasks.map(t => {
+          const k = keyFor(t)
+          const isEditing = editingKey === k
+          const isSaving = savingKey === k
+          const empty = !t.scheduledEmail.trim()
+          return (
+            <div
+              key={k}
+              style={{
+                border: '1px solid #e5e7eb', borderRadius: 8, padding: 14,
+                background: empty ? '#fafafa' : '#fff',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8, flexWrap: 'wrap' }}>
+                <strong style={{ fontSize: 14, color: '#0f172a' }}>{t.dogName}</strong>
+                <span style={{ fontSize: 13, color: '#64748b' }}>{taskLabel(t.taskType)}</span>
+                <StatusBadge status={
+                  t.status === 'overdue' ? 'Overdue' :
+                  t.status === 'needs_review' ? 'Needs Review' : 'Good'
+                } />
+                <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
+                  {!isEditing && (
+                    <button
+                      onClick={() => { setEditingKey(k); setDraft(t.scheduledEmail) }}
+                      style={{ padding: '5px 12px', borderRadius: 6, border: '1px solid #d1d5db', background: '#fff', color: '#374151', fontSize: 13, cursor: 'pointer', fontWeight: 500 }}
+                    >
+                      Edit
+                    </button>
+                  )}
+                  {!isEditing && (
+                    <button
+                      disabled={isSaving}
+                      onClick={() => snooze(t, 3)}
+                      title="Push next follow-up out 3 days"
+                      style={{ padding: '5px 12px', borderRadius: 6, border: '1px solid #d1d5db', background: '#fff', color: '#374151', fontSize: 13, cursor: 'pointer', fontWeight: 500, opacity: isSaving ? 0.5 : 1 }}
+                    >
+                      Snooze +3 days
+                    </button>
+                  )}
+                  {!isEditing && !empty && (
+                    <button
+                      disabled={isSaving}
+                      onClick={() => { if (confirm('Clear this scheduled email?')) persist(t, '') }}
+                      style={{ padding: '5px 12px', borderRadius: 6, border: '1px solid #fca5a5', background: '#fff', color: '#dc2626', fontSize: 13, cursor: 'pointer', fontWeight: 500, opacity: isSaving ? 0.5 : 1 }}
+                    >
+                      Cancel
+                    </button>
+                  )}
+                </div>
+              </div>
+              {!isEditing && t.snoozeUntil && (
+                <div style={{ fontSize: 12, color: '#a16207', background: '#fef9c3', border: '1px solid #fde68a', borderRadius: 6, padding: '4px 10px', marginBottom: 8, display: 'inline-block' }}>
+                  💤 Snoozed until {t.snoozeUntil}
+                </div>
+              )}
+              {isEditing ? (
+                <>
+                  <textarea
+                    value={draft}
+                    onChange={e => setDraft(e.target.value)}
+                    rows={6}
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: 7, border: '1px solid #d1d5db', fontSize: 13, fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box' }}
+                  />
+                  <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 8 }}>
+                    <button
+                      onClick={() => setEditingKey(null)}
+                      disabled={isSaving}
+                      style={{ padding: '6px 14px', borderRadius: 6, border: '1px solid #d1d5db', background: '#fff', color: '#374151', fontSize: 13, cursor: 'pointer', fontWeight: 500 }}
+                    >
+                      Discard
+                    </button>
+                    <button
+                      onClick={async () => { await persist(t, draft); setEditingKey(null) }}
+                      disabled={isSaving}
+                      style={{ padding: '6px 16px', borderRadius: 6, border: 'none', background: '#4a9d8f', color: '#fff', fontSize: 13, cursor: 'pointer', fontWeight: 600, opacity: isSaving ? 0.6 : 1 }}
+                    >
+                      {isSaving ? 'Saving…' : 'Save'}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <pre style={{ margin: 0, fontFamily: 'inherit', fontSize: 13, color: empty ? '#94a3b8' : '#334155', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                  {empty ? '(cleared — no email queued)' : t.scheduledEmail}
+                </pre>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    </section>
+  )
+}
+
+
+// --- Main Page ---
 export default function FosterDetailsPage() {
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -78,6 +298,9 @@ export default function FosterDetailsPage() {
   const [isResizingNav, setIsResizingNav] = useState(false)
   const navStartXRef = useRef(0)
   const navStartWRef = useRef(208)
+  const asmRegisteredRef = useRef(false)
+
+  const [activeTab, setActiveTab] = useState<'overview' | 'tasks' | 'communication' | 'notes' | 'history'>('overview')
 
   useEffect(() => {
     let active = true
@@ -356,9 +579,34 @@ export default function FosterDetailsPage() {
                   </table>
                 </section>
 
-                <section className={styles.card}>
-                  <NotesCard email={emailFromSlug} name={foster.fosterName} />
-                </section>
+                {activeTab === 'communication' && (
+                  <div className={styles.tabPanel}>
+                    <ScheduledEmailsSection
+                      foster={foster}
+                      tasks={Array.from(fosterTasksByDogId.values()).flat()}
+                      onTasksChange={setTaskRows}
+                      allTasks={taskRows}
+                    />
+                  </div>
+                )}
+
+                {activeTab === 'notes' && (
+                  <div className={styles.tabPanel}>
+                    <section className={styles.card}>
+                      <NotesCard email={emailFromSlug} name={foster.fosterName} hideSendEmail />
+                    </section>
+                  </div>
+                )}
+
+                {activeTab === 'history' && (
+                  <div className={styles.tabPanel}>
+                    <FosterHistoryPanel
+                      email={emailFromSlug}
+                      sectionClassName={styles.card}
+                      sectionTitleClassName={styles.sectionTitle}
+                    />
+                  </div>
+                )}
               </>
             )}
           </div>

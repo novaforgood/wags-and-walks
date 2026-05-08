@@ -17,6 +17,9 @@ export type TaskRow = {
   fosterEmail: string
   status: TaskStatus
   driveLink: string
+  scheduledEmail: string
+  scheduledDate: string
+  snoozeUntil: string
 }
 
 // Status is pre-computed by the Apps Script and stored in the sheet's Status column.
@@ -36,6 +39,52 @@ function toFosterStatus(s: TaskStatus): FosterStatus {
   if (s === 'overdue') return 'Overdue'
   if (s === 'needs_review') return 'Needs Review'
   return 'Good'
+}
+
+export async function POST(request: Request) {
+  if (!TASK_SCRIPT_URL) {
+    return Response.json({ success: false, error: 'TASK_SCRIPT_URL not configured' }, { status: 500 })
+  }
+  const body = await request.json().catch(() => null) as
+    | {
+      action?: 'updateScheduledEmail' | 'snooze'
+      animalId?: string
+      taskType?: string
+      scheduledEmail?: string
+      scheduledDate?: string
+      days?: number
+    }
+    | null
+  if (!body?.animalId || !body?.taskType) {
+    return Response.json({ success: false, error: 'animalId and taskType required' }, { status: 400 })
+  }
+  const action = body.action ?? 'updateScheduledEmail'
+  const payload =
+    action === 'snooze'
+      ? {
+        action: 'snoozeTask',
+        animalId: body.animalId,
+        taskType: body.taskType,
+        days: body.days ?? 3,
+        scheduledDate: body.scheduledDate ?? '',
+      }
+      : { action: 'updateScheduledEmail', animalId: body.animalId, taskType: body.taskType, scheduledEmail: body.scheduledEmail ?? '' }
+  try {
+    const res = await fetch(TASK_SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+    const text = await res.text()
+    try {
+      return Response.json(JSON.parse(text))
+    } catch {
+      return Response.json({ success: false, error: text }, { status: 502 })
+    }
+  } catch (error) {
+    console.error('Tasks update error:', error)
+    return Response.json({ success: false, error: 'Failed to update scheduled email' }, { status: 500 })
+  }
 }
 
 export async function GET() {
@@ -79,6 +128,9 @@ export async function GET() {
         fosterEmail: String(r.fosterEmail ?? '').trim(),
         status: deriveStatus(sheetStatus, completedDate, retiredDate),
         driveLink: String(r.driveLink ?? r.driveFolder ?? r.folderUrl ?? r.photoFolder ?? '').trim(),
+        scheduledEmail: String(r.scheduledEmail ?? ''),
+        scheduledDate: String(r.scheduledDate ?? '').trim(),
+        snoozeUntil: String(r.snoozeUntil ?? '').trim(),
       }
     })
 
