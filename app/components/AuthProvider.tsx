@@ -29,21 +29,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser?.email) {
-        const allowed = await getAllowedUser(firebaseUser.email)
-        if (!allowed) {
-          await firebaseSignOut(auth)
+      try {
+        if (firebaseUser?.email) {
+          const allowed = await getAllowedUser(firebaseUser.email)
+          if (!allowed) {
+            await firebaseSignOut(auth)
+            setUser(null)
+            setRole(null)
+          } else {
+            setUser(firebaseUser)
+            setRole(allowed.role)
+          }
+        } else {
           setUser(null)
           setRole(null)
-        } else {
-          setUser(firebaseUser)
-          setRole(allowed.role)
         }
-      } else {
+      } catch {
         setUser(null)
         setRole(null)
+      } finally {
+        setLoading(false)
       }
-      setLoading(false)
     })
     return unsubscribe
   }, [])
