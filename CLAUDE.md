@@ -51,7 +51,7 @@ Two layout patterns coexist:
 - **`/candidates` and `/fosters`** — New sidebar layout (these pages render their own sidebar; `Navigation` component hides itself)
 - `/candidates` — Applicants in pipeline (new, in-progress, approved)
 - `/fosters` — Default route; renders the **ShelterManager directory** (dog records), NOT the people list
-- `/fosters/overview` — Foster overview dashboard (people with `status = 'current'`)
+- `/fosters/overview` — Foster overview dashboard; loads from `/api/dogs` (ASM data), shows task-health stats and a priority follow-up queue ranked by `FosterStatus`. **Not** driven by Google Sheets people data.
 - `/fosters/actions` — Foster action tracking (also driven by `current` people)
 - `/fosters/[fosterId]` — Individual foster detail (slug from `fosterSlug()` in `fosterDirectory.ts`)
 - `/overview` — Top-level overview dashboard
@@ -69,6 +69,8 @@ Two layout patterns coexist:
 - `FostersSubTabs` — Tab bar (Directory / Overview / Actions) rendered inside the `/fosters` layout
 - `NotesCard` — Shared notes textarea + email compose popup (draggable). Fetches/saves directly to `/api/foster-notes` on blur. Email popup (`Send Email` button) calls `/api/send-email` with `action: 'send_single_email'`
 - `FosterHistoryPanel` — Fetches from `/api/foster-history?email=` and renders current/past foster dog tables. Accepts optional `sectionClassName`/`sectionTitleClassName` for styling from the parent context.
+
+> **Sidebar duplication:** There is no shared sidebar component. Each page (`/candidates`, `/fosters/*`, `/overview`) renders its own sidebar JSX inline and imports `candidates/candidates.module.css` for the shared shell classes (`pageWrapper`, `sidebar`, `sidebarNav`, `navItem`, `navItemActive`, `mainContent`, `topBar`, `navResizeHandle`). When changing sidebar nav items or the resizable-width logic, update all pages.
 
 > **Layout coupling:** `/fosters`, `/fosters/overview`, `/fosters/actions`, and `/fosters/[fosterId]` all import from `candidates/candidates.module.css` for the shared sidebar shell. This is intentional — there is no separate fosters layout file.
 
@@ -95,7 +97,9 @@ Protected pages (wrapped with `<ProtectedRoute>`):
 
 ### Dogs / ShelterManager
 
-`app/api/dogs/route.ts` — Fetches dog records from ShelterManager (ASM) via the `json_shelter_animals` method at `ASM_BASE_URL`. Returns JSON consumed by `/fosters` (directory tab) and `/directory`. Only animals with a foster-type active movement are flagged `inFoster: true`; `daysInFoster` is computed from `ACTIVEMOVEMENTDATE`.
+`app/lib/asmDogs.ts` — Shared server-side module used by both `/api/dogs` and `/api/fosters`. Fetches from ASM via `json_shelter_animals`, sanitizes the JSON response (ASM sometimes returns control characters and trailing commas), and filters to foster-movement animals only. Has a **60-second module-level in-memory cache** and in-flight deduplication so concurrent requests on the same server instance share one ASM call. `DogRecord` type is defined here — do not redefine it locally in pages or routes.
+
+`app/api/dogs/route.ts` — Calls `getAsmFosterDogs()` from `asmDogs.ts` and returns the full list as `{ success, dogs }`. Consumed by `/fosters` (directory tab), `/fosters/overview`, and `/directory`.
 
 `app/api/dogs/photo/route.ts` — Server-side proxy for dog images from ASM. Accepts `?animalId=<id>&variant=thumbnail|full`. Uses `animal_thumbnail` or `animal_image` (seq 1) ASM methods. Proxies the binary response directly — avoids exposing ASM credentials to the client.
 
