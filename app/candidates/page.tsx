@@ -43,7 +43,7 @@ export default function CandidatesPage() {
     const pathname = usePathname()
     const router = useRouter()
     const { people, isLoading, error, setStatus, toggleStar, setSignedDocument } = usePeople()
-    const { user, signOut } = useAuth()
+    const { user, role, signOut } = useAuth()
     const [selectedEmails, setSelectedEmails] = useState<Set<string>>(new Set())
     const [searchQuery, setSearchQuery] = useState('')
     const [expandedEmail, setExpandedEmail] = useState<string | null>(null)
@@ -356,6 +356,18 @@ export default function CandidatesPage() {
                         <img src="/assets/fosters.svg" alt="Fosters" width={18} height={18} />
                         Fosters
                     </Link>
+                    {role === 'admin' && (
+                        <Link
+                            href="/admin/users"
+                            className={`${styles.navItem} ${pathname?.startsWith('/admin') ? styles.navItemActive : ''}`}
+                        >
+                            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden>
+                                <circle cx="9" cy="6" r="3" stroke="currentColor" strokeWidth="1.5" />
+                                <path d="M3 15c0-3.314 2.686-5 6-5s6 1.686 6 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                            </svg>
+                            Users
+                        </Link>
+                    )}
                 </nav>
 
                 <div className={styles.sidebarProfile}>

@@ -72,7 +72,7 @@ function dogName(dog?: DogRecord) {
 
 export default function FostersSectionOverviewPage() {
   const pathname = usePathname()
-  const { user, signOut } = useAuth()
+  const { user, role, signOut } = useAuth()
   const [activeFosterCount, setActiveFosterCount] = useState<number | null>(null)
   const [dogs, setDogs] = useState<DogRecord[]>([])
   const [isLoadingDogs, setIsLoadingDogs] = useState(true)
@@ -162,7 +162,11 @@ export default function FostersSectionOverviewPage() {
       const days = dog.movement?.daysInFoster
       const fosterName = nameOf(dog.foster)
       const animalId = String(dog.id ?? '')
-      const status: UpdateRow['status'] = taskStatusByAnimalId[animalId] ?? 'Good'
+      const taskStatus = taskStatusByAnimalId[animalId]
+      const status: UpdateRow['status'] = taskStatus ?? (
+        (days ?? 0) > 30 && !uploadedPhoto ? 'Overdue' :
+          (days ?? 0) > 14 || !uploadedPhoto ? 'Needs Review' : 'Good'
+      )
       const hasOpenPhotoTask = openPhotoAnimalIds.has(animalId)
       return {
         id: `${dog.id ?? idx}`,
@@ -253,6 +257,18 @@ export default function FostersSectionOverviewPage() {
               <img src="/assets/fosters.svg" alt="" width={18} height={18} />
               Fosters
             </Link>
+            {role === 'admin' && (
+              <Link
+                href="/admin/users"
+                className={`${layoutStyles.navItem} ${pathname?.startsWith('/admin') ? layoutStyles.navItemActive : ''}`}
+              >
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden>
+                  <circle cx="9" cy="6" r="3" stroke="currentColor" strokeWidth="1.5" />
+                  <path d="M3 15c0-3.314 2.686-5 6-5s6 1.686 6 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                </svg>
+                Users
+              </Link>
+            )}
           </nav>
 
           <div className={layoutStyles.sidebarProfile}>
