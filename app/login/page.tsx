@@ -22,7 +22,7 @@ export default function LoginPage() {
         setLoading(true)
 
         try {
-            await signIn(email, password)
+            await signIn(email, password, rememberMe)
             router.push('/overview')
         } catch (err: any) {
             setError(err.message || 'Failed to sign in')
