@@ -198,90 +198,97 @@ export default function AdminUsersPage() {
           </div>
 
           <div className={styles.wrap}>
-            {isLoading ? (
-              <p className={styles.empty}>Loading users…</p>
-            ) : (
-              <table className={styles.table}>
-                <thead>
-                  <tr>
-                    <th className={styles.th}>Email</th>
-                    <th className={styles.th}>Role</th>
-                    <th className={styles.th}>Added by</th>
-                    <th className={styles.th}>Date added</th>
-                    <th className={styles.th}></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {users.length === 0 && (
+            {/* Users table panel */}
+            <div className={styles.panel}>
+              <div className={styles.panelHeader}>
+                <h2 className={styles.panelTitle}>Portal users</h2>
+                {!isLoading && <span className={styles.panelCount}>{users.length} {users.length === 1 ? 'user' : 'users'}</span>}
+              </div>
+              {isLoading ? (
+                <p className={styles.empty}>Loading users…</p>
+              ) : users.length === 0 ? (
+                <p className={styles.empty}>No users yet.</p>
+              ) : (
+                <table className={styles.table}>
+                  <thead>
                     <tr>
-                      <td className={styles.td} colSpan={5}>
-                        <span className={styles.empty}>No users found.</span>
-                      </td>
+                      <th className={styles.th}>Email</th>
+                      <th className={styles.th}>Role</th>
+                      <th className={styles.th}>Added by</th>
+                      <th className={styles.th}>Date added</th>
+                      <th className={styles.th}></th>
                     </tr>
-                  )}
-                  {users.map(u => (
-                    <tr key={u.email}>
-                      <td className={styles.td}>{u.email}</td>
-                      <td className={styles.td}>
-                        <span className={u.role === 'admin' ? styles.badgeAdmin : styles.badgeUser}>
-                          {u.role}
-                        </span>
-                      </td>
-                      <td className={styles.td}>{u.addedBy}</td>
-                      <td className={styles.td}>{formatDate(u.addedAt)}</td>
-                      <td className={styles.td}>
-                        <button
-                          className={styles.removeBtn}
-                          disabled={removingEmail === u.email || u.email === user?.email?.toLowerCase()}
-                          onClick={() => handleRemove(u.email)}
-                        >
-                          {removingEmail === u.email ? 'Removing…' : 'Remove'}
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-
-            <div className={styles.addForm}>
-              <p className={styles.addFormTitle}>Add a user</p>
-              <form onSubmit={handleAdd}>
-                <div className={styles.addFormRow}>
-                  <div className={styles.formGroup}>
-                    <label className={styles.label} htmlFor="newEmail">Email</label>
-                    <input
-                      id="newEmail"
-                      type="email"
-                      required
-                      className={styles.input}
-                      placeholder="user@wagsandwalks.org"
-                      value={newEmail}
-                      onChange={e => setNewEmail(e.target.value)}
-                    />
-                  </div>
-                  <div className={styles.formGroup}>
-                    <label className={styles.label} htmlFor="newRole">Role</label>
-                    <select
-                      id="newRole"
-                      className={styles.select}
-                      value={newRole}
-                      onChange={e => setNewRole(e.target.value as UserRole)}
-                    >
-                      <option value="user">User</option>
-                      <option value="admin">Admin</option>
-                    </select>
-                  </div>
-                  <button type="submit" className={styles.addBtn} disabled={submitting}>
-                    {submitting ? 'Adding…' : 'Add User'}
-                  </button>
-                </div>
-              </form>
-              {feedback && (
-                <p className={`${styles.feedback} ${feedback.kind === 'error' ? styles.feedbackError : styles.feedbackSuccess}`}>
-                  {feedback.msg}
-                </p>
+                  </thead>
+                  <tbody>
+                    {users.map(u => (
+                      <tr key={u.email} className={styles.tr}>
+                        <td className={`${styles.td} ${styles.emailCell}`}>{u.email}</td>
+                        <td className={styles.td}>
+                          <span className={u.role === 'admin' ? styles.badgeAdmin : styles.badgeUser}>
+                            {u.role}
+                          </span>
+                        </td>
+                        <td className={`${styles.td} ${styles.addedByCell}`}>{u.addedBy}</td>
+                        <td className={`${styles.td} ${styles.addedByCell}`}>{formatDate(u.addedAt)}</td>
+                        <td className={styles.td}>
+                          <button
+                            className={styles.removeBtn}
+                            disabled={removingEmail === u.email || u.email === user?.email?.toLowerCase()}
+                            onClick={() => handleRemove(u.email)}
+                          >
+                            {removingEmail === u.email ? 'Removing…' : 'Remove'}
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               )}
+            </div>
+
+            {/* Add user panel */}
+            <div className={styles.panel}>
+              <div className={styles.panelHeader}>
+                <h2 className={styles.panelTitle}>Add a user</h2>
+              </div>
+              <div className={styles.addForm}>
+                <form onSubmit={handleAdd}>
+                  <div className={styles.addFormRow}>
+                    <div className={styles.formGroup}>
+                      <label className={styles.label} htmlFor="newEmail">Email</label>
+                      <input
+                        id="newEmail"
+                        type="email"
+                        required
+                        className={styles.input}
+                        placeholder="user@wagsandwalks.org"
+                        value={newEmail}
+                        onChange={e => setNewEmail(e.target.value)}
+                      />
+                    </div>
+                    <div className={styles.formGroup}>
+                      <label className={styles.label} htmlFor="newRole">Role</label>
+                      <select
+                        id="newRole"
+                        className={styles.select}
+                        value={newRole}
+                        onChange={e => setNewRole(e.target.value as UserRole)}
+                      >
+                        <option value="user">User</option>
+                        <option value="admin">Admin</option>
+                      </select>
+                    </div>
+                    <button type="submit" className={styles.addBtn} disabled={submitting}>
+                      {submitting ? 'Adding…' : 'Add User'}
+                    </button>
+                  </div>
+                </form>
+                {feedback && (
+                  <p className={`${styles.feedback} ${feedback.kind === 'error' ? styles.feedbackError : styles.feedbackSuccess}`}>
+                    {feedback.msg}
+                  </p>
+                )}
+              </div>
             </div>
           </div>
         </div>
