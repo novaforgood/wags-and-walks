@@ -231,7 +231,7 @@ export default function FostersSectionOverviewPage() {
       <div className={layoutStyles.pageWrapper} style={{ ['--app-sidebar-width' as any]: `${navWidth}px` }}>
         <aside className={layoutStyles.sidebar}>
           <div className={layoutStyles.sidebarLogo}>
-            <Image src="/assets/logo.svg" alt="Wags & Walks" width={160} height={60} priority />
+            <Image src="/assets/logo.svg" alt="Wags & Walks" width={196} height={74} priority />
           </div>
 
           <nav className={layoutStyles.sidebarNav}>

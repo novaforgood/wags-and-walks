@@ -191,7 +191,7 @@ export default function FostersPage() {
       <div className={styles.pageWrapper} style={{ ['--app-sidebar-width' as any]: `${navWidth}px` }}>
         <aside className={styles.sidebar}>
           <div className={styles.sidebarLogo}>
-            <Image src="/assets/logo.svg" alt="Wags & Walks" width={160} height={60} priority />
+            <Image src="/assets/logo.svg" alt="Wags & Walks" width={196} height={74} priority />
           </div>
 
           <nav className={styles.sidebarNav}>

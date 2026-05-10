@@ -376,13 +376,18 @@ function doPost(e) {
 
     // ---- send_single_email -------------------------------------------------
     if (action === "send_single_email") {
-      const to      = String(payload.to      || "").trim();
-      const subject = String(payload.subject || "").trim();
-      const body    = String(payload.body    || "").trim();
+      const to       = String(payload.to       || "").trim();
+      const subject  = String(payload.subject  || "").trim();
+      const body     = String(payload.body     || "").trim();
+      const htmlBody = payload.htmlBody ? String(payload.htmlBody).trim() : "";
       if (!to || !subject || !body) {
         return json_({ success: false, build: CONFIG.BUILD_ID, error: "to, subject, and body are required" });
       }
-      GmailApp.sendEmail(to, subject, body);
+      if (htmlBody) {
+        GmailApp.sendEmail(to, subject, body, { htmlBody: htmlBody });
+      } else {
+        GmailApp.sendEmail(to, subject, body);
+      }
       return json_({ success: true, build: CONFIG.BUILD_ID });
     }
 

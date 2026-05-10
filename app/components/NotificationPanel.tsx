@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import styles from './NotificationPanel.module.css'
-import type { TaskRow } from '@/app/api/tasks/route'
+import type { TaskRow } from '@/app/lib/taskTypes'
 
 type Notification = {
   id: string

@@ -1,26 +1,9 @@
 import type { FosterStatus } from '@/app/lib/fosterDirectory'
+import type { TaskRow, TaskStatus } from '@/app/lib/taskTypes'
+
+export type { TaskRow, TaskStatus }
 
 const TASK_SCRIPT_URL = process.env.TASK_SCRIPT_URL
-
-export type TaskStatus = 'pending' | 'needs_review' | 'overdue' | 'completed' | 'retired'
-
-export type TaskRow = {
-  animalId: string
-  dogName: string
-  taskType: string
-  triggerDay: number
-  emailSentDate: string
-  followUpSent: string
-  completedDate: string
-  retiredDate: string
-  fosterName: string
-  fosterEmail: string
-  status: TaskStatus
-  driveLink: string
-  scheduledEmail: string
-  scheduledDate: string
-  snoozeUntil: string
-}
 
 // Status is pre-computed by the Apps Script and stored in the sheet's Status column.
 // Fall back to date fields only for rows where the sheet status is blank.
