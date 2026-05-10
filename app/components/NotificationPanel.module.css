@@ -135,7 +135,11 @@
 
 /* ---- Notification Card ---- */
 .card {
-    padding: 20px 24px;
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 0;
+    padding: 20px 20px 20px 16px;
     background: #fff;
     border-bottom: 1px solid #d9d9d9;
     transition: background 0.15s;
@@ -147,6 +151,82 @@
 
 .cardUnread {
     background: #c8e6e7;
+}
+
+/* ---- Read/Unread Dot (left column) ---- */
+.cardSide {
+    display: flex;
+    align-items: flex-start;
+    padding-top: 4px;
+    padding-right: 14px;
+    flex-shrink: 0;
+}
+
+.readDot {
+    position: relative;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    padding: 0;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.readDot:hover {
+    transform: scale(1.2);
+    box-shadow: 0 0 0 3px rgba(5, 170, 175, 0.2);
+}
+
+/* Unread → filled teal circle */
+.readDotUnread {
+    background-color: #05aaaf;
+    border: none;
+}
+
+/* Read → clearly visible grey ring */
+.readDotRead {
+    background-color: transparent;
+    border: 2px solid #999;
+}
+
+/* Tooltip */
+.readDotTooltip {
+    display: none;
+    position: absolute;
+    left: 18px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: #037c80;
+    color: #fff;
+    font-size: 11px;
+    font-family: 'Inter', sans-serif;
+    white-space: nowrap;
+    padding: 4px 8px;
+    border-radius: 5px;
+    pointer-events: none;
+    z-index: 10;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+.readDotTooltip::before {
+    content: '';
+    position: absolute;
+    right: 100%;
+    top: 50%;
+    transform: translateY(-50%);
+    border: 4px solid transparent;
+    border-right-color: #037c80;
+}
+
+.readDot:hover .readDotTooltip {
+    display: block;
+}
+
+/* ---- Card Body (right column) ---- */
+.cardBody {
+    flex: 1;
+    min-width: 0;
 }
 
 .cardText {
