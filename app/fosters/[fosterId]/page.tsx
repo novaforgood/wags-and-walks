@@ -32,15 +32,6 @@ type TasksApiResponse = {
   taskStatusByAnimalId?: Record<string, FosterStatus>
 }
 
-type ScheduledEmail = {
-  id: string
-  title: string
-  scheduledDate: string // ISO date string
-  subject: string
-  body: string
-  status?: string
-}
-
 const TASK_LABELS: Record<string, string> = {
   PHOTOS: 'Photo upload',
   SURVEY: 'Foster survey',
@@ -62,360 +53,223 @@ function StatusBadge({ status }: { status: string }) {
   return <span className={cls}>{status || 'Good'}</span>
 }
 
-// --- Shared hover button styles injected once ---
-const updatesButtonStyles = `
-  .upd-btn { transition: background 0.15s; }
-  .upd-btn-neutral:hover { background: #f3f4f6 !important; }
-  .upd-btn-cancel:hover  { background: #fff1f1 !important; }
-  .upd-btn-primary:hover { background: #3d8a7d !important; }
-  .upd-btn-send:hover    { background: #3d8a7d !important; }
-`
+type FosterDirectoryItem = ReturnType<typeof buildFosterDirectory>[number]
 
-// --- Shared Email Modal ---
-type EmailModalProps = {
-  title: string
-  fosterEmail: string
-  subject: string
-  body: string
-  primaryLabel: string
-  onPrimary: (subject: string, body: string) => void
-  onClose: () => void
-  extraActions?: React.ReactNode
+function parseYmdOrDate(value?: string) {
+  if (!value) return null
+  const m = value.match(/^(\d{4})-(\d{2})-(\d{2})/)
+  if (m) {
+    const year = Number(m[1])
+    const month = Number(m[2]) - 1
+    const day = Number(m[3])
+    return new Date(year, month, day)
+  }
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return null
+  d.setHours(0, 0, 0, 0)
+  return d
 }
 
-function EmailModal({ title, fosterEmail, subject: initSubject, body: initBody, primaryLabel, onPrimary, onClose, extraActions }: EmailModalProps) {
-  const [subject, setSubject] = useState(initSubject)
-  const [body, setBody] = useState(initBody)
-
-  return (
-    <div style={{
-      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
-    }}>
-      <style>{updatesButtonStyles}</style>
-      <div style={{
-        background: '#fff', borderRadius: 12, padding: '28px 32px', width: 480,
-        maxWidth: '95vw', boxShadow: '0 8px 32px rgba(0,0,0,0.18)', position: 'relative',
-      }}>
-        <button
-          onClick={onClose}
-          className="upd-btn upd-btn-neutral"
-          style={{
-            position: 'absolute', top: 14, right: 16, background: 'none',
-            border: 'none', fontSize: 20, cursor: 'pointer', color: '#888', lineHeight: 1, borderRadius: 4,
-          }}
-          aria-label="Close"
-        >×</button>
-
-        <h3 style={{ margin: '0 0 4px', fontSize: 17, fontWeight: 600 }}>{title}</h3>
-        <p style={{ margin: '0 0 18px', fontSize: 13, color: '#888' }}>To: {fosterEmail}</p>
-
-        <label style={{ display: 'block', fontSize: 13, color: '#666', marginBottom: 4 }}>Subject</label>
-        <input
-          value={subject}
-          onChange={e => setSubject(e.target.value)}
-          style={{
-            width: '100%', padding: '8px 12px', borderRadius: 7, border: '1px solid #d1d5db',
-            fontSize: 14, marginBottom: 14, boxSizing: 'border-box', fontFamily: 'inherit',
-          }}
-        />
-
-        <label style={{ display: 'block', fontSize: 13, color: '#666', marginBottom: 4 }}>Message</label>
-        <textarea
-          value={body}
-          onChange={e => setBody(e.target.value)}
-          rows={5}
-          style={{
-            width: '100%', padding: '8px 12px', borderRadius: 7, border: '1px solid #d1d5db',
-            fontSize: 14, marginBottom: 20, boxSizing: 'border-box', resize: 'vertical', fontFamily: 'inherit',
-          }}
-        />
-
-        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
-          {extraActions}
-          <button
-            onClick={() => onPrimary(subject, body)}
-            className="upd-btn upd-btn-primary"
-            style={{
-              padding: '8px 18px', borderRadius: 7, border: 'none',
-              background: '#4a9d8f', color: '#fff', fontSize: 14, cursor: 'pointer', fontWeight: 600,
-            }}
-          >
-            {primaryLabel}
-          </button>
-        </div>
-      </div>
-    </div>
-  )
+function addDaysYmd(value: string, days: number) {
+  const date = parseYmdOrDate(value)
+  if (!date) return ''
+  date.setDate(date.getDate() + days)
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
 }
 
-// --- Updates Section ---
-type UpdatesSectionProps = {
-  fosterId: string
-  fosterEmail: string
-  scheduledEmails: ScheduledEmail[]
-  onEmailsChange: (emails: ScheduledEmail[]) => void
+function deriveScheduledDateForSnooze(task: TaskRow) {
+  if (task.snoozeUntil) return task.snoozeUntil
+  if (task.scheduledDate) return task.scheduledDate
+  const latestSent = task.followUpSent || task.emailSentDate
+  if (latestSent) return addDaysYmd(latestSent, 3)
+  return ''
 }
 
-function UpdatesSection({ fosterId, fosterEmail, scheduledEmails, onEmailsChange }: UpdatesSectionProps) {
-  const [editingEmail, setEditingEmail] = useState<ScheduledEmail | null>(null)
-  const [showSendNow, setShowSendNow] = useState(false)
-  const [showSchedule, setShowSchedule] = useState(false)
-  const [scheduleTitle, setScheduleTitle] = useState('')
-  const [scheduleDate, setScheduleDate] = useState('')
-  const [pendingSchedule, setPendingSchedule] = useState<{ title: string; date: string } | null>(null)
+function ScheduledEmailsSection({
+  foster,
+  tasks,
+  allTasks,
+  onTasksChange,
+}: {
+  foster: FosterDirectoryItem
+  tasks: TaskRow[]
+  allTasks: TaskRow[]
+  onTasksChange: (rows: TaskRow[]) => void
+}) {
+  const activeTasks = tasks.filter(t => t.status !== 'retired')
+  const [editingKey, setEditingKey] = useState<string | null>(null)
+  const [draft, setDraft] = useState('')
+  const [savingKey, setSavingKey] = useState<string | null>(null)
 
-  async function handleSave(updated: ScheduledEmail) {
-    await fetch('/api/scheduled-emails', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: updated.id, subject: updated.subject, body: updated.body, scheduledDate: updated.scheduledDate }),
-    })
-    onEmailsChange(scheduledEmails.map(e => e.id === updated.id ? updated : e))
-    setEditingEmail(null)
-  }
+  function keyFor(t: TaskRow) { return `${t.animalId}|${t.taskType}` }
 
-  async function handleCancelScheduled(id: string) {
-    await fetch('/api/scheduled-emails', {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id }),
-    })
-    onEmailsChange(scheduledEmails.filter(e => e.id !== id))
-    setEditingEmail(null)
-  }
-
-  async function handleSnooze(email: ScheduledEmail) {
-    const d = new Date(email.scheduledDate)
-    d.setDate(d.getDate() + 3)
-    const snoozed = { ...email, scheduledDate: d.toISOString() }
-    await fetch('/api/scheduled-emails', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: email.id, scheduledDate: snoozed.scheduledDate }),
-    })
-    onEmailsChange(scheduledEmails.map(e => e.id === email.id ? snoozed : e))
-    setEditingEmail(null)
-  }
-
-  // KEY FIX: synchronous, no await, no API reload that could overwrite state
-  function handleScheduleNew(subject: string, body: string) {
-    if (!pendingSchedule) return
-    const captured = pendingSchedule
-    const newEmail: ScheduledEmail = {
-      id: `temp-${Date.now()}`,
-      title: captured.title,
-      subject,
-      body,
-      scheduledDate: new Date(captured.date).toISOString(),
-      status: 'scheduled',
+  async function persist(t: TaskRow, scheduledEmail: string) {
+    const k = keyFor(t)
+    setSavingKey(k)
+    try {
+      const res = await fetch('/api/tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ animalId: t.animalId, taskType: t.taskType, scheduledEmail }),
+      })
+      const data = await res.json().catch(() => ({ success: false }))
+      if (!data?.success) throw new Error(data?.error || 'Failed to save')
+      onTasksChange(allTasks.map(r =>
+        r.animalId === t.animalId && r.taskType === t.taskType ? { ...r, scheduledEmail } : r
+      ))
+    } finally {
+      setSavingKey(null)
     }
-    setPendingSchedule(null)
-    onEmailsChange([...scheduledEmails, newEmail])
-    // Fire-and-forget persist once API route exists
-    fetch('/api/scheduled-emails', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        fosterId,
-        to: fosterEmail,
-        title: captured.title,
-        subject,
-        body,
-        scheduledDate: newEmail.scheduledDate,
-      }),
-    }).catch(() => {})
   }
 
-  async function handleSendNow(subject: string, body: string) {
-    await fetch('/api/send-email', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'send_single_email', to: fosterEmail, subject, body }),
-    })
-    setShowSendNow(false)
+  async function snooze(t: TaskRow, days: number) {
+    const k = keyFor(t)
+    setSavingKey(k)
+    try {
+      // Apps Script snoozeTask computes `today + days`, so translate the desired
+      // base date (scheduled date) into an offset-from-today.
+      const base = deriveScheduledDateForSnooze(t)
+      const baseDate = parseYmdOrDate(base)
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      const offsetFromToday = baseDate
+        ? Math.round((baseDate.getTime() - today.getTime()) / 86400000)
+        : 0
+      const effectiveDays = offsetFromToday + days
+      const res = await fetch('/api/tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'snooze',
+          animalId: t.animalId,
+          taskType: t.taskType,
+          days: effectiveDays,
+          scheduledDate: base,
+        }),
+      })
+      const data = await res.json().catch(() => ({ success: false })) as { success?: boolean; snoozeUntil?: string; error?: string }
+      if (!data?.success) throw new Error(data?.error || 'Failed to snooze')
+      const until = data.snoozeUntil ?? ''
+      onTasksChange(allTasks.map(r =>
+        r.animalId === t.animalId && r.taskType === t.taskType ? { ...r, snoozeUntil: until } : r
+      ))
+    } finally {
+      setSavingKey(null)
+    }
   }
 
-  const visibleEmails = scheduledEmails.filter(e => e.status !== 'sent')
+  if (activeTasks.length === 0) {
+    return (
+      <section className={styles.card}>
+        <h3 className={styles.sectionTitle}>Scheduled Emails</h3>
+        <p className={styles.hint}>No active tasks for {foster.fosterName}.</p>
+      </section>
+    )
+  }
 
   return (
-    <>
-      <style>{updatesButtonStyles}</style>
-      <section className={styles.card}>
-        <h3 className={styles.sectionTitle}>Updates</h3>
-
-        {visibleEmails.length === 0 && (
-          <p className={styles.hint}>No scheduled emails.</p>
-        )}
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {visibleEmails.map(email => (
+    <section className={styles.card}>
+      <h3 className={styles.sectionTitle}>Scheduled Emails</h3>
+      <p className={styles.hint} style={{ marginBottom: 14, fontSize: 13 }}>
+        Each active task has a default email queued for the next follow-up. Edit it below or cancel to clear.
+      </p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {activeTasks.map(t => {
+          const k = keyFor(t)
+          const isEditing = editingKey === k
+          const isSaving = savingKey === k
+          const empty = !t.scheduledEmail.trim()
+          return (
             <div
-              key={email.id}
+              key={k}
               style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                padding: '10px 14px', borderRadius: 8, border: '1px solid #e5e7eb',
-                background: '#f9fafb', flexWrap: 'wrap', gap: 8,
+                border: '1px solid #e5e7eb', borderRadius: 8, padding: 14,
+                background: empty ? '#fafafa' : '#fff',
               }}
             >
-              <span style={{ fontSize: 14, fontWeight: 500, color: '#111827', flex: 1, minWidth: 140 }}>
-                {email.title}
-              </span>
-              <span style={{ fontSize: 13, color: '#6b7280', marginRight: 12, whiteSpace: 'nowrap' }}>
-                {formatDateShort(email.scheduledDate)}
-              </span>
-              <div style={{ display: 'flex', gap: 6 }}>
-                <button
-                  onClick={() => setEditingEmail(email)}
-                  className="upd-btn upd-btn-neutral"
-                  style={{ padding: '5px 12px', borderRadius: 6, border: '1px solid #d1d5db', background: '#fff', color: '#374151', fontSize: 13, cursor: 'pointer', fontWeight: 500 }}
-                >
-                  Edit
-                </button>
-                <button
-                  onClick={() => handleCancelScheduled(email.id)}
-                  className="upd-btn upd-btn-cancel"
-                  style={{ padding: '5px 12px', borderRadius: 6, border: '1px solid #fca5a5', background: '#fff', color: '#dc2626', fontSize: 13, cursor: 'pointer', fontWeight: 500 }}
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={() => handleSnooze(email)}
-                  className="upd-btn upd-btn-neutral"
-                  style={{ padding: '5px 12px', borderRadius: 6, border: '1px solid #d1d5db', background: '#fff', color: '#374151', fontSize: 13, cursor: 'pointer', fontWeight: 500 }}
-                >
-                  Snooze
-                </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8, flexWrap: 'wrap' }}>
+                <strong style={{ fontSize: 14, color: '#0f172a' }}>{t.dogName}</strong>
+                <span style={{ fontSize: 13, color: '#64748b' }}>{taskLabel(t.taskType)}</span>
+                <StatusBadge status={
+                  t.status === 'overdue' ? 'Overdue' :
+                  t.status === 'needs_review' ? 'Needs Review' : 'Good'
+                } />
+                <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
+                  {!isEditing && (
+                    <button
+                      onClick={() => { setEditingKey(k); setDraft(t.scheduledEmail) }}
+                      style={{ padding: '5px 12px', borderRadius: 6, border: '1px solid #d1d5db', background: '#fff', color: '#374151', fontSize: 13, cursor: 'pointer', fontWeight: 500 }}
+                    >
+                      Edit
+                    </button>
+                  )}
+                  {!isEditing && (
+                    <button
+                      disabled={isSaving}
+                      onClick={() => snooze(t, 3)}
+                      title="Push next follow-up out 3 days"
+                      style={{ padding: '5px 12px', borderRadius: 6, border: '1px solid #d1d5db', background: '#fff', color: '#374151', fontSize: 13, cursor: 'pointer', fontWeight: 500, opacity: isSaving ? 0.5 : 1 }}
+                    >
+                      Snooze +3 days
+                    </button>
+                  )}
+                  {!isEditing && !empty && (
+                    <button
+                      disabled={isSaving}
+                      onClick={() => { if (confirm('Clear this scheduled email?')) persist(t, '') }}
+                      style={{ padding: '5px 12px', borderRadius: 6, border: '1px solid #fca5a5', background: '#fff', color: '#dc2626', fontSize: 13, cursor: 'pointer', fontWeight: 500, opacity: isSaving ? 0.5 : 1 }}
+                    >
+                      Cancel
+                    </button>
+                  )}
+                </div>
               </div>
+              {!isEditing && t.snoozeUntil && (
+                <div style={{ fontSize: 12, color: '#a16207', background: '#fef9c3', border: '1px solid #fde68a', borderRadius: 6, padding: '4px 10px', marginBottom: 8, display: 'inline-block' }}>
+                  💤 Snoozed until {t.snoozeUntil}
+                </div>
+              )}
+              {isEditing ? (
+                <>
+                  <textarea
+                    value={draft}
+                    onChange={e => setDraft(e.target.value)}
+                    rows={6}
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: 7, border: '1px solid #d1d5db', fontSize: 13, fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box' }}
+                  />
+                  <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 8 }}>
+                    <button
+                      onClick={() => setEditingKey(null)}
+                      disabled={isSaving}
+                      style={{ padding: '6px 14px', borderRadius: 6, border: '1px solid #d1d5db', background: '#fff', color: '#374151', fontSize: 13, cursor: 'pointer', fontWeight: 500 }}
+                    >
+                      Discard
+                    </button>
+                    <button
+                      onClick={async () => { await persist(t, draft); setEditingKey(null) }}
+                      disabled={isSaving}
+                      style={{ padding: '6px 16px', borderRadius: 6, border: 'none', background: '#4a9d8f', color: '#fff', fontSize: 13, cursor: 'pointer', fontWeight: 600, opacity: isSaving ? 0.6 : 1 }}
+                    >
+                      {isSaving ? 'Saving…' : 'Save'}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <pre style={{ margin: 0, fontFamily: 'inherit', fontSize: 13, color: empty ? '#94a3b8' : '#334155', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                  {empty ? '(cleared — no email queued)' : t.scheduledEmail}
+                </pre>
+              )}
             </div>
-          ))}
-        </div>
-
-        <div style={{ marginTop: 14, display: 'flex', gap: 10 }}>
-          <button
-            onClick={() => setShowSendNow(true)}
-            className="upd-btn upd-btn-send"
-            style={{ padding: '8px 18px', borderRadius: 7, border: 'none', background: '#4a9d8f', color: '#fff', fontSize: 14, cursor: 'pointer', fontWeight: 600 }}
-          >
-            Send Email Now
-          </button>
-          <button
-            onClick={() => { setScheduleTitle(''); setScheduleDate(''); setShowSchedule(true) }}
-            className="upd-btn upd-btn-neutral"
-            style={{ padding: '8px 18px', borderRadius: 7, border: '1px solid #d1d5db', background: '#fff', color: '#374151', fontSize: 14, cursor: 'pointer', fontWeight: 600 }}
-          >
-            Schedule Email
-          </button>
-        </div>
-      </section>
-
-      {editingEmail && (
-        <EmailModal
-          title="Edit Scheduled Email"
-          fosterEmail={fosterEmail}
-          subject={editingEmail.subject}
-          body={editingEmail.body}
-          primaryLabel="Save"
-          onPrimary={(subject, body) => handleSave({ ...editingEmail, subject, body })}
-          onClose={() => setEditingEmail(null)}
-          extraActions={
-            <>
-              <button
-                onClick={() => handleCancelScheduled(editingEmail.id)}
-                className="upd-btn upd-btn-cancel"
-                style={{ padding: '8px 16px', borderRadius: 7, border: '1px solid #fca5a5', background: '#fff', color: '#dc2626', fontSize: 14, cursor: 'pointer', fontWeight: 500 }}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => handleSnooze(editingEmail)}
-                className="upd-btn upd-btn-neutral"
-                style={{ padding: '8px 16px', borderRadius: 7, border: '1px solid #d1d5db', background: '#f9fafb', color: '#374151', fontSize: 14, cursor: 'pointer', fontWeight: 500 }}
-              >
-                Snooze (+3 days)
-              </button>
-            </>
-          }
-        />
-      )}
-
-      {showSendNow && (
-        <EmailModal
-          title="Send Email"
-          fosterEmail={fosterEmail}
-          subject="Checking in!"
-          body={`Hey ${fosterEmail.split('@')[0]}, checking in on ...`}
-          primaryLabel="Send"
-          onPrimary={handleSendNow}
-          onClose={() => setShowSendNow(false)}
-        />
-      )}
-
-      {showSchedule && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <style>{updatesButtonStyles}</style>
-          <div style={{ background: '#fff', borderRadius: 12, padding: '28px 32px', width: 480, maxWidth: '95vw', boxShadow: '0 8px 32px rgba(0,0,0,0.18)', position: 'relative' }}>
-            <button
-              onClick={() => setShowSchedule(false)}
-              style={{ position: 'absolute', top: 14, right: 16, background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#888' }}
-            >×</button>
-            <h3 style={{ margin: '0 0 18px', fontSize: 17, fontWeight: 600 }}>Schedule Email</h3>
-
-            <label style={{ display: 'block', fontSize: 13, color: '#666', marginBottom: 4 }}>Title (internal label)</label>
-            <input
-              value={scheduleTitle}
-              onChange={e => setScheduleTitle(e.target.value)}
-              placeholder="e.g. Survey Reminder"
-              style={{ width: '100%', padding: '8px 12px', borderRadius: 7, border: '1px solid #d1d5db', fontSize: 14, marginBottom: 14, boxSizing: 'border-box', fontFamily: 'inherit' }}
-            />
-
-            <label style={{ display: 'block', fontSize: 13, color: '#666', marginBottom: 4 }}>Send date</label>
-            <input
-              type="date"
-              value={scheduleDate}
-              onChange={e => setScheduleDate(e.target.value)}
-              min={new Date().toISOString().split('T')[0]}
-              style={{ width: '100%', padding: '8px 12px', borderRadius: 7, border: '1px solid #d1d5db', fontSize: 14, marginBottom: 20, boxSizing: 'border-box', fontFamily: 'inherit' }}
-            />
-
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-              <button
-                onClick={() => setShowSchedule(false)}
-                className="upd-btn upd-btn-neutral"
-                style={{ padding: '8px 16px', borderRadius: 7, border: '1px solid #d1d5db', background: '#f9fafb', color: '#374151', fontSize: 14, cursor: 'pointer', fontWeight: 500 }}
-              >
-                Cancel
-              </button>
-              <button
-                disabled={!scheduleDate || !scheduleTitle}
-                onClick={() => {
-                  setShowSchedule(false)
-                  setPendingSchedule({ title: scheduleTitle, date: scheduleDate })
-                }}
-                className="upd-btn upd-btn-primary"
-                style={{ padding: '8px 18px', borderRadius: 7, border: 'none', background: '#4a9d8f', color: '#fff', fontSize: 14, cursor: 'pointer', fontWeight: 600, opacity: (!scheduleDate || !scheduleTitle) ? 0.5 : 1 }}
-              >
-                Next: Write Email →
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {pendingSchedule && (
-        <EmailModal
-          title={`Schedule: ${pendingSchedule.title}`}
-          fosterEmail={fosterEmail}
-          subject="Checking in!"
-          body={`Hey ${fosterEmail.split('@')[0]}, checking in on ...`}
-          primaryLabel="Schedule"
-          onPrimary={(subject, body) => handleScheduleNew(subject, body)}
-          onClose={() => setPendingSchedule(null)}
-        />
-      )}
-    </>
+          )
+        })}
+      </div>
+    </section>
   )
 }
+
 
 // --- Main Page ---
 export default function FosterDetailsPage() {
@@ -446,26 +300,7 @@ export default function FosterDetailsPage() {
   const navStartWRef = useRef(208)
   const asmRegisteredRef = useRef(false)
 
-  // Scheduled emails — loaded from API, persisted in Google Sheets
-  const [scheduledEmails, setScheduledEmails] = useState<ScheduledEmail[]>([])
-  const [emailsLoading, setEmailsLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<'overview' | 'tasks' | 'communication' | 'notes' | 'history'>('overview')
-
-  useEffect(() => {
-    if (!fosterId) return
-    fetch(`/api/scheduled-emails?fosterId=${encodeURIComponent(fosterId)}`)
-      .then(async r => {
-        const text = await r.text()
-        if (text) {
-          try {
-            const data = JSON.parse(text)
-            if (data.success) setScheduledEmails(data.emails)
-          } catch { /* not JSON, API not ready */ }
-        }
-      })
-      .catch(() => {})
-      .finally(() => setEmailsLoading(false))
-  }, [fosterId])
 
   useEffect(() => {
     let active = true
@@ -806,19 +641,12 @@ export default function FosterDetailsPage() {
 
                 {activeTab === 'communication' && (
                   <div className={styles.tabPanel}>
-                    {emailsLoading ? (
-                      <section className={styles.card}>
-                        <h3 className={styles.sectionTitle}>Updates</h3>
-                        <p className={styles.hint}>Loading...</p>
-                      </section>
-                    ) : (
-                      <UpdatesSection
-                        fosterId={fosterId ?? ''}
-                        fosterEmail={foster.fosterEmail ?? ''}
-                        scheduledEmails={scheduledEmails}
-                        onEmailsChange={setScheduledEmails}
-                      />
-                    )}
+                    <ScheduledEmailsSection
+                      foster={foster}
+                      tasks={Array.from(fosterTasksByDogId.values()).flat()}
+                      onTasksChange={setTaskRows}
+                      allTasks={taskRows}
+                    />
                   </div>
                 )}
 
