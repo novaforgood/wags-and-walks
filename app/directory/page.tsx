@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
@@ -10,25 +10,17 @@ import ProtectedRoute from '@/app/components/ProtectedRoute'
 import FilterDropdown, { FilterState } from '@/app/components/FilterDropdown'
 import PersonModal from '@/app/components/PersonModal'
 import NotificationPanel from '@/app/components/NotificationPanel'
+import TopBarProfileMenu from '@/app/components/TopBarProfileMenu'
+import { SidebarGeneralSection } from '@/app/components/SidebarGeneralSection'
+import { SidebarAccountSection } from '@/app/components/SidebarAccountSection'
+import { SidebarProfile } from '@/app/components/SidebarProfile'
 import type { Person } from '@/app/lib/peopleTypes'
 import styles from '../candidates/candidates.module.css'
 
 export default function DirectoryPage() {
     const pathname = usePathname()
     const { people, isLoading, error, toggleStar } = usePeople()
-    const { user, signOut } = useAuth()
-    const [navWidth, setNavWidth] = useState<number>(() => {
-        try {
-            const raw = localStorage.getItem('app_nav_sidebar_width_v1')
-            const n = raw ? Number(raw) : NaN
-            return Number.isFinite(n) ? Math.max(180, Math.min(280, n)) : 208
-        } catch {
-            return 208
-        }
-    })
-    const [isResizingNav, setIsResizingNav] = useState(false)
-    const navStartXRef = useRef(0)
-    const navStartWRef = useRef(208)
+    const { user, role, signOut } = useAuth()
     const [searchQuery, setSearchQuery] = useState('')
     const [selectedPerson, setSelectedPerson] = useState<Person | null>(null)
     const [showStarredOnly, setShowStarredOnly] = useState(false)
@@ -124,47 +116,18 @@ export default function DirectoryPage() {
         return result
     }, [allApproved, searchQuery, filters, showStarredOnly])
 
-    useEffect(() => {
-        try {
-            localStorage.setItem('app_nav_sidebar_width_v1', String(navWidth))
-        } catch {
-            // ignore
-        }
-    }, [navWidth])
-
-    useEffect(() => {
-        if (!isResizingNav) return
-        const prevUserSelect = document.body.style.userSelect
-        document.body.style.userSelect = 'none'
-        function onMove(e: PointerEvent) {
-            const delta = e.clientX - navStartXRef.current
-            const next = Math.max(180, Math.min(280, navStartWRef.current + delta))
-            setNavWidth(next)
-        }
-        function onUp() {
-            setIsResizingNav(false)
-        }
-        window.addEventListener('pointermove', onMove)
-        window.addEventListener('pointerup', onUp)
-        window.addEventListener('pointercancel', onUp)
-        return () => {
-            document.body.style.userSelect = prevUserSelect
-            window.removeEventListener('pointermove', onMove)
-            window.removeEventListener('pointerup', onUp)
-            window.removeEventListener('pointercancel', onUp)
-        }
-    }, [isResizingNav])
-
     return (
         <ProtectedRoute>
-        <div className={styles.pageWrapper} style={{ ['--app-sidebar-width' as any]: `${navWidth}px` }}>
+        <div className={styles.pageWrapper}>
             {/* ---- Left Sidebar ---- */}
             <aside className={styles.sidebar}>
-                <div className={styles.sidebarLogo}>
-                    <Image src="/assets/logo.svg" alt="Wags & Walks" width={160} height={60} priority />
+                <div className={styles.sidebarHeader}>
+                    <div className={styles.sidebarLogo}>
+                        <Image src="/assets/logo.svg" alt="Wags & Walks" width={160} height={60} priority />
+                    </div>
                 </div>
 
-                <nav className={styles.sidebarNav}>
+                <SidebarGeneralSection>
                     <Link href="/overview" className={styles.navItem}>
                         <img src="/assets/Overview.svg" alt="Overview" width={18} height={18} />
                         Overview
@@ -190,39 +153,21 @@ export default function DirectoryPage() {
                         <img src="/assets/fosters.svg" alt="Fosters" width={18} height={18} />
                         Fosters
                     </Link>
-                </nav>
+                </SidebarGeneralSection>
 
-                <div className={styles.sidebarProfile}>
-                    <div className={styles.profileAvatar}>
-                        {user?.email && user.email.charAt(0).toUpperCase()}
-                    </div>
-                    <div className={styles.profileInfo}>
-                        <span className={styles.profileName}>
-                            {user?.displayName || user?.email?.split('@')[0] || 'User'}
-                        </span>
-                        <a href="#" className={styles.profileEmail}>{user?.email}</a>
-                        <button className={styles.profileLogout} onClick={signOut}>Log Out</button>
-                    </div>
-                </div>
+                <SidebarAccountSection pathname={pathname} role={role} />
+                <SidebarProfile user={user} role={role} signOut={signOut} />
             </aside>
-
-            <div
-                className={styles.navResizeHandle}
-                onPointerDown={(e) => {
-                    e.preventDefault()
-                    e.currentTarget.setPointerCapture(e.pointerId)
-                    navStartXRef.current = e.clientX
-                    navStartWRef.current = navWidth
-                    setIsResizingNav(true)
-                }}
-            />
 
             {/* ---- Main Content ---- */}
             <div className={styles.mainContent}>
                 {/* Top bar */}
                 <div className={styles.topBar}>
                     <h1 className={styles.topBarTitle}>Directory</h1>
-                    <NotificationPanel />
+                    <div className={styles.topBarActions}>
+                        <NotificationPanel />
+                        <TopBarProfileMenu />
+                    </div>
                 </div>
 
                 {/* Toolbar (same styling as Applicants) */}

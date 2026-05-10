@@ -4,6 +4,8 @@ import { useState } from 'react'
 
 import type { Person } from '@/app/lib/peopleTypes'
 import NotificationPanel from './NotificationPanel'
+import TopBarProfileMenu from './TopBarProfileMenu'
+import layoutStyles from '@/app/candidates/candidates.module.css'
 import NotesCard from './NotesCard'
 import FosterHistoryPanel from './FosterHistoryPanel'
 import styles from './PersonModal.module.css'
@@ -121,8 +123,9 @@ export default function PersonModal({ person, onClose }: Props) {
                         <span className={styles.statusLabel}>{statusLabel}</span>
                     </div>
                 </div>
-                <div className={styles.topBarIcon}>
+                <div className={layoutStyles.topBarActions}>
                     <NotificationPanel />
+                    <TopBarProfileMenu />
                 </div>
             </div>
 

@@ -1,12 +1,16 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAuth } from '@/app/components/AuthProvider'
 import { AdminRoute } from '@/app/components/ProtectedRoute'
 import NotificationPanel from '@/app/components/NotificationPanel'
+import TopBarProfileMenu from '@/app/components/TopBarProfileMenu'
+import { SidebarGeneralSection } from '@/app/components/SidebarGeneralSection'
+import { SidebarAccountSection } from '@/app/components/SidebarAccountSection'
+import { SidebarProfile } from '@/app/components/SidebarProfile'
 import {
   listAllowedUsers,
   addAllowedUser,
@@ -34,39 +38,6 @@ export default function AdminUsersPage() {
   const [submitting, setSubmitting] = useState(false)
   const [removingEmail, setRemovingEmail] = useState<string | null>(null)
   const [feedback, setFeedback] = useState<{ kind: 'error' | 'success'; msg: string } | null>(null)
-  const [navWidth, setNavWidth] = useState<number>(() => {
-    try {
-      const raw = localStorage.getItem('app_nav_sidebar_width_v1')
-      const n = raw ? Number(raw) : NaN
-      return Number.isFinite(n) ? Math.max(180, Math.min(280, n)) : 208
-    } catch { return 208 }
-  })
-  const [isResizingNav, setIsResizingNav] = useState(false)
-  const navStartXRef = useRef(0)
-  const navStartWRef = useRef(208)
-
-  useEffect(() => {
-    try { localStorage.setItem('app_nav_sidebar_width_v1', String(navWidth)) } catch { /**/ }
-  }, [navWidth])
-
-  useEffect(() => {
-    if (!isResizingNav) return
-    const prev = document.body.style.userSelect
-    document.body.style.userSelect = 'none'
-    function onMove(e: PointerEvent) {
-      setNavWidth(Math.max(180, Math.min(280, navStartWRef.current + e.clientX - navStartXRef.current)))
-    }
-    function onUp() { setIsResizingNav(false) }
-    window.addEventListener('pointermove', onMove)
-    window.addEventListener('pointerup', onUp)
-    window.addEventListener('pointercancel', onUp)
-    return () => {
-      document.body.style.userSelect = prev
-      window.removeEventListener('pointermove', onMove)
-      window.removeEventListener('pointerup', onUp)
-      window.removeEventListener('pointercancel', onUp)
-    }
-  }, [isResizingNav])
 
   async function loadUsers() {
     setIsLoading(true)
@@ -121,13 +92,15 @@ export default function AdminUsersPage() {
 
   return (
     <AdminRoute>
-      <div className={layoutStyles.pageWrapper} style={{ ['--app-sidebar-width' as any]: `${navWidth}px` }}>
+      <div className={layoutStyles.pageWrapper}>
         <aside className={layoutStyles.sidebar}>
-          <div className={layoutStyles.sidebarLogo}>
-            <Image src="/assets/logo.svg" alt="Wags & Walks" width={160} height={60} priority />
+          <div className={layoutStyles.sidebarHeader}>
+            <div className={layoutStyles.sidebarLogo}>
+              <Image src="/assets/logo.svg" alt="Wags & Walks" width={160} height={60} priority />
+            </div>
           </div>
 
-          <nav className={layoutStyles.sidebarNav}>
+          <SidebarGeneralSection>
             <Link href="/overview" className={layoutStyles.navItem}>
               <img src="/assets/Overview.svg" alt="" width={18} height={18} />
               Overview
@@ -150,51 +123,19 @@ export default function AdminUsersPage() {
               <img src="/assets/fosters.svg" alt="" width={18} height={18} />
               Fosters
             </Link>
-            {role === 'admin' && (
-              <Link
-                href="/admin/users"
-                className={`${layoutStyles.navItem} ${pathname?.startsWith('/admin') ? layoutStyles.navItemActive : ''}`}
-              >
-                <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden>
-                  <circle cx="9" cy="6" r="3" stroke="currentColor" strokeWidth="1.5" />
-                  <path d="M3 15c0-3.314 2.686-5 6-5s6 1.686 6 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                </svg>
-                Users
-              </Link>
-            )}
-          </nav>
+          </SidebarGeneralSection>
 
-          <div className={layoutStyles.sidebarProfile}>
-            <div className={layoutStyles.profileAvatar}>
-              {user?.email && user.email.charAt(0).toUpperCase()}
-            </div>
-            <div className={layoutStyles.profileInfo}>
-              <span className={layoutStyles.profileName}>
-                {user?.displayName || user?.email?.split('@')[0] || 'User'}
-              </span>
-              <a href="#" className={layoutStyles.profileEmail}>{user?.email}</a>
-              <button type="button" className={layoutStyles.profileLogout} onClick={signOut}>
-                Log Out
-              </button>
-            </div>
-          </div>
+          <SidebarAccountSection pathname={pathname} role={role} />
+          <SidebarProfile user={user} role={role} signOut={signOut} />
         </aside>
-
-        <div
-          className={layoutStyles.navResizeHandle}
-          onPointerDown={(e) => {
-            e.preventDefault()
-            e.currentTarget.setPointerCapture(e.pointerId)
-            navStartXRef.current = e.clientX
-            navStartWRef.current = navWidth
-            setIsResizingNav(true)
-          }}
-        />
 
         <div className={layoutStyles.mainContent}>
           <div className={layoutStyles.topBar}>
             <h1 className={layoutStyles.topBarTitle}>User Management</h1>
-            <NotificationPanel />
+            <div className={layoutStyles.topBarActions}>
+              <NotificationPanel />
+              <TopBarProfileMenu />
+            </div>
           </div>
 
           <div className={styles.wrap}>

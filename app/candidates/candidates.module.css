@@ -42,65 +42,81 @@
 /* ---- Sidebar ---- */
 .sidebar {
     width: var(--app-sidebar-width, 208px);
-    min-width: 180px;
+    min-width: 0;
     max-width: 280px;
     background: #b2e5e6;
     display: flex;
     flex-direction: column;
     padding: 0;
-    overflow: clip;
+    overflow-x: hidden;
+    overflow-y: auto;
     position: fixed;
     top: 0;
     left: 0;
     height: 100vh;
     z-index: 100;
+    transition: width 0.2s ease, min-width 0.2s ease;
 }
 
-.navResizeHandle {
-    width: 12px;
+.sidebarHeader {
+    display: flex;
+    align-items: center;
+    justify-content: center;
     flex-shrink: 0;
-    cursor: col-resize;
-    align-self: stretch;
-    position: fixed;
-    top: 0;
-    left: var(--app-sidebar-width, 208px);
-    height: 100vh;
-    background: transparent;
-    touch-action: none;
-    margin-left: -6px;
-    z-index: 101;
-}
-
-.navResizeHandle::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    left: 6px; /* divider sits on the actual edge */
-    width: 2px;
-    transform: none;
-    background: rgba(0, 0, 0, 0.10);
-}
-
-.navResizeHandle:hover {
-    background: rgba(5, 170, 175, 0.10);
-}
-
-.navResizeHandle:hover::after {
-    background: rgba(3, 138, 141, 0.35);
+    padding: 8px 10px 8px;
+    border-bottom: 1px solid rgba(4, 130, 137, 0.16);
+    margin: 0 0 6px;
+    box-sizing: border-box;
 }
 
 .sidebarLogo {
+    flex: 0 1 auto;
+    min-width: 0;
     padding: 0;
     display: flex;
     align-items: center;
     justify-content: center;
-    height: 83px;
+    min-height: 0;
+    background: transparent;
+}
+
+.sidebarLogo span {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    max-width: 100%;
+}
+
+.sidebarLogo img {
+    max-width: 100%;
+    width: auto !important;
+    height: auto !important;
+    max-height: 60px;
+    object-fit: contain;
+}
+
+.sidebarGeneral {
     flex-shrink: 0;
+    width: 100%;
+    min-width: 0;
+    padding-top: 12px;
+    padding-bottom: 14px;
+    margin-bottom: 12px;
+    box-sizing: border-box;
+}
+
+.sidebarGeneralLabel {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+    color: rgba(65, 65, 65, 0.72);
+    margin: 0 10px 8px;
+    font-family: 'Inter', sans-serif;
 }
 
 .sidebarNav {
-    flex: 1;
+    flex: 0 0 auto;
     padding: 0;
     display: flex;
     flex-direction: column;
@@ -111,15 +127,16 @@
     display: flex;
     align-items: center;
     gap: 16px;
-    padding: 8px 12px;
-    margin: 0 12px;
+    padding: 10px 16px;
+    margin: 0 10px;
     font-size: 16px;
     color: #414141;
     text-decoration: none;
-    border-radius: 4px;
+    border-radius: 10px;
     cursor: pointer;
-    transition: background 0.15s;
+    transition: background-color 0.15s ease, color 0.15s ease;
     font-weight: 500;
+    box-sizing: border-box;
 }
 
 .navItem:hover {
@@ -127,16 +144,33 @@
 }
 
 .navItemActive {
+    position: relative;
     background: #05aaaf;
-    color: #fbfbfb;
+    color: #ffffff;
     font-weight: 500;
-    margin: 0;
-    padding: 8px 24px;
-    border-radius: 0;
+    margin: 0 10px;
+    padding: 10px 16px;
+    border-radius: 10px;
+}
+
+.navItemActive::before {
+    content: '';
+    position: absolute;
+    left: -8px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 3px;
+    height: 26px;
+    border-radius: 2px;
+    background: #048289;
 }
 
 .navItemActive img {
     filter: brightness(0) invert(1);
+}
+
+.navItemActive .accountNavIcon {
+    color: #ffffff;
 }
 
 .navItemActive:hover {
@@ -152,57 +186,83 @@
     font-size: 16px;
 }
 
-/* ---- Profile ---- */
-.sidebarProfile {
-    padding: 16px 12px 20px;
-    display: flex;
-    align-items: flex-start;
-    gap: 8px;
-}
-
-.profileAvatar {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    background: #05aaaf;
+/* ---- Account (below main nav, same tab styling as .navItem) ---- */
+.sidebarAccount {
     flex-shrink: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-weight: 600;
-    font-size: 16px;
-}
-
-.profileInfo {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
+    padding: 6px 0 8px;
+    box-sizing: border-box;
+    width: 100%;
     min-width: 0;
 }
 
-.profileName {
-    font-size: 14px;
-    font-weight: 400;
-    color: #324054;
+.sidebarAccountLabel {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+    color: rgba(65, 65, 65, 0.72);
+    margin: 0 10px 8px;
+    font-family: 'Inter', sans-serif;
 }
 
-.profileEmail {
-    font-size: 11px;
-    color: #414141;
-    text-decoration: underline;
+.sidebarAccountNav {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.accountNavIcon {
+    flex-shrink: 0;
+}
+
+/* ---- Profile (logout row; aligns with .navItem; pinned below Account via margin-top: auto) ---- */
+.sidebarProfile {
+    margin-top: auto;
+    flex-shrink: 0;
+    padding: 10px 10px 14px;
+    border-top: 1px solid rgba(4, 130, 137, 0.18);
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
 }
 
 .profileLogout {
-    font-size: 11px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    width: calc(100% - 20px);
+    margin: 0 10px;
+    padding: 10px 16px;
+    font-size: 16px;
+    font-weight: 500;
+    font-family: inherit;
     color: #414141;
-    text-decoration: underline;
+    text-align: left;
     cursor: pointer;
     background: none;
     border: none;
-    padding: 0;
-    font-family: inherit;
-    text-align: left;
+    border-radius: 10px;
+    box-sizing: border-box;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.profileLogout:hover {
+    background: rgba(5, 170, 175, 0.08);
+}
+
+.profileLogout:active {
+    background: rgba(5, 170, 175, 0.14);
+}
+
+.profileLogout:focus-visible {
+    outline: 2px solid #048289;
+    outline-offset: 2px;
+}
+
+.profileLogoutIcon {
+    flex-shrink: 0;
+    display: block;
+    color: rgba(65, 65, 65, 0.88);
 }
 
 /* ---- Main Content ---- */
@@ -215,23 +275,35 @@
     min-width: 0;
     height: 100vh;
     overflow: auto;
+    transition: margin-left 0.2s ease;
 }
 
 .topBar {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 20px 52px;
+    gap: 16px;
+    padding: 16px 40px;
     background: #f3f7f7;
+    border-bottom: 1px solid rgba(4, 130, 137, 0.1);
     flex-shrink: 0;
 }
 
 .topBarTitle {
-    font-size: 36px;
-    font-weight: 700;
-    color: black;
+    font-size: 26px;
+    font-weight: 800;
+    color: #1a1a1a;
     margin: 0;
     font-family: 'Inter', sans-serif;
+    letter-spacing: -0.03em;
+}
+
+.topBarActions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 20px;
+    flex-shrink: 0;
 }
 
 .bellIcon {
@@ -1086,9 +1158,29 @@
         gap: 12px;
     }
 
+    .sidebarHeader {
+        justify-content: flex-start;
+        min-height: 0;
+        padding: 0;
+        margin: 0;
+        border-bottom: none;
+        flex-shrink: 1;
+        min-width: 0;
+    }
+
     .sidebarLogo {
         height: auto;
+        min-height: 0;
+        max-width: none;
         justify-content: flex-start;
+    }
+
+    .sidebarLogo span {
+        justify-content: flex-start;
+    }
+
+    .sidebarLogo img {
+        max-height: 30px;
     }
 
     .sidebarNav {
@@ -1101,29 +1193,35 @@
 
     .navItem {
         margin: 0;
-        padding: 8px 10px;
+        padding: 8px 12px;
         font-size: 14px;
         gap: 8px;
-        border-radius: 8px;
+        border-radius: 10px;
     }
 
     .navItemActive {
         margin: 0;
-        padding: 8px 10px;
-        border-radius: 8px;
+        padding: 8px 12px;
+        border-radius: 10px;
+    }
+
+    .navItemActive::before {
+        display: none;
+    }
+
+    .sidebarAccount {
+        padding: 6px 0 8px;
+    }
+
+    .sidebarAccountLabel {
+        margin-bottom: 6px;
+        margin-left: 16px;
+        margin-right: 16px;
     }
 
     .sidebarProfile {
-        padding: 0;
-        align-items: center;
-    }
-
-    .profileInfo {
-        display: none;
-    }
-
-    .navResizeHandle {
-        display: none;
+        padding: 10px 12px 12px;
+        border-top: 1px solid rgba(4, 130, 137, 0.18);
     }
 
     .topBar {
@@ -1212,9 +1310,13 @@
         justify-content: flex-start;
     }
 
+    .sidebarAccount {
+        width: 100%;
+    }
+
     .sidebarProfile {
         width: 100%;
-        justify-content: flex-end;
+        justify-content: stretch;
     }
 
     .tabSection,
