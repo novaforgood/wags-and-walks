@@ -4,7 +4,6 @@ import { useState, FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/app/components/AuthProvider'
 import Image from 'next/image'
-import Link from 'next/link'
 import styles from './login.module.css'
 
 export default function LoginPage() {
@@ -23,7 +22,7 @@ export default function LoginPage() {
         setLoading(true)
 
         try {
-            await signIn(email, password)
+            await signIn(email, password, rememberMe)
             router.push('/overview')
         } catch (err: any) {
             setError(err.message || 'Failed to sign in')
@@ -157,10 +156,10 @@ export default function LoginPage() {
 
                     {/* Footer Links */}
                     <p className={styles.footer}>
-                        Don&apos;t have an account?{' '}
-                        <Link href="/signup" className={styles.signUpLink}>
-                            Sign Up here
-                        </Link>
+                        Need access?{' '}
+                        <a href="mailto:support@wagsandwalks.org" className={styles.signUpLink}>
+                            Contact an admin
+                        </a>
                         .
                     </p>
                     <p className={styles.footer}>

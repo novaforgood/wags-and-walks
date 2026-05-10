@@ -40,7 +40,7 @@ export default function SignUpPage() {
             router.push('/overview')
         } catch (err: any) {
             if (err.code === 'auth/email-already-in-use') {
-                setError('This email is already registered')
+                setError('This email is already registered. Try logging in instead.')
             } else if (err.code === 'auth/invalid-email') {
                 setError('Invalid email address')
             } else if (err.code === 'auth/weak-password') {

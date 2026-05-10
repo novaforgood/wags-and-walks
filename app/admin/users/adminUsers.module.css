@@ -1,0 +1,246 @@
+.wrap {
+  padding: 32px 40px 40px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* ── Shared panel shell ── */
+.panel {
+  background: #fbfbfb;
+  border-radius: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+}
+
+.panelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px 14px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.panelTitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: #111827;
+  margin: 0;
+}
+
+.panelCount {
+  font-size: 13px;
+  color: #6b7280;
+}
+
+/* ── Table ── */
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.th {
+  text-align: left;
+  padding: 10px 20px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  background: #f9fafb;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.tr {
+  transition: background 0.1s;
+}
+
+.tr:hover {
+  background: rgba(5, 170, 175, 0.04);
+}
+
+.td {
+  padding: 13px 20px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  color: #111827;
+}
+
+.tr:last-child .td {
+  border-bottom: none;
+}
+
+.emailCell {
+  font-weight: 500;
+}
+
+.addedByCell {
+  color: #6b7280;
+}
+
+/* ── Badges ── */
+.badgeAdmin {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.badgeUser {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  background: #e0f2fe;
+  color: #075985;
+}
+
+/* ── Remove button ── */
+.removeBtn {
+  padding: 5px 14px;
+  border-radius: 6px;
+  border: 1px solid #fca5a5;
+  background: #fff;
+  color: #b91c1c;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.removeBtn:hover:not(:disabled) {
+  background: #fee2e2;
+  border-color: #f87171;
+}
+
+.removeBtn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* ── Add user form panel ── */
+.addForm {
+  padding: 20px;
+}
+
+.addFormTitle {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0 0 16px;
+  color: #111827;
+}
+
+.addFormRow {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.label {
+  font-size: 12px;
+  font-weight: 500;
+  color: #6b7280;
+}
+
+.input {
+  height: 38px;
+  padding: 0 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 14px;
+  width: 280px;
+  outline: none;
+  background: #fff;
+  color: #111827;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.input::placeholder {
+  color: #9ca3af;
+}
+
+.input:focus {
+  border-color: #05aaaf;
+  box-shadow: 0 0 0 3px rgba(5, 170, 175, 0.12);
+}
+
+.select {
+  height: 38px;
+  padding: 0 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 14px;
+  background: #fff;
+  color: #111827;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.select:focus {
+  border-color: #05aaaf;
+  box-shadow: 0 0 0 3px rgba(5, 170, 175, 0.12);
+}
+
+.addBtn {
+  height: 38px;
+  padding: 0 22px;
+  border-radius: 8px;
+  border: none;
+  background: #05aaaf;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+
+.addBtn:hover:not(:disabled) {
+  background: #0399a0;
+}
+
+.addBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ── Feedback ── */
+.feedback {
+  margin-top: 12px;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.feedbackError {
+  color: #b91c1c;
+}
+
+.feedbackSuccess {
+  color: #065f46;
+}
+
+/* ── Empty / loading ── */
+.empty {
+  color: #6b7280;
+  font-size: 14px;
+  padding: 32px 20px;
+  text-align: center;
+}
