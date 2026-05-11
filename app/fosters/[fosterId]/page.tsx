@@ -1,17 +1,13 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import Image from 'next/image'
 import Link from 'next/link'
-import { useParams, usePathname, useSearchParams } from 'next/navigation'
-import { useAuth } from '@/app/components/AuthProvider'
+import { useParams, useSearchParams } from 'next/navigation'
 import { usePeople } from '@/app/components/PeopleProvider'
 import ProtectedRoute from '@/app/components/ProtectedRoute'
 import NotificationPanel from '@/app/components/NotificationPanel'
 import TopBarProfileMenu from '@/app/components/TopBarProfileMenu'
-import { SidebarGeneralSection } from '@/app/components/SidebarGeneralSection'
-import { SidebarAccountSection } from '@/app/components/SidebarAccountSection'
-import { SidebarProfile } from '@/app/components/SidebarProfile'
+import { DashboardShell } from '@/app/components/DashboardShell'
 import {
   buildFosterDirectory,
   formatDateShort,
@@ -277,13 +273,11 @@ function ScheduledEmailsSection({
 
 // --- Main Page ---
 export default function FosterDetailsPage() {
-  const pathname = usePathname()
   const searchParams = useSearchParams()
   const backHref = searchParams.get('from') === 'overview' ? '/fosters/overview' : '/fosters'
   const backLabel = searchParams.get('from') === 'overview' ? '← Back to Overview' : '← Back to Current Directory'
   const params = useParams<{ fosterId: string }>()
   const fosterId = params?.fosterId
-  const { user, role, signOut } = useAuth()
   const { people } = usePeople()
   const [dogs, setDogs] = useState<DogRecord[]>([])
   const [isLoadingDogs, setIsLoadingDogs] = useState(true)
@@ -378,42 +372,7 @@ export default function FosterDetailsPage() {
 
   return (
     <ProtectedRoute>
-      <div className={layoutStyles.pageWrapper}>
-        <aside className={layoutStyles.sidebar}>
-          <div className={layoutStyles.sidebarHeader}>
-            <div className={layoutStyles.sidebarLogo}>
-              <Image src="/assets/logo.svg" alt="Wags & Walks" width={160} height={60} priority />
-            </div>
-          </div>
-          <SidebarGeneralSection>
-            <Link href="/overview" className={layoutStyles.navItem}>
-              <img src="/assets/Overview.svg" alt="" width={18} height={18} />
-              Overview
-            </Link>
-            <Link href="/candidates" className={layoutStyles.navItem}>
-              <img src="/assets/candidates.svg" alt="" width={18} height={18} />
-              Applicants
-            </Link>
-            <Link
-              href="/directory"
-              className={`${layoutStyles.navItem} ${pathname === '/directory' ? layoutStyles.navItemActive : ''}`}
-            >
-              <img src="/assets/Search.svg" alt="" width={18} height={18} />
-              Directory
-            </Link>
-            <Link
-              href="/fosters/overview"
-              className={`${layoutStyles.navItem} ${pathname?.startsWith('/fosters') ? layoutStyles.navItemActive : ''}`}
-            >
-              <img src="/assets/fosters.svg" alt="" width={18} height={18} />
-              Fosters
-            </Link>
-          </SidebarGeneralSection>
-          <SidebarAccountSection pathname={pathname} role={role} />
-          <SidebarProfile user={user} role={role} signOut={signOut} />
-        </aside>
-
-        <div className={layoutStyles.mainContent}>
+      <DashboardShell>
           <div className={layoutStyles.topBar}>
             <h1 className={layoutStyles.topBarTitle}>Foster Details</h1>
             <div className={layoutStyles.topBarActions}>
@@ -621,8 +580,7 @@ export default function FosterDetailsPage() {
               </>
             )}
           </div>
-        </div>
-      </div>
+      </DashboardShell>
     </ProtectedRoute>
   )
 }

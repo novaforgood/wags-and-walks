@@ -1,16 +1,11 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import Image from 'next/image'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
-import { useAuth } from '@/app/components/AuthProvider'
 import ProtectedRoute from '@/app/components/ProtectedRoute'
 import NotificationPanel from '@/app/components/NotificationPanel'
 import TopBarProfileMenu from '@/app/components/TopBarProfileMenu'
-import { SidebarGeneralSection } from '@/app/components/SidebarGeneralSection'
-import { SidebarAccountSection } from '@/app/components/SidebarAccountSection'
-import { SidebarProfile } from '@/app/components/SidebarProfile'
+import { DashboardShell } from '@/app/components/DashboardShell'
 import { buildFosterDirectory, fosterSlug, formatDateShort } from '@/app/lib/fosterDirectory'
 import layoutStyles from '../../candidates/candidates.module.css'
 import styles from './fostersOverview.module.css'
@@ -75,8 +70,6 @@ function dogName(dog?: DogRecord) {
 }
 
 export default function FostersSectionOverviewPage() {
-  const pathname = usePathname()
-  const { user, role, signOut } = useAuth()
   const [activeFosterCount, setActiveFosterCount] = useState<number | null>(null)
   const [dogs, setDogs] = useState<DogRecord[]>([])
   const [isLoadingDogs, setIsLoadingDogs] = useState(true)
@@ -95,7 +88,7 @@ export default function FostersSectionOverviewPage() {
         ])
         const dogsData = (await dogsRes.json()) as DogsApiResponse
         if (!dogsRes.ok || !dogsData?.success || !Array.isArray(dogsData.dogs)) {
-          throw new Error(dogsData?.error || 'Failed to load overview from Shelter Manager')
+          throw new Error(dogsData?.error || 'Could not load foster data')
         }
         if (!active) return
         setDogs(dogsData.dogs)
@@ -119,7 +112,7 @@ export default function FostersSectionOverviewPage() {
         }
       } catch (error) {
         if (!active) return
-        setDogsError(error instanceof Error ? error.message : 'Failed to load overview from Shelter Manager')
+        setDogsError(error instanceof Error ? error.message : 'Could not load foster data')
       } finally {
         if (active) setIsLoadingDogs(false)
       }
@@ -188,46 +181,9 @@ export default function FostersSectionOverviewPage() {
 
   return (
     <ProtectedRoute>
-      <div className={layoutStyles.pageWrapper}>
-        <aside className={layoutStyles.sidebar}>
-          <div className={layoutStyles.sidebarHeader}>
-            <div className={layoutStyles.sidebarLogo}>
-              <Image src="/assets/logo.svg" alt="Wags & Walks" width={160} height={60} priority />
-            </div>
-          </div>
-
-          <SidebarGeneralSection>
-            <Link href="/overview" className={layoutStyles.navItem}>
-              <img src="/assets/Overview.svg" alt="" width={18} height={18} />
-              Overview
-            </Link>
-            <Link href="/candidates" className={layoutStyles.navItem}>
-              <img src="/assets/candidates.svg" alt="" width={18} height={18} />
-              Applicants
-            </Link>
-            <Link
-              href="/directory"
-              className={`${layoutStyles.navItem} ${pathname === '/directory' ? layoutStyles.navItemActive : ''}`}
-            >
-              <img src="/assets/Search.svg" alt="" width={18} height={18} />
-              Directory
-            </Link>
-            <Link
-              href="/fosters/overview"
-              className={`${layoutStyles.navItem} ${pathname?.startsWith('/fosters') ? layoutStyles.navItemActive : ''}`}
-            >
-              <img src="/assets/fosters.svg" alt="" width={18} height={18} />
-              Fosters
-            </Link>
-          </SidebarGeneralSection>
-
-          <SidebarAccountSection pathname={pathname} role={role} />
-          <SidebarProfile user={user} role={role} signOut={signOut} />
-        </aside>
-
-        <div className={layoutStyles.mainContent}>
+      <DashboardShell>
           <div className={layoutStyles.topBar}>
-            <h1 className={layoutStyles.topBarTitle}>Onboarded Fosters</h1>
+            <h1 className={layoutStyles.topBarTitle}>Fosters</h1>
             <div className={layoutStyles.topBarActions}>
               <NotificationPanel />
               <TopBarProfileMenu />
@@ -236,7 +192,7 @@ export default function FostersSectionOverviewPage() {
 
           <FostersSubTabs active="overview" />
 
-          {isLoadingDogs && <div className={layoutStyles.loadingContainer}>Loading overview...</div>}
+          {isLoadingDogs && <div className={layoutStyles.loadingContainer}>Loading…</div>}
           {dogsError && <div className={layoutStyles.errorText}>{dogsError}</div>}
 
           {!isLoadingDogs && (
@@ -244,30 +200,30 @@ export default function FostersSectionOverviewPage() {
 
               <div className={styles.statsGrid}>
                 <div className={styles.statCard}>
-                  <span className={styles.statLabel}>Overdue tasks</span>
+                  <span className={styles.statLabel}>Overdue</span>
                   <span className={styles.statValue}>{overdueCount}</span>
-                  <span className={styles.statHint}>Missed 2 Follow-Ups</span>
+                  <span className={styles.statHint}>Needs action</span>
                 </div>
                 <div className={styles.statCard}>
-                  <span className={styles.statLabel}>Needs review soon</span>
+                  <span className={styles.statLabel}>Review</span>
                   <span className={styles.statValue}>{needsReviewCount}</span>
-                  <span className={styles.statHint}>Missed 1 Follow-Up</span>
+                  <span className={styles.statHint}>Due soon</span>
                 </div>
                 <div className={styles.statCard}>
-                  <span className={styles.statLabel}>Active foster homes</span>
+                  <span className={styles.statLabel}>Active homes</span>
                   <span className={styles.statValue}>{activeFosterCount ?? activeFosters}</span>
-                  <span className={styles.statHint}>Distinct foster households in ASM</span>
+                  <span className={styles.statHint}>Shelter Manager</span>
                 </div>
               </div>
 
               <section className={styles.sectionPanel}>
                 <div className={styles.sectionHeader}>
-                  <h2 className={styles.sectionTitle}>Priority Follow-Up Queue</h2>
-                  <span className={styles.sectionCount}>{priorityQueue.length} highest priority</span>
+                  <h2 className={styles.sectionTitle}>Follow-ups</h2>
+                  <span className={styles.sectionCount}>{priorityQueue.length} shown</span>
                 </div>
 
                 {priorityQueue.length === 0 && !dogsError ? (
-                  <p className={styles.empty}>No records found yet.</p>
+                  <p className={styles.empty}>Nothing queued.</p>
                 ) : (
                   <div className={styles.rosterList}>
                     {priorityQueue.map(row => (
@@ -278,15 +234,15 @@ export default function FostersSectionOverviewPage() {
                               {row.fosterName}
                             </Link>
                           </div>
-                          <div className={styles.rosterDogs}>
-                            <strong>Dog:</strong> {row.dogName}
+                          <div className={styles.rosterDogs}>{row.dogName}</div>
+                          <div className={styles.rosterMeta}>
+                            {formatDateShort(row.lastUpdate)}
+                            {typeof row.daysInFoster === 'number'
+                              ? ` · ${row.daysInFoster}d in foster`
+                              : ''}
                           </div>
                           <div className={styles.rosterMeta}>
-                            Last update: {formatDateShort(row.lastUpdate)} ·{' '}
-                            {typeof row.daysInFoster === 'number' ? `${row.daysInFoster} days in foster` : 'Days unknown'}
-                          </div>
-                          <div className={styles.rosterMeta}>
-                            Photo status: {row.uploadedPhoto ? 'Received' : 'Missing'}
+                            Photo {row.uploadedPhoto ? 'complete' : 'missing'}
                           </div>
                         </div>
                         <div className={styles.rosterSide}>
@@ -305,8 +261,7 @@ export default function FostersSectionOverviewPage() {
               </section>
             </div>
           )}
-        </div>
-      </div>
+      </DashboardShell>
     </ProtectedRoute>
   )
 }

@@ -1,16 +1,11 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import Image from 'next/image'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
-import { useAuth } from '@/app/components/AuthProvider'
 import ProtectedRoute from '@/app/components/ProtectedRoute'
 import NotificationPanel from '@/app/components/NotificationPanel'
 import TopBarProfileMenu from '@/app/components/TopBarProfileMenu'
-import { SidebarGeneralSection } from '@/app/components/SidebarGeneralSection'
-import { SidebarAccountSection } from '@/app/components/SidebarAccountSection'
-import { SidebarProfile } from '@/app/components/SidebarProfile'
+import { DashboardShell } from '@/app/components/DashboardShell'
 import FostersSubTabs from './FostersSubTabs'
 import { buildFosterDirectory, formatDateShort, type DogRecord, type FosterStatus } from '@/app/lib/fosterDirectory'
 import styles from '../candidates/candidates.module.css'
@@ -52,8 +47,6 @@ function PageButton({ onClick, disabled, active, children }: {
 }
 
 export default function FostersPage() {
-  const pathname = usePathname()
-  const { user, role, signOut } = useAuth()
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | FosterStatus>('all')
   const [dogs, setDogs] = useState<DogRecord[]>([])
@@ -149,44 +142,7 @@ export default function FostersPage() {
 
   return (
     <ProtectedRoute>
-      <div className={styles.pageWrapper}>
-        <aside className={styles.sidebar}>
-          <div className={styles.sidebarHeader}>
-            <div className={styles.sidebarLogo}>
-              <Image src="/assets/logo.svg" alt="Wags & Walks" width={160} height={60} priority />
-            </div>
-          </div>
-
-          <SidebarGeneralSection>
-            <Link href="/overview" className={styles.navItem}>
-              <img src="/assets/Overview.svg" alt="Overview" width={18} height={18} />
-              Overview
-            </Link>
-            <Link href="/candidates" className={styles.navItem}>
-              <img src="/assets/candidates.svg" alt="Applicants" width={18} height={18} />
-              Applicants
-            </Link>
-            <Link
-              href="/directory"
-              className={`${styles.navItem} ${pathname === '/directory' ? styles.navItemActive : ''}`}
-            >
-              <img src="/assets/Search.svg" alt="Directory" width={18} height={18} />
-              Directory
-            </Link>
-            <Link
-              href="/fosters/overview"
-              className={`${styles.navItem} ${pathname?.startsWith('/fosters') ? styles.navItemActive : ''}`}
-            >
-              <img src="/assets/fosters.svg" alt="Fosters" width={18} height={18} />
-              Fosters
-            </Link>
-          </SidebarGeneralSection>
-
-          <SidebarAccountSection pathname={pathname} role={role} />
-          <SidebarProfile user={user} role={role} signOut={signOut} />
-        </aside>
-
-        <div className={styles.mainContent}>
+      <DashboardShell>
           <div className={styles.topBar}>
             <h1 className={styles.topBarTitle}>Onboarded Fosters</h1>
             <div className={styles.topBarActions}>
@@ -306,8 +262,7 @@ export default function FostersPage() {
               </div>
             </div>
           )}
-        </div>
-      </div>
+      </DashboardShell>
     </ProtectedRoute>
   )
 }

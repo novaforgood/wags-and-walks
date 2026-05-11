@@ -1,18 +1,13 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import Image from 'next/image'
-import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { usePeople } from '@/app/components/PeopleProvider'
-import { useAuth } from '@/app/components/AuthProvider'
 import ProtectedRoute from '@/app/components/ProtectedRoute'
 import PersonModal from '@/app/components/PersonModal'
 import NotificationPanel from '@/app/components/NotificationPanel'
 import TopBarProfileMenu from '@/app/components/TopBarProfileMenu'
-import { SidebarGeneralSection } from '@/app/components/SidebarGeneralSection'
-import { SidebarAccountSection } from '@/app/components/SidebarAccountSection'
-import { SidebarProfile } from '@/app/components/SidebarProfile'
+import { DashboardShell } from '@/app/components/DashboardShell'
 import FilterDropdown, { FilterState } from '@/app/components/FilterDropdown'
 import type { Person } from '@/app/lib/peopleTypes'
 import styles from './candidates.module.css'
@@ -44,10 +39,8 @@ function PageButton({ onClick, disabled, active, children }: {
 }
 
 export default function CandidatesPage() {
-    const pathname = usePathname()
     const router = useRouter()
     const { people, isLoading, error, setStatus, toggleStar, setSignedDocument } = usePeople()
-    const { user, role, signOut } = useAuth()
     const [selectedEmails, setSelectedEmails] = useState<Set<string>>(new Set())
     const [searchQuery, setSearchQuery] = useState('')
     const [expandedEmail, setExpandedEmail] = useState<string | null>(null)
@@ -281,47 +274,7 @@ export default function CandidatesPage() {
 
     return (
         <ProtectedRoute>
-        <div className={styles.pageWrapper}>
-            {/* ---- Left Sidebar ---- */}
-            <aside className={styles.sidebar}>
-                <div className={styles.sidebarHeader}>
-                    <div className={styles.sidebarLogo}>
-                        <Image src="/assets/logo.svg" alt="Wags & Walks" width={160} height={60} priority />
-                    </div>
-                </div>
-
-                <SidebarGeneralSection>
-                    <Link href="/overview" className={styles.navItem}>
-                        <img src="/assets/Overview.svg" alt="Overview" width={18} height={18} />
-                        Overview
-                    </Link>
-                    <Link href="/candidates" className={`${styles.navItem} ${styles.navItemActive}`}>
-                        <img src="/assets/candidates.svg" alt="Applicants" width={18} height={18} />
-                        Applicants
-                    </Link>
-                    <Link
-                        href="/directory"
-                        className={`${styles.navItem} ${pathname === '/directory' ? styles.navItemActive : ''}`}
-                    >
-                        <img src="/assets/Search.svg" alt="Directory" width={18} height={18} />
-                        Directory
-                    </Link>
-                    <Link
-                        href="/fosters/overview"
-                        className={`${styles.navItem} ${pathname?.startsWith('/fosters') ? styles.navItemActive : ''}`}
-                    >
-                        <img src="/assets/fosters.svg" alt="Fosters" width={18} height={18} />
-                        Fosters
-                    </Link>
-                </SidebarGeneralSection>
-
-                <SidebarAccountSection pathname={pathname} role={role} />
-                <SidebarProfile user={user} role={role} signOut={signOut} />
-            </aside>
-
-            {/* ---- Main Content ---- */}
-            <div className={styles.mainContent}>
-                {/* Top bar */}
+        <DashboardShell>
                 <div className={styles.topBar}>
                     <h1 className={styles.topBarTitle}>Foster Applicants</h1>
                     <div className={styles.topBarActions}>
@@ -524,7 +477,6 @@ export default function CandidatesPage() {
                             )}
                         </div>
                     </div>
-                </div>
             {/* Person detail modal */}
             <PersonModal person={selectedPerson} onClose={() => setSelectedPerson(null)} />
 
@@ -602,7 +554,7 @@ export default function CandidatesPage() {
                     </button>
                 </div>
             )}
-        </div>
+        </DashboardShell>
         </ProtectedRoute>
     )
 }

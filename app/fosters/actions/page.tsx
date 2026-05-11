@@ -1,17 +1,12 @@
 'use client'
 
 import { useMemo, useState, useCallback, useEffect, useRef } from 'react'
-import Image from 'next/image'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
 import { usePeople } from '@/app/components/PeopleProvider'
-import { useAuth } from '@/app/components/AuthProvider'
 import ProtectedRoute from '@/app/components/ProtectedRoute'
 import NotificationPanel from '@/app/components/NotificationPanel'
 import TopBarProfileMenu from '@/app/components/TopBarProfileMenu'
-import { SidebarGeneralSection } from '@/app/components/SidebarGeneralSection'
-import { SidebarAccountSection } from '@/app/components/SidebarAccountSection'
-import { SidebarProfile } from '@/app/components/SidebarProfile'
+import { DashboardShell } from '@/app/components/DashboardShell'
 import type { ActionStatus } from '@/app/lib/fosterActions'
 import {
   buildFosterOverview,
@@ -50,9 +45,7 @@ function statusLabel(status: ActionStatus): string {
 }
 
 export default function FosterActionsPage() {
-  const pathname = usePathname()
   const { people, isLoading, error } = usePeople()
-  const { user, role, signOut } = useAuth()
   const realRows = useMemo(() => buildFosterOverview(people), [people])
   const rows = useMemo(() => {
     // Demo-friendly: ensure the UI shows multiple fosters even with sparse data
@@ -175,44 +168,7 @@ export default function FosterActionsPage() {
 
   return (
     <ProtectedRoute>
-      <div className={layoutStyles.pageWrapper}>
-        <aside className={layoutStyles.sidebar}>
-          <div className={layoutStyles.sidebarHeader}>
-            <div className={layoutStyles.sidebarLogo}>
-              <Image src="/assets/logo.svg" alt="Wags & Walks" width={160} height={60} priority />
-            </div>
-          </div>
-
-          <SidebarGeneralSection>
-            <Link href="/overview" className={layoutStyles.navItem}>
-              <img src="/assets/Overview.svg" alt="" width={18} height={18} />
-              Overview
-            </Link>
-            <Link href="/candidates" className={layoutStyles.navItem}>
-              <img src="/assets/candidates.svg" alt="" width={18} height={18} />
-              Applicants
-            </Link>
-            <Link
-              href="/directory"
-              className={`${layoutStyles.navItem} ${pathname === '/directory' ? layoutStyles.navItemActive : ''}`}
-            >
-              <img src="/assets/Search.svg" alt="" width={18} height={18} />
-              Directory
-            </Link>
-            <Link
-              href="/fosters/overview"
-              className={`${layoutStyles.navItem} ${pathname?.startsWith('/fosters') ? layoutStyles.navItemActive : ''}`}
-            >
-              <img src="/assets/fosters.svg" alt="" width={18} height={18} />
-              Fosters
-            </Link>
-          </SidebarGeneralSection>
-
-          <SidebarAccountSection pathname={pathname} role={role} />
-          <SidebarProfile user={user} role={role} signOut={signOut} />
-        </aside>
-
-        <div className={layoutStyles.mainContent}>
+      <DashboardShell>
           <div className={layoutStyles.topBar}>
             <h1 className={layoutStyles.topBarTitle}>Onboarded Fosters</h1>
             <div className={layoutStyles.topBarActions}>
@@ -440,8 +396,7 @@ export default function FosterActionsPage() {
               </main>
             </div>
           )}
-        </div>
-      </div>
+      </DashboardShell>
     </ProtectedRoute>
   )
 }

@@ -306,6 +306,62 @@
     flex-shrink: 0;
 }
 
+/* ---- Mobile: slim header + off-canvas sidebar (drawer) ---- */
+.mobileTopBar {
+    display: none;
+}
+
+.mobileTopBarLogo {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    flex-shrink: 1;
+}
+
+.mobileTopBarLogo img {
+    max-height: 36px;
+    width: auto !important;
+    height: auto !important;
+    object-fit: contain;
+}
+
+.mobileMenuBtn {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    font-size: 14px;
+    font-weight: 600;
+    font-family: inherit;
+    color: #1a1a1a;
+    background: #fff;
+    border: 1px solid rgba(4, 130, 137, 0.28);
+    border-radius: 10px;
+    cursor: pointer;
+    flex-shrink: 0;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.mobileMenuBtn:hover {
+    background: rgba(5, 170, 175, 0.06);
+    border-color: rgba(4, 130, 137, 0.4);
+}
+
+.mobileMenuBtn:focus-visible {
+    outline: 2px solid #048289;
+    outline-offset: 2px;
+}
+
+.mobileMenuBtnLabel {
+    font-family: inherit;
+}
+
+.navBackdrop {
+    display: none;
+}
+
 .bellIcon {
     font-size: 20px;
     color: #888;
@@ -1145,68 +1201,89 @@
 @media (max-width: 900px) {
     .pageWrapper {
         flex-direction: column;
+        min-height: 100vh;
+        min-height: 100dvh;
+        height: 100vh;
+        height: 100dvh;
+        overflow: hidden;
+    }
+
+    .mobileTopBar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        flex-shrink: 0;
+        padding: 8px 14px;
+        min-height: 52px;
+        box-sizing: border-box;
+        background: #f3f7f7;
+        border-bottom: 1px solid rgba(4, 130, 137, 0.12);
+        position: relative;
+        z-index: 110;
+    }
+
+    .navBackdrop {
+        display: block;
+        position: fixed;
+        inset: 0;
+        z-index: 135;
     }
 
     .sidebar {
-        width: 100%;
-        max-width: 100%;
-        min-width: 0;
-        flex-direction: row;
-        align-items: center;
-        justify-content: space-between;
-        padding: 10px 16px;
-        gap: 12px;
+        position: fixed;
+        top: 0;
+        left: 0;
+        height: 100vh;
+        height: 100dvh;
+        width: min(280px, 86vw);
+        max-width: 280px;
+        transform: translateX(-100%);
+        transition: transform 0.22s ease, box-shadow 0.22s ease;
+        z-index: 140;
+        flex-direction: column;
+        flex-wrap: nowrap;
+        align-items: stretch;
+        justify-content: flex-start;
+        padding: 0;
+        overflow-y: auto;
+        overflow-x: hidden;
+        -webkit-overflow-scrolling: touch;
+        box-shadow: none;
+    }
+
+    .sidebarOpen {
+        transform: translateX(0);
+        box-shadow: 8px 0 32px rgba(15, 23, 42, 0.14);
     }
 
     .sidebarHeader {
-        justify-content: flex-start;
-        min-height: 0;
-        padding: 0;
-        margin: 0;
-        border-bottom: none;
-        flex-shrink: 1;
-        min-width: 0;
-    }
-
-    .sidebarLogo {
-        height: auto;
-        min-height: 0;
-        max-width: none;
-        justify-content: flex-start;
-    }
-
-    .sidebarLogo span {
-        justify-content: flex-start;
+        justify-content: center;
+        padding: 10px 10px 8px;
+        margin: 0 0 6px;
+        border-bottom: 1px solid rgba(4, 130, 137, 0.16);
     }
 
     .sidebarLogo img {
-        max-height: 30px;
+        max-height: 52px;
     }
 
     .sidebarNav {
-        flex: 1;
-        flex-direction: row;
-        justify-content: center;
-        flex-wrap: wrap;
-        gap: 6px;
+        flex-direction: column;
+        flex-wrap: nowrap;
+        justify-content: flex-start;
+        gap: 0;
     }
 
     .navItem {
-        margin: 0;
-        padding: 8px 12px;
-        font-size: 14px;
-        gap: 8px;
-        border-radius: 10px;
+        margin: 0 10px;
+        padding: 10px 16px;
+        font-size: 16px;
     }
 
     .navItemActive {
-        margin: 0;
-        padding: 8px 12px;
-        border-radius: 10px;
-    }
-
-    .navItemActive::before {
-        display: none;
+        margin: 0 10px;
+        padding: 10px 16px;
     }
 
     .sidebarAccount {
@@ -1214,14 +1291,20 @@
     }
 
     .sidebarAccountLabel {
-        margin-bottom: 6px;
-        margin-left: 16px;
-        margin-right: 16px;
+        margin-bottom: 8px;
+        margin-left: 10px;
+        margin-right: 10px;
     }
 
     .sidebarProfile {
-        padding: 10px 12px 12px;
+        padding: 10px 10px 14px;
         border-top: 1px solid rgba(4, 130, 137, 0.18);
+    }
+
+    .mainContent {
+        margin-left: 0;
+        flex: 1;
+        min-height: 0;
     }
 
     .topBar {
@@ -1299,24 +1382,16 @@
 }
 
 @media (max-width: 640px) {
-    .sidebar {
-        padding: 10px 12px;
-        align-items: flex-start;
-        flex-direction: column;
-    }
-
-    .sidebarNav {
-        width: 100%;
-        justify-content: flex-start;
-    }
-
-    .sidebarAccount {
-        width: 100%;
-    }
-
-    .sidebarProfile {
-        width: 100%;
-        justify-content: stretch;
+    .mobileMenuBtnLabel {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
     }
 
     .tabSection,
@@ -1369,6 +1444,16 @@
     .confirmAcceptBtn,
     .confirmRejectBtn {
         padding: 10px 12px;
+    }
+
+    .topBar {
+        padding-left: 16px;
+        padding-right: 16px;
+    }
+
+    .errorText {
+        padding-left: 16px;
+        padding-right: 16px;
     }
 }
 

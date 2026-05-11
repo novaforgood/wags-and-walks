@@ -20,5 +20,12 @@
 @media (max-width: 900px) {
     .panel {
         padding: 20px 24px 32px;
+        max-width: none;
+    }
+}
+
+@media (max-width: 640px) {
+    .panel {
+        padding: 16px 16px 28px;
     }
 }
