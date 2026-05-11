@@ -99,9 +99,12 @@ export function buildFosterDirectory(
     const fosterEmail = normalizeText(dog.foster?.email) || undefined
     const id = fosterSlug(fosterName, fosterEmail)
 
-    const dogStatus =
-      taskStatusByAnimalId?.[String(dog.id)] ??
-      toStatus(dog.movement?.daysInFoster)
+    // When task data is loaded, a dog with no active task entry means tasks
+    // haven't started yet (or all are completed) — treat as Good rather than
+    // flagging based on days in foster alone.
+    const dogStatus = taskStatusByAnimalId
+      ? (taskStatusByAnimalId[String(dog.id)] ?? 'Good')
+      : toStatus(dog.movement?.daysInFoster)
 
     const dogLastUpdate = dog.movement?.date
 
