@@ -206,6 +206,12 @@
   color: #4b5563;
 }
 
+.pendingEmail {
+  color: #a16207;
+  font-size: 12px;
+  font-style: italic;
+}
+
 .titleRow {
   display: flex;
   align-items: center;

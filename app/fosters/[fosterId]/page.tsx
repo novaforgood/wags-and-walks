@@ -596,10 +596,22 @@ export default function FosterDetailsPage() {
                             </tr>
                           </thead>
                           <tbody>
-                            {tasks.map((t, i) => (
+                            {tasks.map((t, i) => {
+                              const pendingSendDate = !t.emailSentDate && dog.lastUpdate && t.triggerDay
+                                ? addDaysYmd(dog.lastUpdate, t.triggerDay)
+                                : ''
+                              return (
                               <tr key={i}>
                                 <td>{taskLabel(t.taskType)}</td>
-                                <td>{t.emailSentDate ? formatDateShort(t.emailSentDate) : '—'}</td>
+                                <td>
+                                  {t.emailSentDate ? formatDateShort(t.emailSentDate) : (
+                                    pendingSendDate ? (
+                                      <span className={styles.pendingEmail}>
+                                        Email pending — {formatDateShort(pendingSendDate)}
+                                      </span>
+                                    ) : '—'
+                                  )}
+                                </td>
                                 <td>{t.followUpSent ? formatDateShort(t.followUpSent) : '—'}</td>
                                 <td>
                                   {t.completedDate ? (
@@ -626,7 +638,7 @@ export default function FosterDetailsPage() {
                                   t.status === 'retired' ? 'Retired' : 'Good'
                                 } /></td>
                               </tr>
-                            ))}
+                            )})}
                           </tbody>
                         </table>
                       )}
