@@ -45,7 +45,7 @@ export default function CurrentPage() {
                     <h3>{displayName(p)}</h3>
                     <p style={{ fontSize: 14, color: '#64748b', marginBottom: 12 }}>{email}</p>
                     <Link
-                      href={`/applicants/${encodeURIComponent(email)}`}
+                      href={`/applicants/${encodeURIComponent(email)}?from=current`}
                       style={{ color: '#05aaaf', fontWeight: 600, fontSize: 14 }}
                     >
                       View applicant →

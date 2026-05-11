@@ -317,7 +317,7 @@ export default function OverviewPage() {
                                         <ul className={styles.queueList}>
                                             {applicantQueue.map(p => {
                                                 const email = p.email!.trim()
-                                                const href = `/applicants/${encodeURIComponent(email)}`
+                                                const href = `/applicants/${encodeURIComponent(email)}?from=overview`
                                                 const badge = hasRedFlag(p)
                                                     ? { label: 'Red flag', cls: styles.badgeFlag }
                                                     : (p.status || 'new') === 'new'

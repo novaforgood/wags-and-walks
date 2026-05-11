@@ -21,11 +21,9 @@ function taskLabel(taskType: string): string {
 }
 
 function rowToNotification(row: TaskRow): Notification | null {
-  if (row.status !== 'needs_review' && row.status !== 'overdue' && row.status !== 'completed') return null
-  const label = taskLabel(row.taskType)
-  const name = row.fosterName || `Animal ${row.animalId}`
-
   if (row.status === 'completed') {
+    const label = taskLabel(row.taskType)
+    const name = row.fosterName || `Animal ${row.animalId}`
     const id = `${row.animalId}-${row.taskType}-completed-${row.completedDate}`
     const isPhotoTask = row.taskType.startsWith('PHOTOS')
     const hasDriveLink = isPhotoTask && !!row.driveLink
@@ -40,13 +38,31 @@ function rowToNotification(row: TaskRow): Notification | null {
     }
   }
 
+  if (row.status === 'good' || row.status === 'retired') return null
+
+  if (row.status === 'unknown') {
+    const label = taskLabel(row.taskType)
+    const name = row.fosterName || `Animal ${row.animalId}`
+    const id = `${row.animalId}-${row.taskType}-unknown`
+    return {
+      id,
+      personName: name,
+      action: `has unrecognized Status on task (${label}) for`,
+      entityName: row.dogName || undefined,
+      timestamp: new Date(row.emailSentDate || row.followUpSent || Date.now()),
+      actionLabel: 'Review task log',
+    }
+  }
+
+  if (row.status !== 'overdue') return null
+
+  const label = taskLabel(row.taskType)
+  const name = row.fosterName || `Animal ${row.animalId}`
   const id = `${row.animalId}-${row.taskType}-${row.emailSentDate}`
   return {
     id,
     personName: name,
-    action: row.status === 'overdue'
-      ? `has an overdue ${label} for`
-      : `needs a follow-up ${label} for`,
+    action: `has an overdue ${label} for`,
     entityName: row.dogName || undefined,
     timestamp: new Date(row.followUpSent || row.emailSentDate),
     actionLabel: 'Send follow-up',
@@ -126,19 +142,16 @@ export default function NotificationPanel() {
                       <strong>{n.personName}</strong> {n.action}
                       {n.entityName && <> <strong>{n.entityName}</strong></>}
                     </p>
-                    <div className={styles.cardTimestamp}>
-                      {formatTimestamp(n.timestamp)}
-                    </div>
+                    <p className={styles.cardTimestamp}>{formatTimestamp(n.timestamp)}</p>
                     {n.actionHref ? (
-                      <a
-                        className={styles.cardAction}
-                        href={n.actionHref}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
+                      <a href={n.actionHref} className={styles.cardAction} target="_blank" rel="noopener noreferrer">
                         {n.actionLabel}
                       </a>
-                    ) : null}
+                    ) : (
+                      <span style={{ display: 'block', marginTop: 10, fontSize: 12, color: '#94a3b8' }}>
+                        {n.actionLabel}
+                      </span>
+                    )}
                   </div>
                 </div>
               ))

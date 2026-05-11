@@ -46,11 +46,29 @@ function taskLabel(taskType: string) {
 function StatusBadge({ status }: { status: string }) {
   const cls =
     status === 'Overdue' ? styles.badgeOverdue :
-    status === 'Needs Review' ? styles.badgeNeedsReview :
+    status === 'Unknown' ? styles.badgeUnknown :
     status === 'Good' ? styles.badgeGood :
     status === 'Completed' ? styles.badgeCompleted :
-    styles.badgeRetired
+    status === 'Retired' ? styles.badgeRetired :
+    styles.badgeUnknown
   return <span className={cls}>{status || 'Good'}</span>
+}
+
+function sheetTaskBadgeLabel(status: TaskRow['status']): string {
+  switch (status) {
+    case 'good':
+      return 'Good'
+    case 'overdue':
+      return 'Overdue'
+    case 'completed':
+      return 'Completed'
+    case 'retired':
+      return 'Retired'
+    case 'unknown':
+      return 'Unknown'
+    default:
+      return 'Unknown'
+  }
 }
 
 type FosterDirectoryItem = ReturnType<typeof buildFosterDirectory>[number]
@@ -99,7 +117,7 @@ function ScheduledEmailsSection({
   allTasks: TaskRow[]
   onTasksChange: (rows: TaskRow[]) => void
 }) {
-  const activeTasks = tasks.filter(t => t.status !== 'retired')
+  const activeTasks = tasks.filter(t => t.status !== 'retired' && t.status !== 'completed')
   const [editingKey, setEditingKey] = useState<string | null>(null)
   const [draft, setDraft] = useState('')
   const [savingKey, setSavingKey] = useState<string | null>(null)
@@ -193,10 +211,7 @@ function ScheduledEmailsSection({
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8, flexWrap: 'wrap' }}>
                 <strong style={{ fontSize: 14, color: '#0f172a' }}>{t.dogName}</strong>
                 <span style={{ fontSize: 13, color: '#64748b' }}>{taskLabel(t.taskType)}</span>
-                <StatusBadge status={
-                  t.status === 'overdue' ? 'Overdue' :
-                  t.status === 'needs_review' ? 'Needs Review' : 'Good'
-                } />
+                <StatusBadge status={sheetTaskBadgeLabel(t.status)} />
                 <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
                   {!isEditing && (
                     <button
@@ -274,8 +289,18 @@ function ScheduledEmailsSection({
 // --- Main Page ---
 export default function FosterDetailsPage() {
   const searchParams = useSearchParams()
-  const backHref = searchParams.get('from') === 'overview' ? '/fosters/overview' : '/fosters'
-  const backLabel = searchParams.get('from') === 'overview' ? '← Back to Overview' : '← Back to Current Directory'
+  const backHref =
+    searchParams.get('from') === 'overview'
+      ? '/fosters/overview'
+      : searchParams.get('from') === 'tasks'
+        ? '/fosters/tasks'
+        : '/fosters'
+  const backLabel =
+    searchParams.get('from') === 'overview'
+      ? '← Back to Overview'
+      : searchParams.get('from') === 'tasks'
+        ? '← Back to Task inbox'
+        : '← Back to Active Fosters'
   const params = useParams<{ fosterId: string }>()
   const fosterId = params?.fosterId
   const { people } = usePeople()
@@ -287,6 +312,20 @@ export default function FosterDetailsPage() {
   const asmRegisteredRef = useRef(false)
 
   const [activeTab, setActiveTab] = useState<'overview' | 'tasks' | 'communication' | 'notes' | 'history'>('overview')
+
+  useEffect(() => {
+    const tab = searchParams.get('tab')
+    const map = {
+      overview: 'overview',
+      tasks: 'tasks',
+      communication: 'communication',
+      notes: 'notes',
+      history: 'history',
+    } as const
+    if (tab && tab in map) {
+      setActiveTab(map[tab as keyof typeof map])
+    }
+  }, [searchParams])
 
   useEffect(() => {
     let active = true
@@ -473,7 +512,9 @@ export default function FosterDetailsPage() {
                               <div className={styles.statValue} style={{ fontSize: 14 }}>{lastEmailSent ? formatDateShort(lastEmailSent) : '—'}</div>
                             </div>
                             <div className={styles.stat}>
-                              <div className={styles.statLabel}>Last update</div>
+                              <div className={styles.statLabel} title="Shelter Manager movement date (not Task Log)">
+                                Movement
+                              </div>
                               <div className={styles.statValue} style={{ fontSize: 14 }}>{formatDateShort(dog.lastUpdate)}</div>
                             </div>
                           </div>
@@ -529,12 +570,7 @@ export default function FosterDetailsPage() {
                                     )
                                   ) : '—'}
                                 </td>
-                                <td><StatusBadge status={
-                                  t.status === 'overdue' ? 'Overdue' :
-                                  t.status === 'needs_review' ? 'Needs Review' :
-                                  t.status === 'completed' ? 'Completed' :
-                                  t.status === 'retired' ? 'Retired' : 'Good'
-                                } /></td>
+                                <td><StatusBadge status={sheetTaskBadgeLabel(t.status)} /></td>
                               </tr>
                             ))}
                           </tbody>

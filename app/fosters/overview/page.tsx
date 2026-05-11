@@ -6,17 +6,21 @@ import ProtectedRoute from '@/app/components/ProtectedRoute'
 import NotificationPanel from '@/app/components/NotificationPanel'
 import TopBarProfileMenu from '@/app/components/TopBarProfileMenu'
 import { DashboardShell } from '@/app/components/DashboardShell'
-import { buildFosterDirectory, fosterSlug, formatDateShort } from '@/app/lib/fosterDirectory'
+import {
+  buildFosterDirectory,
+  fosterSlug,
+  formatDateShort,
+  type FosterStatus,
+} from '@/app/lib/fosterDirectory'
+import type { TasksDataQuality, TasksGetMetrics } from '@/app/api/tasks/route'
 import layoutStyles from '../../candidates/candidates.module.css'
 import styles from './fostersOverview.module.css'
 import FostersSubTabs from '../FostersSubTabs'
+import FosterDataSourcesNote from '../components/FosterDataSourcesNote'
 
 type DogRecord = {
   id?: number
   name?: string
-  photo?: {
-    imageUrl?: string
-  }
   movement?: {
     daysInFoster?: number
     date?: string
@@ -35,24 +39,18 @@ type DogsApiResponse = {
   error?: string
 }
 
-type TaskRowLite = {
-  animalId: string
-  taskType: string
-  status: 'pending' | 'needs_review' | 'overdue' | 'completed' | 'retired'
-}
-
 type TasksApiResponse = {
   success?: boolean
-  taskStatusByAnimalId?: Record<string, 'Good' | 'Needs Review' | 'Overdue'>
-  rows?: TaskRowLite[]
+  taskStatusByAnimalId?: Record<string, FosterStatus>
+  metrics?: TasksGetMetrics
+  dataQuality?: TasksDataQuality
 }
 
 type UpdateRow = {
   id: string
   fosterName: string
   dogName: string
-  uploadedPhoto: boolean
-  status: 'Good' | 'Needs Review' | 'Overdue'
+  status: FosterStatus
   daysInFoster?: number
   lastUpdate?: string
   fosterId: string
@@ -74,8 +72,9 @@ export default function FostersSectionOverviewPage() {
   const [dogs, setDogs] = useState<DogRecord[]>([])
   const [isLoadingDogs, setIsLoadingDogs] = useState(true)
   const [dogsError, setDogsError] = useState<string | null>(null)
-  const [taskStatusByAnimalId, setTaskStatusByAnimalId] = useState<Record<string, 'Good' | 'Needs Review' | 'Overdue'>>({})
-  const [openPhotoAnimalIds, setOpenPhotoAnimalIds] = useState<Set<string>>(new Set())
+  const [taskStatusByAnimalId, setTaskStatusByAnimalId] = useState<Record<string, FosterStatus>>({})
+  const [taskMetrics, setTaskMetrics] = useState<TasksGetMetrics | null>(null)
+  const [dataQuality, setDataQuality] = useState<TasksDataQuality | null>(null)
   useEffect(() => {
     let active = true
     async function loadData() {
@@ -98,16 +97,8 @@ export default function FostersSectionOverviewPage() {
             if (tasksData?.taskStatusByAnimalId) {
               setTaskStatusByAnimalId(tasksData.taskStatusByAnimalId)
             }
-            if (Array.isArray(tasksData?.rows)) {
-              const photoIds = new Set<string>()
-              for (const r of tasksData.rows) {
-                const open = r.status === 'pending' || r.status === 'needs_review' || r.status === 'overdue'
-                if (open && r.animalId && r.taskType?.startsWith('PHOTOS_')) {
-                  photoIds.add(r.animalId)
-                }
-              }
-              setOpenPhotoAnimalIds(photoIds)
-            }
+            if (tasksData?.metrics) setTaskMetrics(tasksData.metrics)
+            if (tasksData?.dataQuality) setDataQuality(tasksData.dataQuality)
           } catch { /* tasks not available yet */ }
         }
       } catch (error) {
@@ -142,37 +133,35 @@ export default function FostersSectionOverviewPage() {
 
   const updates = useMemo(() => {
     return dogs.map((dog, idx) => {
-      const uploadedPhoto = Boolean(dog.photo?.imageUrl)
       const days = dog.movement?.daysInFoster
       const fosterName = nameOf(dog.foster)
       const animalId = String(dog.id ?? '')
       const taskStatus = taskStatusByAnimalId[animalId]
-      const status: UpdateRow['status'] = taskStatus ?? (
-        (days ?? 0) > 30 && !uploadedPhoto ? 'Overdue' :
-          (days ?? 0) > 14 || !uploadedPhoto ? 'Needs Review' : 'Good'
-      )
-      const hasOpenPhotoTask = openPhotoAnimalIds.has(animalId)
+      const status: UpdateRow['status'] = taskStatus ?? 'Good'
       return {
         id: `${dog.id ?? idx}`,
         fosterName,
         dogName: dogName(dog),
-        uploadedPhoto: uploadedPhoto && !hasOpenPhotoTask,
         status,
         daysInFoster: days,
         lastUpdate: dog.movement?.date,
         fosterId: fosterSlug(fosterName, dog.foster?.email),
       } satisfies UpdateRow
     })
-  }, [dogs, taskStatusByAnimalId, openPhotoAnimalIds])
+  }, [dogs, taskStatusByAnimalId])
 
-  const overdueCount = useMemo(() => updates.filter(r => r.status === 'Overdue').length, [updates])
-  const needsReviewCount = useMemo(() => updates.filter(r => r.status === 'Needs Review').length, [updates])
-  const activeFosters = useMemo(() => buildFosterDirectory(dogs).length, [dogs])
+  const overdueFollowUpRows = taskMetrics?.activeOverdueTaskRows ?? 0
+  const unknownStatusRows = taskMetrics?.unknownStatusRowCount ?? 0
+  const activeFosters = useMemo(
+    () => buildFosterDirectory(dogs, taskStatusByAnimalId).length,
+    [dogs, taskStatusByAnimalId]
+  )
   const priorityQueue = useMemo(() => {
+    const rank = (s: FosterStatus) =>
+      s === 'Unknown' ? 3 : s === 'Overdue' ? 2 : 1
     return [...updates]
       .filter(r => r.status !== 'Good')
       .sort((a, b) => {
-        const rank = (s: UpdateRow['status']) => (s === 'Overdue' ? 2 : 1)
         if (rank(b.status) !== rank(a.status)) return rank(b.status) - rank(a.status)
         return (b.daysInFoster ?? 0) - (a.daysInFoster ?? 0)
       })
@@ -197,18 +186,28 @@ export default function FostersSectionOverviewPage() {
 
           {!isLoadingDogs && (
             <div className={styles.wrap}>
+              <FosterDataSourcesNote />
+
+              {dataQuality?.hasUnknownTaskStatuses ? (
+                <p className={styles.dataQualityBanner} role="status">
+                  Data quality: {dataQuality.unknownStatusRowCount} task row
+                  {dataQuality.unknownStatusRowCount === 1 ? '' : 's'} have missing or unrecognized status in the Task Log — not counted as Good until fixed.
+                </p>
+              ) : null}
 
               <div className={styles.statsGrid}>
                 <div className={styles.statCard}>
-                  <span className={styles.statLabel}>Overdue</span>
-                  <span className={styles.statValue}>{overdueCount}</span>
-                  <span className={styles.statHint}>Needs action</span>
+                  <span className={styles.statLabel}>Overdue follow-ups</span>
+                  <span className={styles.statValue}>{overdueFollowUpRows}</span>
+                  <span className={styles.statHint}>Active task rows marked Overdue</span>
                 </div>
-                <div className={styles.statCard}>
-                  <span className={styles.statLabel}>Review</span>
-                  <span className={styles.statValue}>{needsReviewCount}</span>
-                  <span className={styles.statHint}>Due soon</span>
-                </div>
+                {unknownStatusRows > 0 ? (
+                  <div className={styles.statCard}>
+                    <span className={styles.statLabel}>Unknown status</span>
+                    <span className={styles.statValue}>{unknownStatusRows}</span>
+                    <span className={styles.statHint}>Task rows not Good / Overdue / Completed / Retired</span>
+                  </div>
+                ) : null}
                 <div className={styles.statCard}>
                   <span className={styles.statLabel}>Active homes</span>
                   <span className={styles.statValue}>{activeFosterCount ?? activeFosters}</span>
@@ -216,9 +215,18 @@ export default function FostersSectionOverviewPage() {
                 </div>
               </div>
 
-              <section className={styles.sectionPanel}>
+              <section className={styles.sectionPanel} aria-labelledby="followups-heading">
                 <div className={styles.sectionHeader}>
-                  <h2 className={styles.sectionTitle}>Follow-ups</h2>
+                  <div className={styles.sectionHeaderText}>
+                    <h2 id="followups-heading" className={styles.sectionTitle}>
+                      Follow-ups
+                    </h2>
+                    <p className={styles.sectionIntro}>
+                      Sorted by Task Log severity. <strong>Follow-up overdue</strong> means an <em>active</em> Task Log
+                      row for that dog is Overdue—open the foster&apos;s <strong>Tasks</strong> tab for details. Dates
+                      and days in foster are Shelter Manager movement data (context only).
+                    </p>
+                  </div>
                   <span className={styles.sectionCount}>{priorityQueue.length} shown</span>
                 </div>
 
@@ -236,20 +244,29 @@ export default function FostersSectionOverviewPage() {
                           </div>
                           <div className={styles.rosterDogs}>{row.dogName}</div>
                           <div className={styles.rosterMeta}>
-                            {formatDateShort(row.lastUpdate)}
+                            <span className={styles.metaKey}>Movement</span>
+                            {' '}
+                            {row.lastUpdate ? formatDateShort(row.lastUpdate) : '—'}
                             {typeof row.daysInFoster === 'number'
                               ? ` · ${row.daysInFoster}d in foster`
                               : ''}
                           </div>
-                          <div className={styles.rosterMeta}>
-                            Photo {row.uploadedPhoto ? 'complete' : 'missing'}
-                          </div>
                         </div>
                         <div className={styles.rosterSide}>
                           {row.status === 'Overdue' ? (
-                            <span className={styles.badgeOpen}>Overdue</span>
-                          ) : row.status === 'Needs Review' ? (
-                            <span className={styles.badgeWarn}>Needs Review</span>
+                            <span
+                              className={styles.badgeOpen}
+                              title="Task Log has at least one active task marked Overdue for this animal."
+                            >
+                              Follow-up overdue
+                            </span>
+                          ) : row.status === 'Unknown' ? (
+                            <span
+                              className={styles.badgeUnknown}
+                              title="Task Log Status is missing or not one of Good / Overdue / Completed / Retired."
+                            >
+                              Unknown
+                            </span>
                           ) : (
                             <span className={styles.badgeClear}>Good</span>
                           )}

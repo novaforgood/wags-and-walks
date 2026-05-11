@@ -280,6 +280,16 @@
   color: #64748b;
 }
 
+.badgeUnknown {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  background: #f3e8ff;
+  color: #6b21a8;
+}
+
 .driveLink {
   color: #05aaaf;
   text-decoration: none;

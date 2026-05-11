@@ -116,7 +116,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
           </Link>
           <Link
             href="/candidates"
-            className={`${layoutStyles.navItem} ${pathname === '/candidates' ? layoutStyles.navItemActive : ''}`}
+            className={`${layoutStyles.navItem} ${pathname === '/candidates' || pathname?.startsWith('/applicants') ? layoutStyles.navItemActive : ''}`}
             onClick={() => setNavOpen(false)}
           >
             <img src="/assets/candidates.svg" alt="" width={18} height={18} />

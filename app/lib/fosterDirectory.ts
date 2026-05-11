@@ -1,4 +1,4 @@
-export type FosterStatus = 'Good' | 'Needs Review' | 'Overdue'
+export type FosterStatus = 'Good' | 'Overdue' | 'Unknown'
 
 export type DogRecord = {
   id?: number
@@ -34,16 +34,10 @@ export type FosterDirectoryItem = {
   fosterPhone?: string
 }
 
-export function toStatus(days?: number): FosterStatus {
-  if (typeof days !== 'number') return 'Needs Review'
-  if (days > 30) return 'Overdue'
-  if (days > 14) return 'Needs Review'
-  return 'Good'
-}
-
+/** When Sheet 2 has no active row for this animal, treat as Good — do not infer from ASM dates/photos. */
 function statusRank(status: FosterStatus): number {
-  if (status === 'Overdue') return 3
-  if (status === 'Needs Review') return 2
+  if (status === 'Unknown') return 3
+  if (status === 'Overdue') return 2
   return 1
 }
 
@@ -100,8 +94,7 @@ export function buildFosterDirectory(
     const id = fosterSlug(fosterName, fosterEmail)
 
     const dogStatus =
-      taskStatusByAnimalId?.[String(dog.id)] ??
-      toStatus(dog.movement?.daysInFoster)
+      taskStatusByAnimalId?.[String(dog.id)] ?? 'Good'
 
     const dogLastUpdate = dog.movement?.date
 

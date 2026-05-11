@@ -7,8 +7,17 @@ import NotificationPanel from '@/app/components/NotificationPanel'
 import TopBarProfileMenu from '@/app/components/TopBarProfileMenu'
 import { DashboardShell } from '@/app/components/DashboardShell'
 import FostersSubTabs from './FostersSubTabs'
-import { buildFosterDirectory, formatDateShort, type DogRecord, type FosterStatus } from '@/app/lib/fosterDirectory'
+import FosterDataSourcesNote from './components/FosterDataSourcesNote'
+import { formatDateShort, type DogRecord, type FosterStatus } from '@/app/lib/fosterDirectory'
+import type { TaskRow } from '@/app/api/tasks/route'
+import {
+  enrichFosterDirectoryWithLanes,
+  laneLabel,
+  matchesTaskInboxFilter,
+  type TaskInboxFilter,
+} from '@/app/lib/fosterTaskEnrichment'
 import styles from '../candidates/candidates.module.css'
+import inboxStyles from './fosterTasks.module.css'
 
 type DogsApiResponse = {
   success?: boolean
@@ -18,8 +27,23 @@ type DogsApiResponse = {
 
 type TasksApiResponse = {
   success?: boolean
-  taskStatusByAnimalId?: Record<string, 'Good' | 'Needs Review' | 'Overdue'>
+  rows?: TaskRow[]
+  taskStatusByAnimalId?: Record<string, FosterStatus>
 }
+
+const QUEUE_FILTERS: { value: TaskInboxFilter; label: string }[] = [
+  { value: 'all', label: 'All (work queue)' },
+  { value: 'needs_attention', label: 'Needs attention' },
+  { value: 'rollup_overdue', label: 'Rollup Overdue' },
+  { value: 'rollup_good', label: 'Rollup Good' },
+  { value: 'rollup_unknown', label: 'Rollup Unknown' },
+  { value: 'photo_overdue', label: 'Photos: overdue' },
+  { value: 'survey_overdue', label: 'Survey: overdue' },
+  { value: 'photo_on_track', label: 'Photos: on track' },
+  { value: 'survey_on_track', label: 'Survey: on track' },
+  { value: 'photo_missing_log', label: 'Photos: missing row' },
+  { value: 'survey_missing_log', label: 'Survey: missing row' },
+]
 
 function PageButton({ onClick, disabled, active, children }: {
   onClick: () => void, disabled?: boolean, active?: boolean, children: React.ReactNode
@@ -49,25 +73,37 @@ function PageButton({ onClick, disabled, active, children }: {
 export default function FostersPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | FosterStatus>('all')
+  const [queueFilter, setQueueFilter] = useState<TaskInboxFilter>('all')
   const [dogs, setDogs] = useState<DogRecord[]>([])
   const [isLoadingDogs, setIsLoadingDogs] = useState(true)
   const [dogsError, setDogsError] = useState<string | null>(null)
-  const [taskStatusByAnimalId, setTaskStatusByAnimalId] = useState<Record<string, import('@/app/lib/fosterDirectory').FosterStatus>>({})
+  const [taskRows, setTaskRows] = useState<TaskRow[]>([])
+  const [taskStatusByAnimalId, setTaskStatusByAnimalId] = useState<
+    Record<string, FosterStatus>
+  >({})
+
+  const enrichedRows = useMemo(
+    () => enrichFosterDirectoryWithLanes(dogs, taskRows, taskStatusByAnimalId),
+    [dogs, taskRows, taskStatusByAnimalId]
+  )
 
   const directoryRows = useMemo(() => {
     const q = searchQuery.trim().toLowerCase()
-    const rows = buildFosterDirectory(dogs, taskStatusByAnimalId)
-    return rows.filter(r => {
-      const matchesStatus = statusFilter === 'all' || r.status === statusFilter
-      if (!matchesStatus) return false
+    return enrichedRows.filter(r => {
+      if (!matchesTaskInboxFilter(r, queueFilter)) return false
+      if (statusFilter !== 'all' && r.householdRollup !== statusFilter) return false
       if (!q) return true
+      const email = (r.fosterEmail ?? '').toLowerCase()
       return (
         r.fosterName.toLowerCase().includes(q) ||
+        email.includes(q) ||
         r.dogs.some(d => d.name.toLowerCase().includes(q)) ||
-        r.status.toLowerCase().includes(q)
+        r.householdRollup.toLowerCase().includes(q) ||
+        laneLabel(r.photoWorst).toLowerCase().includes(q) ||
+        laneLabel(r.surveyWorst).toLowerCase().includes(q)
       )
     })
-  }, [dogs, taskStatusByAnimalId, searchQuery, statusFilter])
+  }, [enrichedRows, searchQuery, statusFilter, queueFilter])
 
   const tableWrapperRef = useRef<HTMLDivElement>(null)
   const [itemsPerPage, setItemsPerPage] = useState(15)
@@ -102,7 +138,10 @@ export default function FostersPage() {
             if (tasksData?.taskStatusByAnimalId) {
               setTaskStatusByAnimalId(tasksData.taskStatusByAnimalId)
             }
+            setTaskRows(Array.isArray(tasksData?.rows) ? tasksData.rows : [])
           } catch { /* tasks not available yet */ }
+        } else {
+          setTaskRows([])
         }
       } catch (error) {
         if (!active) return
@@ -119,7 +158,7 @@ export default function FostersPage() {
 
   useEffect(() => {
     setCurrentPage(1)
-  }, [searchQuery, statusFilter])
+  }, [searchQuery, statusFilter, queueFilter])
 
   useEffect(() => {
     const el = tableWrapperRef.current
@@ -153,31 +192,67 @@ export default function FostersPage() {
 
           <FostersSubTabs active="directory" />
 
-          <div className={styles.toolbar}>
-            <div className={styles.searchWrapper}>
-              <input
-                type="text"
-                placeholder="Search foster, dog, or status"
-                className={styles.searchInput}
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-              />
-              <div className={styles.searchIconWrap}>
-                <img src="/assets/Search.svg" alt="Search" width={16} height={16} />
+          <FosterDataSourcesNote footerTaskInboxLink />
+
+          <div className={inboxStyles.toolbarStack}>
+            <div className={inboxStyles.toolbarSearchRow}>
+              <div className={`${styles.searchWrapper} ${inboxStyles.wideSearchWrap}`}>
+                <input
+                  type="text"
+                  placeholder="Search foster, dog, email, task lanes…"
+                  className={`${styles.searchInput} ${inboxStyles.wideSearchInput}`}
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                />
+                <div className={styles.searchIconWrap}>
+                  <img src="/assets/Search.svg" alt="Search" width={16} height={16} />
+                </div>
               </div>
             </div>
-            <div className={styles.toolbarRight}>
-              <select
-                className={`${styles.toolbarBtn} ${styles.statusFilterSelect}`}
-                value={statusFilter}
-                onChange={e => setStatusFilter(e.target.value as 'all' | FosterStatus)}
-                aria-label="Filter by status"
-              >
-                <option value="all">All statuses</option>
-                <option value="Good">Good</option>
-                <option value="Needs Review">Needs Review</option>
-                <option value="Overdue">Overdue</option>
-              </select>
+            <div className={inboxStyles.toolbarFilterRow}>
+              <div className={inboxStyles.filterField}>
+                <span className={inboxStyles.filterFieldLabel} id="dir-queue-label">
+                  Queue
+                </span>
+                <label className={inboxStyles.visuallyHidden} htmlFor="dir-queue-filter">
+                  Work queue
+                </label>
+                <select
+                  id="dir-queue-filter"
+                  className={`${styles.toolbarBtn} ${styles.statusFilterSelect}`}
+                  value={queueFilter}
+                  onChange={e => setQueueFilter(e.target.value as TaskInboxFilter)}
+                  aria-labelledby="dir-queue-label"
+                  title="Filter by Task Log lanes (photos / survey)"
+                >
+                  {QUEUE_FILTERS.map(o => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className={inboxStyles.filterField}>
+                <span className={inboxStyles.filterFieldLabel} id="dir-rollup-label">
+                  Rollup
+                </span>
+                <label className={inboxStyles.visuallyHidden} htmlFor="dir-rollup-filter">
+                  Household rollup
+                </label>
+                <select
+                  id="dir-rollup-filter"
+                  className={`${styles.toolbarBtn} ${styles.statusFilterSelect}`}
+                  value={statusFilter}
+                  onChange={e => setStatusFilter(e.target.value as 'all' | FosterStatus)}
+                  aria-labelledby="dir-rollup-label"
+                  title="Worst-case status from Task Log across dogs in the home"
+                >
+                  <option value="all">Any rollup</option>
+                  <option value="Good">Good</option>
+                  <option value="Overdue">Overdue</option>
+                  <option value="Unknown">Unknown</option>
+                </select>
+              </div>
             </div>
           </div>
 
@@ -192,10 +267,12 @@ export default function FostersPage() {
                 <table className={styles.table}>
                   <thead>
                     <tr>
-                      <th>Foster Name</th>
-                      <th>Dog(s) Fostering</th>
-                      <th>Last update</th>
-                      <th>Current Status</th>
+                      <th>Foster name</th>
+                      <th>Dog(s)</th>
+                      <th title="Latest movement date from Shelter Manager (not Task Log deadlines)">Movement</th>
+                      <th title="Worst Task Log status among dogs in this foster home">Rollup</th>
+                      <th>Photos (log)</th>
+                      <th>Survey (log)</th>
                       <th></th>
                     </tr>
                   </thead>
@@ -209,7 +286,17 @@ export default function FostersPage() {
                         </td>
                         <td>{row.dogs.map(d => d.name).join(', ')}</td>
                         <td>{formatDateShort(row.lastUpdate)}</td>
-                        <td>{row.status}</td>
+                        <td>{row.householdRollup}</td>
+                        <td>
+                          <div className={inboxStyles.laneCell}>
+                            <span>{laneLabel(row.photoWorst)}</span>
+                          </div>
+                        </td>
+                        <td>
+                          <div className={inboxStyles.laneCell}>
+                            <span>{laneLabel(row.surveyWorst)}</span>
+                          </div>
+                        </td>
                         <td>
                           <Link
                             href={`/fosters/${row.id}`}
@@ -224,7 +311,7 @@ export default function FostersPage() {
                     ))}
                     {paginatedRows.length === 0 && !dogsError && (
                       <tr>
-                        <td colSpan={5} style={{ textAlign: 'center', padding: '32px', color: '#888' }}>
+                        <td colSpan={7} style={{ textAlign: 'center', padding: '32px', color: '#888' }}>
                           No directory rows found.
                         </td>
                       </tr>

@@ -31,21 +31,9 @@
 
 .statsGrid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     gap: 16px;
     margin-bottom: 20px;
-}
-
-@media (max-width: 960px) {
-    .statsGrid {
-        grid-template-columns: repeat(2, 1fr);
-    }
-}
-
-@media (max-width: 520px) {
-    .statsGrid {
-        grid-template-columns: 1fr;
-    }
 }
 
 .statCard {
@@ -83,6 +71,17 @@
     font-weight: 500;
 }
 
+.dataQualityBanner {
+    font-size: 13px;
+    line-height: 1.45;
+    color: #7c2d12;
+    background: #ffedd5;
+    border: 1px solid #fdba74;
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin: 0 0 16px;
+}
+
 .sectionPanel {
     background: #fff;
     border-radius: 10px;
@@ -92,10 +91,29 @@
 
 .sectionHeader {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: space-between;
-    gap: 10px;
+    gap: 14px;
     margin-bottom: 12px;
+}
+
+.sectionHeaderText {
+    flex: 1;
+    min-width: 0;
+}
+
+.sectionIntro {
+    margin: 8px 0 0;
+    font-size: 13px;
+    line-height: 1.5;
+    color: #64748b;
+    font-weight: 400;
+    max-width: 52rem;
+}
+
+.sectionIntro strong {
+    color: #475569;
+    font-weight: 600;
 }
 
 .sectionTitle {
@@ -108,6 +126,7 @@
 }
 
 .sectionCount {
+    flex-shrink: 0;
     font-size: 11px;
     font-weight: 600;
     color: #64748b;
@@ -115,6 +134,12 @@
     border-radius: 999px;
     padding: 4px 10px;
     letter-spacing: 0.02em;
+    margin-top: 2px;
+}
+
+.metaKey {
+    font-weight: 600;
+    color: #64748b;
 }
 
 .rosterList {
@@ -211,6 +236,15 @@
     color: #b45309;
 }
 
+.badgeUnknown {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: rgba(124, 45, 212, 0.12);
+    color: #6b21a8;
+}
+
 .empty {
     color: #888;
     font-size: 14px;
@@ -226,8 +260,12 @@
 
     .sectionHeader {
         flex-direction: column;
-        align-items: flex-start;
+        align-items: stretch;
         margin-bottom: 10px;
+    }
+
+    .sectionCount {
+        align-self: flex-start;
     }
 
     .rosterCard {

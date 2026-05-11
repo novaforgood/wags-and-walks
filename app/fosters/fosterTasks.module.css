@@ -1,0 +1,201 @@
+/* Task inbox + directory task columns */
+
+.intro {
+    margin: 6px 40px 10px;
+    font-size: 13px;
+    line-height: 1.45;
+    color: #64748b;
+    max-width: 48rem;
+}
+
+.intro strong {
+    color: #475569;
+}
+
+.introLink {
+    color: #0f766e;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.introLink:hover {
+    text-decoration: underline;
+}
+
+/* Shared “what comes from where” — keeps ASM vs Task Log from sounding contradictory */
+
+.dataSources {
+    margin: 6px 40px 14px;
+    padding: 12px 14px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    box-sizing: border-box;
+    font-size: 13px;
+    line-height: 1.5;
+    color: #475569;
+}
+
+@media (max-width: 900px) {
+    .dataSources {
+        margin-left: 24px;
+        margin-right: 24px;
+    }
+}
+
+.dataSourcesTitle {
+    margin: 0 0 8px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.045em;
+    color: #64748b;
+}
+
+.dataSourcesList {
+    margin: 0;
+    padding-left: 1.15rem;
+}
+
+.dataSourcesList li {
+    margin: 4px 0;
+}
+
+.dataSourcesList strong {
+    color: #334155;
+}
+
+.dataSourcesFooter {
+    margin: 10px 0 0;
+    padding-top: 10px;
+    border-top: 1px solid #e2e8f0;
+    font-size: 13px;
+}
+
+@media (max-width: 900px) {
+    .intro {
+        margin-left: 24px;
+        margin-right: 24px;
+    }
+}
+
+/* Stacked toolbar: search row, then filters (avoids cramped single row) */
+
+.toolbarStack {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    padding: 10px 40px 12px;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+.toolbarSearchRow {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    min-width: 0;
+}
+
+.wideSearchWrap {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+    max-width: min(620px, 100%);
+}
+
+.wideSearchInput {
+    max-width: 100% !important;
+}
+
+.toolbarFilterRow {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 14px;
+}
+
+.filterField {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+.filterFieldLabel {
+    font-size: 12px;
+    font-weight: 600;
+    color: #64748b;
+    white-space: nowrap;
+}
+
+.toolbarFilters {
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+@media (max-width: 900px) {
+    .toolbarStack {
+        padding-left: 24px;
+        padding-right: 24px;
+    }
+}
+
+.visuallyHidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+.laneCell {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 13px;
+    line-height: 1.35;
+}
+
+.perDogLane {
+    font-size: 12px;
+    color: #475569;
+}
+
+.badgeRollupGood,
+.badgeRollupOverdue,
+.badgeRollupUnknown {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 4px 8px;
+    border-radius: 6px;
+    letter-spacing: 0.02em;
+}
+
+.badgeRollupGood {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.badgeRollupOverdue {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.badgeRollupUnknown {
+    background: #f3e8ff;
+    color: #6b21a8;
+}
+
+.stackHint {
+    font-size: 11px;
+    color: #94a3b8;
+    margin-top: 4px;
+}

@@ -165,7 +165,7 @@ export default function FosterActionsPage() {
             </div>
           </div>
 
-          <FostersSubTabs active="overview" />
+          <FostersSubTabs active="actions" />
 
           {isLoading && people.length === 0 && (
             <div className={layoutStyles.loadingContainer}>Loading…</div>
@@ -295,7 +295,9 @@ export default function FosterActionsPage() {
 
                   {rootOpen && rows.length === 0 && !error && (
                     <div className={`${styles.actionLeaf} ${styles.indent1}`} style={{ color: '#888' }}>
-                      No active fosters in the sheet.
+                      No pipeline applicants marked <strong>current</strong> yet—this checklist is built from the
+                      applicant spreadsheet, not Shelter Manager. Use <strong>Active fosters</strong> for dogs from
+                      Shelter Manager.
                     </div>
                   )}
                 </div>
