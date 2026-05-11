@@ -10,9 +10,20 @@ import TopBarProfileMenu from '@/app/components/TopBarProfileMenu'
 import { DashboardShell } from '@/app/components/DashboardShell'
 import FilterDropdown, { FilterState } from '@/app/components/FilterDropdown'
 import type { Person } from '@/app/lib/peopleTypes'
+import { formatRelativeTime } from '@/app/lib/formatRelativeTime'
 import styles from './candidates.module.css'
 
 
+function submissionTooltip(person: Person): string {
+    if (person.appliedAt) {
+        const d = new Date(person.appliedAt)
+        if (!Number.isNaN(d.getTime())) {
+            return d.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
+        }
+    }
+    const raw = String(person.raw?.['Submitted On'] || '').trim()
+    return raw || 'Submission time unknown'
+}
 function PageButton({ onClick, disabled, active, children }: {
     onClick: () => void, disabled?: boolean, active?: boolean, children: React.ReactNode
 }) {
@@ -323,6 +334,7 @@ export default function CandidatesPage() {
                                 <thead>
                                     <tr>
                                         <th>Name</th>
+                                        <th>Submitted</th>
                                         <th>Orientation Date</th>
                                         {/* TODO: Connect "Signed document" to actual sheet column when available */}
                                         <th>Signed Document</th>
@@ -351,6 +363,12 @@ export default function CandidatesPage() {
                                                     className={styles.nameCell}
                                                     onClick={() => setSelectedPerson(person)}
                                                 >{name}</td>
+                                                <td
+                                                    className={styles.submittedRelative}
+                                                    title={submissionTooltip(person)}
+                                                >
+                                                    {formatRelativeTime(person.appliedAt)}
+                                                </td>
                                                 <td>
                                                     <input
                                                         type="date"

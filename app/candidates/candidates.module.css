@@ -289,6 +289,13 @@
     flex-shrink: 0;
 }
 
+.topBarTitleBlock {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
 .topBarTitle {
     font-size: 26px;
     font-weight: 800;
@@ -296,6 +303,15 @@
     margin: 0;
     font-family: 'Inter', sans-serif;
     letter-spacing: -0.03em;
+}
+
+.topBarTimestamp {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 500;
+    color: #6b7280;
+    font-family: 'Inter', sans-serif;
+    letter-spacing: 0.01em;
 }
 
 .topBarActions {
@@ -624,6 +640,13 @@
     cursor: pointer;
     color: #05aaaf;
     font-weight: 400;
+}
+
+.submittedRelative {
+    font-size: 12px;
+    color: #64748b;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
 }
 
 .nameCell:hover {

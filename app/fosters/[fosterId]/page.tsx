@@ -9,8 +9,10 @@ import NotificationPanel from '@/app/components/NotificationPanel'
 import TopBarProfileMenu from '@/app/components/TopBarProfileMenu'
 import { DashboardShell } from '@/app/components/DashboardShell'
 import {
+  animalIdsFromTaskLogRows,
   buildFosterDirectory,
   formatDateShort,
+  strictTaskPresenceForRollup,
   type DogRecord,
   type FosterStatus,
 } from '@/app/lib/fosterDirectory'
@@ -290,17 +292,11 @@ function ScheduledEmailsSection({
 export default function FosterDetailsPage() {
   const searchParams = useSearchParams()
   const backHref =
-    searchParams.get('from') === 'overview'
-      ? '/fosters/overview'
-      : searchParams.get('from') === 'tasks'
-        ? '/fosters/tasks'
-        : '/fosters'
+    searchParams.get('from') === 'overview' ? '/overview' : '/fosters'
   const backLabel =
     searchParams.get('from') === 'overview'
       ? '← Back to Overview'
-      : searchParams.get('from') === 'tasks'
-        ? '← Back to Task inbox'
-        : '← Back to Active Fosters'
+      : '← Back to Active fosters'
   const params = useParams<{ fosterId: string }>()
   const fosterId = params?.fosterId
   const { people } = usePeople()
@@ -362,7 +358,14 @@ export default function FosterDetailsPage() {
     return () => { active = false }
   }, [])
 
-  const directory = useMemo(() => buildFosterDirectory(dogs, taskStatusByAnimalId), [dogs, taskStatusByAnimalId])
+  const directory = useMemo(() => {
+    const strict = strictTaskPresenceForRollup(
+      taskRows.length,
+      taskStatusByAnimalId
+    )
+    const idSet = strict ? animalIdsFromTaskLogRows(taskRows) : undefined
+    return buildFosterDirectory(dogs, taskStatusByAnimalId, idSet)
+  }, [dogs, taskStatusByAnimalId, taskRows])
   const foster = useMemo(() => directory.find(f => f.id === fosterId), [directory, fosterId])
   const person = useMemo(
     () => people.find(p => p.email?.toLowerCase() === foster?.fosterEmail?.toLowerCase()),

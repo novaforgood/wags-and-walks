@@ -8,6 +8,17 @@ import NotificationPanel from '@/app/components/NotificationPanel'
 import TopBarProfileMenu from '@/app/components/TopBarProfileMenu'
 import { DashboardShell } from '@/app/components/DashboardShell'
 import type { Person, PersonStatus } from '@/app/lib/peopleTypes'
+import { formatRelativeTime } from '@/app/lib/formatRelativeTime'
+import type { TasksDataQuality, TasksGetMetrics, TaskRow } from '@/app/api/tasks/route'
+import type { DogRecord, FosterStatus } from '@/app/lib/fosterDirectory'
+import {
+    compareNeedsAttentionPriority,
+    enrichFosterDirectoryWithLanes,
+    fosterNeedsAttention,
+    laneLabel,
+    type EnrichedFosterRow,
+    type TaskLane,
+} from '@/app/lib/fosterTaskEnrichment'
 import layoutStyles from '../candidates/candidates.module.css'
 import styles from './overview.module.css'
 
@@ -27,8 +38,10 @@ function hasRedFlag(person: Person): boolean {
 }
 
 type QueueFilter = 'all' | 'flagged'
+type TaskQueueFilter = 'attention' | 'overdue' | 'unknown'
 
 const APPLICANT_QUEUE_MAX = 6
+const TASK_QUEUE_MAX = 6
 
 const AVATAR_BG = [
     'var(--app-avatar-0)',
@@ -52,33 +65,114 @@ function displayName(p: Person): string {
     return n || p.email || 'Unknown'
 }
 
-function formatRelativeTime(iso?: string): string {
-    if (!iso) return '—'
-    const d = new Date(iso)
-    if (Number.isNaN(d.getTime())) return '—'
-    const now = Date.now()
-    const diffMs = now - d.getTime()
-    const mins = Math.floor(diffMs / 60000)
-    if (mins < 1) return 'Just now'
-    if (mins < 60) return `${mins}m ago`
-    const hours = Math.floor(mins / 60)
-    if (hours < 24) return `${hours}h ago`
-    const startOf = (t: number) => {
-        const x = new Date(t)
-        x.setHours(0, 0, 0, 0)
-        return x.getTime()
-    }
-    const dayDiff = Math.round((startOf(now) - startOf(d.getTime())) / 86400000)
-    if (dayDiff === 1) return 'Yesterday'
-    if (dayDiff < 7) return `${dayDiff}d ago`
-    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-}
-
 function avatarBg(email?: string): string {
     const s = email || 'x'
     let h = 0
     for (let i = 0; i < s.length; i++) h += s.charCodeAt(i)
     return AVATAR_BG[h % AVATAR_BG.length]
+}
+
+function fosterInitials(name: string, email?: string): string {
+    const trimmed = name.trim()
+    if (trimmed) {
+        const parts = trimmed.split(/\s+/)
+        const first = parts[0]?.charAt(0) || ''
+        const last = parts.length > 1 ? parts[parts.length - 1].charAt(0) : ''
+        const combined = (first + last).toUpperCase()
+        if (combined) return combined
+    }
+    return (email || '?').slice(0, 2).toUpperCase()
+}
+
+function dogListLabel(dogs: EnrichedFosterRow['dogs']): string {
+    const names = dogs.map(d => d.name).filter(Boolean)
+    if (names.length === 0) return 'No dogs listed'
+    if (names.length <= 2) return names.join(', ')
+    return `${names.slice(0, 2).join(', ')} +${names.length - 2}`
+}
+
+type TaskQueueBadge = { label: string; cls: string }
+
+function badgeForTaskRow(row: EnrichedFosterRow, badgeStyles: Record<string, string>): TaskQueueBadge {
+    if (row.householdRollup === 'Overdue' || row.photoWorst === 'overdue' || row.surveyWorst === 'overdue') {
+        const photo = row.photoWorst === 'overdue'
+        const survey = row.surveyWorst === 'overdue'
+        const label =
+            photo && survey
+                ? 'Photos + survey overdue'
+                : photo
+                  ? 'Photos overdue'
+                  : survey
+                    ? 'Survey overdue'
+                    : 'Overdue'
+        return { label, cls: badgeStyles.badgeFlag }
+    }
+    if (row.householdRollup === 'Unknown' || row.photoWorst === 'unknown' || row.surveyWorst === 'unknown') {
+        return { label: 'Unknown status', cls: badgeStyles.badgeReview }
+    }
+    const missingPhoto = row.photoWorst === 'not_in_log'
+    const missingSurvey = row.surveyWorst === 'not_in_log'
+    if (missingPhoto || missingSurvey) {
+        const label =
+            missingPhoto && missingSurvey
+                ? 'Not in Task Log'
+                : missingPhoto
+                  ? 'Photos: not in log'
+                  : 'Survey: not in log'
+        return { label, cls: badgeStyles.badgeNew }
+    }
+    return { label: laneLabel(row.photoWorst === 'good' ? 'good' : row.surveyWorst), cls: badgeStyles.badgeReview }
+}
+
+/**
+ * Earliest active "overdue trigger" across a household — the oldest
+ * `emailSentDate` (or `scheduledDate` if the email never went out) among the
+ * household's active Overdue task rows. Falls back to any active non-Overdue
+ * row's date, and finally to the placement date so the cell is never blank.
+ */
+function earliestOverdueTrigger(
+    row: EnrichedFosterRow,
+    rowsByAnimalId: Map<string, TaskRow[]>
+): { date?: string; isOverdue: boolean } {
+    const animalIds = row.dogs.map(d => d.id)
+    const candidatesOverdue: string[] = []
+    const candidatesActive: string[] = []
+    for (const id of animalIds) {
+        const list = rowsByAnimalId.get(id)
+        if (!list) continue
+        for (const t of list) {
+            if (t.status === 'completed' || t.status === 'retired') continue
+            const d = (t.emailSentDate || t.scheduledDate || '').trim()
+            if (!d) continue
+            if (t.status === 'overdue') candidatesOverdue.push(d)
+            else candidatesActive.push(d)
+        }
+    }
+    if (candidatesOverdue.length > 0) {
+        candidatesOverdue.sort()
+        return { date: candidatesOverdue[0], isOverdue: true }
+    }
+    if (candidatesActive.length > 0) {
+        candidatesActive.sort()
+        return { date: candidatesActive[0], isOverdue: false }
+    }
+    return { date: row.lastUpdate, isOverdue: false }
+}
+
+function matchesTaskQueueFilter(row: EnrichedFosterRow, filter: TaskQueueFilter): boolean {
+    if (filter === 'attention') return fosterNeedsAttention(row)
+    if (filter === 'overdue') {
+        return (
+            row.householdRollup === 'Overdue' ||
+            row.photoWorst === 'overdue' ||
+            row.surveyWorst === 'overdue'
+        )
+    }
+    if (filter === 'unknown') {
+        const bad = (l: TaskLane) => l === 'unknown' || l === 'not_in_log'
+        return row.householdRollup === 'Unknown' || bad(row.photoWorst) || bad(row.surveyWorst)
+    }
+    return true
 }
 
 function buildConicGradient(segments: { count: number; color: string }[]): string | null {
@@ -103,6 +197,12 @@ export default function OverviewPage() {
 
     // ── ADDED: ASM foster count from /api/fosters ──────────────────────────
     const [asmFosterCount, setAsmFosterCount] = useState<number | null>(null)
+    const [taskMetrics, setTaskMetrics] = useState<TasksGetMetrics | null>(null)
+    const [dataQuality, setDataQuality] = useState<TasksDataQuality | null>(null)
+    const [dogs, setDogs] = useState<DogRecord[]>([])
+    const [taskRows, setTaskRows] = useState<TaskRow[]>([])
+    const [taskStatusByAnimalId, setTaskStatusByAnimalId] = useState<Record<string, FosterStatus>>({})
+    const [taskQueueFilter, setTaskQueueFilter] = useState<TaskQueueFilter>('attention')
 
     useEffect(() => {
         let active = true
@@ -120,6 +220,49 @@ export default function OverviewPage() {
         }
         loadFosterCount()
         return () => { active = false }
+    }, [])
+
+    useEffect(() => {
+        let active = true
+        async function loadTaskMetrics() {
+            try {
+                const res = await fetch('/api/tasks', { cache: 'no-store' })
+                if (!res.ok || !active) return
+                const data = await res.json()
+                if (!active) return
+                if (data?.metrics) setTaskMetrics(data.metrics as TasksGetMetrics)
+                if (data?.dataQuality) setDataQuality(data.dataQuality as TasksDataQuality)
+                if (Array.isArray(data?.rows)) setTaskRows(data.rows as TaskRow[])
+                if (data?.taskStatusByAnimalId) {
+                    setTaskStatusByAnimalId(data.taskStatusByAnimalId as Record<string, FosterStatus>)
+                }
+            } catch {
+                /* Task Log optional */
+            }
+        }
+        void loadTaskMetrics()
+        return () => {
+            active = false
+        }
+    }, [])
+
+    useEffect(() => {
+        let active = true
+        async function loadDogs() {
+            try {
+                const res = await fetch('/api/dogs', { cache: 'no-store' })
+                if (!res.ok || !active) return
+                const data = await res.json()
+                if (!active) return
+                if (Array.isArray(data?.dogs)) setDogs(data.dogs as DogRecord[])
+            } catch {
+                /* dogs optional — queue gracefully empties */
+            }
+        }
+        void loadDogs()
+        return () => {
+            active = false
+        }
     }, [])
     // ───────────────────────────────────────────────────────────────────────
 
@@ -236,6 +379,60 @@ export default function OverviewPage() {
         ((queueFilter === 'all' && stats.pipelineCount > APPLICANT_QUEUE_MAX) ||
             (queueFilter === 'flagged' && stats.flaggedInPipeline > APPLICANT_QUEUE_MAX))
 
+    const overdueFollowUpRows = taskMetrics?.activeOverdueTaskRows ?? 0
+    const unknownStatusRows = taskMetrics?.unknownStatusRowCount ?? 0
+
+    const enrichedFosters = useMemo(
+        () => enrichFosterDirectoryWithLanes(dogs, taskRows, taskStatusByAnimalId),
+        [dogs, taskRows, taskStatusByAnimalId]
+    )
+
+    const taskRowsByAnimalId = useMemo(() => {
+        const map = new Map<string, TaskRow[]>()
+        for (const t of taskRows) {
+            const id = t.animalId
+            if (!id) continue
+            const list = map.get(id)
+            if (list) list.push(t)
+            else map.set(id, [t])
+        }
+        return map
+    }, [taskRows])
+
+    const taskQueueCounts = useMemo(() => {
+        let attention = 0
+        let overdue = 0
+        let unknown = 0
+        for (const row of enrichedFosters) {
+            if (fosterNeedsAttention(row)) attention += 1
+            if (
+                row.householdRollup === 'Overdue' ||
+                row.photoWorst === 'overdue' ||
+                row.surveyWorst === 'overdue'
+            ) overdue += 1
+            const badLane = (l: TaskLane) => l === 'unknown' || l === 'not_in_log'
+            if (row.householdRollup === 'Unknown' || badLane(row.photoWorst) || badLane(row.surveyWorst)) {
+                unknown += 1
+            }
+        }
+        return { attention, overdue, unknown }
+    }, [enrichedFosters])
+
+    const taskQueue = useMemo(() => {
+        const filtered = enrichedFosters.filter(r => matchesTaskQueueFilter(r, taskQueueFilter))
+        return [...filtered].sort(compareNeedsAttentionPriority).slice(0, TASK_QUEUE_MAX)
+    }, [enrichedFosters, taskQueueFilter])
+
+    const taskQueueTotal =
+        taskQueueFilter === 'attention'
+            ? taskQueueCounts.attention
+            : taskQueueFilter === 'overdue'
+              ? taskQueueCounts.overdue
+              : taskQueueCounts.unknown
+
+    const showTaskQueueSeeAll = taskQueue.length > 0 && taskQueueTotal > TASK_QUEUE_MAX
+    const hasDogsLoaded = dogs.length > 0
+
     return (
         <ProtectedRoute>
             <DashboardShell>
@@ -276,6 +473,125 @@ export default function OverviewPage() {
                                     <span className={styles.statValue}>{stats.flaggedInPipeline}</span>
                                     <span className={styles.statHint}>In pipeline</span>
                                 </div>
+                            </div>
+
+                            <div className={styles.applicantSectionWrap}>
+                            <section
+                                className={styles.applicantCard}
+                                id="foster-task-log"
+                                aria-labelledby="foster-task-log-title"
+                            >
+                                <div className={styles.cardHead}>
+                                    <div className={styles.cardHeadText}>
+                                        <h2 id="foster-task-log-title" className={styles.cardTitle}>
+                                            Foster tasks
+                                        </h2>
+                                        <p className={styles.cardSubtitle}>
+                                            {overdueFollowUpRows} overdue follow-up{overdueFollowUpRows === 1 ? '' : 's'}
+                                            {unknownStatusRows > 0
+                                                ? ` · ${unknownStatusRows} unknown row${unknownStatusRows === 1 ? '' : 's'}`
+                                                : ''}
+                                        </p>
+                                    </div>
+                                    <div className={styles.filterBar} role="tablist" aria-label="Foster task filters">
+                                        {(
+                                            [
+                                                ['attention', 'Needs attention'],
+                                                ['overdue', 'Overdue'],
+                                                ['unknown', 'Unknown / missing'],
+                                            ] as const satisfies readonly (readonly [TaskQueueFilter, string])[]
+                                        ).map(([key, label]) => (
+                                            <button
+                                                key={key}
+                                                type="button"
+                                                role="tab"
+                                                aria-selected={taskQueueFilter === key}
+                                                className={`${styles.filterBtn} ${taskQueueFilter === key ? styles.filterBtnActive : ''}`}
+                                                onClick={() => setTaskQueueFilter(key)}
+                                            >
+                                                {label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {dataQuality?.hasUnknownTaskStatuses ? (
+                                    <p className={styles.dataQualityBanner} role="status">
+                                        Data quality: {dataQuality.unknownStatusRowCount} task row
+                                        {dataQuality.unknownStatusRowCount === 1 ? '' : 's'} have missing or
+                                        unrecognized status in the Task Log — not counted as Good until fixed.
+                                    </p>
+                                ) : null}
+
+                                {!hasDogsLoaded ? (
+                                    <p className={styles.emptyQueue}>Loading foster households…</p>
+                                ) : taskQueue.length === 0 ? (
+                                    <p className={styles.emptyQueue}>
+                                        {taskQueueFilter === 'attention'
+                                            ? 'All households are caught up — nothing needs attention.'
+                                            : taskQueueFilter === 'overdue'
+                                              ? 'No overdue follow-ups right now.'
+                                              : 'No unknown / missing task rows right now.'}
+                                    </p>
+                                ) : (
+                                    <ul className={styles.queueList}>
+                                        {taskQueue.map(row => {
+                                            const href = `/fosters/${row.id}?from=overview`
+                                            const badge = badgeForTaskRow(row, styles)
+                                            const trigger = earliestOverdueTrigger(row, taskRowsByAnimalId)
+                                            const triggerTitle = trigger.isOverdue
+                                                ? `Overdue since ${trigger.date ?? 'unknown'}`
+                                                : trigger.date
+                                                  ? `Last task activity ${trigger.date}`
+                                                  : 'No task log activity'
+                                            return (
+                                                <li key={row.id}>
+                                                    <Link href={href} className={styles.queueRow}>
+                                                        <span
+                                                            className={styles.queueAvatar}
+                                                            style={{ background: avatarBg(row.fosterEmail) }}
+                                                            aria-hidden
+                                                        >
+                                                            {fosterInitials(row.fosterName, row.fosterEmail)}
+                                                        </span>
+                                                        <span className={styles.queueMain}>
+                                                            <span className={styles.queueName}>{row.fosterName}</span>
+                                                            <span className={styles.queueSub}>{dogListLabel(row.dogs)}</span>
+                                                        </span>
+                                                        <span className={styles.queueRowTail}>
+                                                            <span className={`${styles.queueBadge} ${badge.cls}`}>
+                                                                {badge.label}
+                                                            </span>
+                                                            <span className={styles.queueTime} title={triggerTitle}>
+                                                                {formatRelativeTime(trigger.date)}
+                                                            </span>
+                                                            <span className={styles.queueChevron} aria-hidden>
+                                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                                                                    <path
+                                                                        d="M9 6l6 6-6 6"
+                                                                        stroke="currentColor"
+                                                                        strokeWidth="2"
+                                                                        strokeLinecap="round"
+                                                                        strokeLinejoin="round"
+                                                                    />
+                                                                </svg>
+                                                            </span>
+                                                        </span>
+                                                    </Link>
+                                                </li>
+                                            )
+                                        })}
+                                    </ul>
+                                )}
+
+                                {showTaskQueueSeeAll && (
+                                    <div className={styles.queueFooter}>
+                                        <Link href="/fosters" className={styles.queueFooterLink}>
+                                            View all in Onboarded fosters
+                                        </Link>
+                                    </div>
+                                )}
+                            </section>
                             </div>
 
                             <div className={styles.applicantSectionWrap}>

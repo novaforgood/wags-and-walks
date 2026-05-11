@@ -131,7 +131,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
             Directory
           </Link>
           <Link
-            href="/fosters/overview"
+            href="/fosters"
             className={`${layoutStyles.navItem} ${fostersActive ? layoutStyles.navItemActive : ''}`}
             onClick={() => setNavOpen(false)}
           >

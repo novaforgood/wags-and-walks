@@ -1,6 +1,8 @@
 import type { TaskRow } from '@/app/api/tasks/route'
 import {
+  animalIdsFromTaskLogRows,
   buildFosterDirectory,
+  strictTaskPresenceForRollup,
   type DogRecord,
   type FosterDirectoryItem,
   type FosterDog,
@@ -83,7 +85,18 @@ export function enrichFosterDirectoryWithLanes(
   taskRows: TaskRow[],
   taskStatusByAnimalId: Record<string, FosterStatus>
 ): EnrichedFosterRow[] {
-  const base = buildFosterDirectory(dogs, taskStatusByAnimalId)
+  const strictRollup = strictTaskPresenceForRollup(
+    taskRows.length,
+    taskStatusByAnimalId
+  )
+  const animalIdsWithAnyRow = strictRollup
+    ? animalIdsFromTaskLogRows(taskRows)
+    : undefined
+  const base = buildFosterDirectory(
+    dogs,
+    taskStatusByAnimalId,
+    animalIdsWithAnyRow
+  )
   return base.map(item => {
     const enrichedDogs: EnrichedDog[] = item.dogs.map(d => {
       const photoLane = summarizeTaskLane(taskRows, d.id, 'PHOTOS')
@@ -122,6 +135,40 @@ export type TaskInboxFilter =
   | 'survey_on_track'
   | 'photo_missing_log'
   | 'survey_missing_log'
+
+/** Matches overview priority queue: Unknown worst, then Overdue, then Good. */
+function rollupRankForSort(status: FosterStatus): number {
+  return status === 'Unknown' ? 3 : status === 'Overdue' ? 2 : 1
+}
+
+function maxDaysInFosterAcrossDogs(row: EnrichedFosterRow): number {
+  let m = 0
+  for (const d of row.dogs) {
+    const n = d.daysInFoster
+    if (typeof n === 'number' && n > m) m = n
+  }
+  return m
+}
+
+/**
+ * Sort “Needs attention” rows by urgency (not A–Z): worst household status first,
+ * then heavier Task Log lane issues, then longest time in foster.
+ */
+export function compareNeedsAttentionPriority(a: EnrichedFosterRow, b: EnrichedFosterRow): number {
+  const rr =
+    rollupRankForSort(b.householdRollup) - rollupRankForSort(a.householdRollup)
+  if (rr !== 0) return rr
+
+  const laneHeat = (row: EnrichedFosterRow) =>
+    laneWeight(row.photoWorst) + laneWeight(row.surveyWorst)
+  const lr = laneHeat(b) - laneHeat(a)
+  if (lr !== 0) return lr
+
+  const days = maxDaysInFosterAcrossDogs(b) - maxDaysInFosterAcrossDogs(a)
+  if (days !== 0) return days
+
+  return a.fosterName.localeCompare(b.fosterName)
+}
 
 export function matchesTaskInboxFilter(row: EnrichedFosterRow, f: TaskInboxFilter): boolean {
   switch (f) {

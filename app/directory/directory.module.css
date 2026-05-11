@@ -1,0 +1,196 @@
+/* ---- Results summary row (above table) ---- */
+.resultsRow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 0 40px 8px;
+    color: #6b7280;
+    font-size: 13px;
+    font-family: 'Inter', sans-serif;
+}
+
+.resultsCount {
+    font-weight: 500;
+}
+
+.resultsHint {
+    color: #9ca3af;
+}
+
+/* ---- Pagination ---- */
+.paginationBar {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 4px;
+    padding: 12px 16px;
+    flex-wrap: wrap;
+}
+
+.pageBtn {
+    min-width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 14px;
+    padding: 0 8px;
+    color: #555;
+    font-weight: 400;
+    transition: background 0.15s, color 0.15s;
+    font-family: 'Inter', sans-serif;
+}
+
+.pageBtn:hover:not(:disabled):not(.pageBtnActive) {
+    background: #f0f0f0;
+    color: #333;
+}
+
+.pageBtn:disabled {
+    color: #ccc;
+    cursor: default;
+}
+
+.pageBtnActive {
+    background: #e8fbfe;
+    color: #05aaaf;
+    font-weight: 600;
+    cursor: default;
+}
+
+.pageEllipsis {
+    padding: 0 4px;
+    color: #888;
+    font-size: 14px;
+    user-select: none;
+}
+
+/* ---- Empty state row ---- */
+.emptyRow {
+    text-align: center;
+    padding: 32px;
+    color: #888;
+}
+
+/* ---- Star slot stays at fixed width so View buttons align across rows ---- */
+.starSlot {
+    width: 36px;
+    height: 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.starSlotDisabled {
+    opacity: 0.25;
+    cursor: default;
+}
+
+/* ---- Column widths (via <colgroup>) ---- */
+/*
+ * Override the shared 760px floor — the directory should never trigger a
+ * horizontal scroll. Percentages let the browser distribute remaining width
+ * proportionally; long emails wrap rather than push the table wider.
+ */
+.directoryTable {
+    min-width: 0;
+    table-layout: fixed;
+}
+
+.colName { width: 22%; }
+.colEmail { width: 28%; }
+.colPhone { width: 14%; }
+.colCurrent { width: 13%; }
+.colTotal { width: 8%; }
+.colActions { width: 15%; }
+
+/*
+ * Shared .table th uses white-space: nowrap, which causes long headers like
+ * "Currently fostering" to overflow into adjacent columns under
+ * table-layout: fixed. Allow wrapping in this table only.
+ */
+.directoryTable th {
+    white-space: normal;
+    vertical-align: middle;
+    line-height: 1.25;
+}
+
+/* Wrap long emails gracefully instead of forcing the column wider. */
+.directoryTable td,
+.directoryTable th {
+    word-break: break-word;
+    overflow-wrap: anywhere;
+}
+
+/* Trim the shared View button so the Actions column doesn't demand 128px. */
+.directoryTable .selectBtnCompact,
+.selectBtnCompact {
+    width: 78px;
+    height: 30px;
+    font-size: 13px;
+}
+
+/* ---- Responsive column hiding ---- */
+@media (max-width: 1024px) {
+    .resultsRow {
+        padding: 0 24px 8px;
+    }
+
+    /* Hide "Total fostered" — still visible in the modal's foster history tab. */
+    .hideOnTablet {
+        display: none;
+    }
+
+    /* Redistribute now that "Total fostered" is hidden. */
+    .colName { width: 24%; }
+    .colEmail { width: 30%; }
+    .colPhone { width: 16%; }
+    .colCurrent { width: 14%; }
+    .colActions { width: 16%; }
+}
+
+@media (max-width: 720px) {
+    .resultsRow {
+        padding: 0 24px 8px;
+        font-size: 12px;
+    }
+
+    .resultsHint {
+        display: none;
+    }
+
+    /* Hide phone on phones (it's available in the modal). */
+    .hideOnMobile {
+        display: none;
+    }
+
+    /* Redistribute now that Phone is also hidden. */
+    .colName { width: 30%; }
+    .colEmail { width: 32%; }
+    .colCurrent { width: 16%; }
+    .colActions { width: 22%; }
+
+    .selectBtnCompact {
+        width: 64px;
+        height: 30px;
+        font-size: 13px;
+    }
+
+    .paginationBar {
+        padding: 10px 8px;
+        justify-content: center;
+    }
+}
+
+@media (max-width: 480px) {
+    .resultsRow {
+        padding: 0 16px 6px;
+    }
+
+    .selectBtnCompact {
+        width: 56px;
+    }
+}
