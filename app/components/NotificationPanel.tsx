@@ -81,10 +81,12 @@ export default function NotificationPanel() {
           .map(row => rowToNotification(row))
           .filter((n): n is Notification => n !== null)
           .sort((a, b) => {
-            const rank = (n: Notification) =>
-              n.action.includes('overdue') ? 2 : n.action.startsWith('completed') ? 0 : 1
-            if (rank(b) !== rank(a)) return rank(b) - rank(a)
-            return b.timestamp.getTime() - a.timestamp.getTime()
+            const ta = a.timestamp.getTime()
+            const tb = b.timestamp.getTime()
+            if (Number.isNaN(ta) && Number.isNaN(tb)) return 0
+            if (Number.isNaN(ta)) return 1
+            if (Number.isNaN(tb)) return -1
+            return tb - ta
           })
         setNotifications(notifs)
       })

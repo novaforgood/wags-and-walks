@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useParams } from 'next/navigation'
 
 export default function UpdatesPage() {
@@ -7,32 +8,18 @@ export default function UpdatesPage() {
   const email = decodeURIComponent(params.email as string)
 
   return (
-    <main style={{ padding: 40, background: '#f5f5f5', minHeight: '100vh' }}>
-      <button
-        onClick={() => window.history.back()}
-        style={{ marginBottom: 20 }}
-      >
-        ← Back
-      </button>
+    <main style={{ padding: '40px 24px', background: '#f3f7f7', minHeight: '100vh', maxWidth: 720, margin: '0 auto' }}>
+      <Link href={`/applicants/${encodeURIComponent(email)}`} style={{ color: '#05aaaf', fontSize: 14, fontWeight: 600 }}>
+        ← Back to applicant
+      </Link>
 
-      <h1 style={{ marginBottom: 30 }}>
-        Recent Updates - {email}
+      <h1 style={{ margin: '24px 0 12px', fontSize: 22, fontWeight: 700, color: '#0f172a' }}>
+        Updates
       </h1>
-
-      {[1, 2, 3, 4].map((_, i) => (
-        <div
-          key={i}
-          style={{
-            background: 'white',
-            padding: 20,
-            borderRadius: 12,
-            marginBottom: 15
-          }}
-        >
-          <div>Update Title</div>
-          <small>8 hrs ago</small>
-        </div>
-      ))}
+      <p style={{ margin: 0, fontSize: 15, color: '#64748b', lineHeight: 1.5 }}>
+        There is no separate updates timeline stored for this applicant yet. Use the applicant record and notes for the latest
+        information.
+      </p>
     </main>
   )
 }

@@ -8,12 +8,7 @@ import NotificationPanel from '@/app/components/NotificationPanel'
 import TopBarProfileMenu from '@/app/components/TopBarProfileMenu'
 import { DashboardShell } from '@/app/components/DashboardShell'
 import type { ActionStatus } from '@/app/lib/fosterActions'
-import {
-  buildFosterOverview,
-  countOpenActions,
-  openCountForFoster,
-  type FosterOverviewRow,
-} from '@/app/lib/fosterActions'
+import { buildFosterOverview, countOpenActions, openCountForFoster } from '@/app/lib/fosterActions'
 import layoutStyles from '../../candidates/candidates.module.css'
 import styles from './fosterActions.module.css'
 import FostersSubTabs from '../FostersSubTabs'
@@ -46,14 +41,7 @@ function statusLabel(status: ActionStatus): string {
 
 export default function FosterActionsPage() {
   const { people, isLoading, error } = usePeople()
-  const realRows = useMemo(() => buildFosterOverview(people), [people])
-  const rows = useMemo(() => {
-    // Demo-friendly: ensure the UI shows multiple fosters even with sparse data
-    const min = 4
-    if (realRows.length >= min) return realRows
-    const needed = min - realRows.length
-    return [...realRows, ...buildMockRows().slice(0, needed)]
-  }, [realRows])
+  const rows = useMemo(() => buildFosterOverview(people), [people])
   const totalOpen = useMemo(() => countOpenActions(rows), [rows])
   const overdueCount = useMemo(() => {
     let n = 0
@@ -399,37 +387,4 @@ export default function FosterActionsPage() {
       </DashboardShell>
     </ProtectedRoute>
   )
-}
-
-function buildMockRows(): FosterOverviewRow[] {
-  const mk = (id: string, foster: string, email: string, dog: string, overdue = false): FosterOverviewRow => ({
-    id,
-    fosterDisplayName: foster,
-    email,
-    person: { email, firstName: foster.split(' ')[0], lastName: foster.split(' ')[1] || '', status: 'current' } as any,
-    dogs: [
-      {
-        id: `${id}-dog-0`,
-        name: dog,
-        actions: [
-          {
-            id: `${id}-photos`,
-            title: 'Upload foster photos',
-            status: overdue ? 'overdue' : 'needed',
-            detail: overdue ? 'Photo update is past due' : 'Needs photo upload',
-          },
-          { id: `${id}-weekly`, title: 'Weekly check-in', status: 'needed' },
-          { id: `${id}-vet`, title: 'Submit vet records', status: 'needed' },
-          { id: `${id}-orientation`, title: 'Orientation / paperwork', status: 'done' },
-        ],
-      },
-    ],
-  })
-
-  return [
-    mk('mock-brenda', 'Brenda S.', 'brenda@example.com', 'Spot', true),
-    mk('mock-marcus', 'Marcus T.', 'marcus@example.com', 'Bella'),
-    mk('mock-olivia', 'Olivia Q.', 'olivia@example.com', 'Fido'),
-    mk('mock-sarah', 'Sarah K.', 'sarah@example.com', 'Luna'),
-  ]
 }

@@ -11,6 +11,7 @@ import {
 } from 'react'
 import type { Person, PersonStatus } from '@/app/lib/peopleTypes'
 import { normalizeEmailKey, PENDING_STATUS_UPDATES_STORAGE_KEY } from '@/app/lib/peopleTypes'
+import { auth } from '@/firebase'
 
 type PeopleContextValue = {
   people: Person[]
@@ -56,10 +57,6 @@ export function PeopleProvider({ children }: { children: React.ReactNode }) {
   const pendingRef = useRef<Map<string, PersonStatus>>(new Map())
   const flushTimerRef = useRef<number | null>(null)
   const abortRef = useRef<AbortController | null>(null)
-
-  // TODO: Replace this constant with the currently logged-in admin user's identity.
-  // For now, we store a fixed marker in the sheet to support multi-user visibility.
-  const UPDATED_BY = 'jay t'
 
   const applyPendingOptimistic = useCallback((base: Person[]) => {
     return base.map(p => {
@@ -208,6 +205,11 @@ export function PeopleProvider({ children }: { children: React.ReactNode }) {
     )
     if (updates.length === 0) return
 
+    const updatedBy =
+      auth.currentUser?.email?.trim() ||
+      auth.currentUser?.displayName?.trim() ||
+      'unknown'
+
     for (const u of updates) {
       try {
         const response = await fetch('/api/send-email', {
@@ -217,7 +219,7 @@ export function PeopleProvider({ children }: { children: React.ReactNode }) {
             action: 'set_status',
             email: u.email,
             status: u.status,
-            updatedBy: UPDATED_BY
+            updatedBy,
           })
         })
 
