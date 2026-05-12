@@ -18,62 +18,6 @@
     color: #9ca3af;
 }
 
-/* ---- Pagination ---- */
-.paginationBar {
-    display: flex;
-    justify-content: flex-end;
-    align-items: center;
-    gap: 4px;
-    padding: 12px 16px;
-    flex-wrap: wrap;
-}
-
-.pageBtn {
-    min-width: 32px;
-    height: 32px;
-    border-radius: 6px;
-    border: none;
-    background: transparent;
-    cursor: pointer;
-    font-size: 14px;
-    padding: 0 8px;
-    color: #555;
-    font-weight: 400;
-    transition: background 0.15s, color 0.15s;
-    font-family: 'Inter', sans-serif;
-}
-
-.pageBtn:hover:not(:disabled):not(.pageBtnActive) {
-    background: #f0f0f0;
-    color: #333;
-}
-
-.pageBtn:disabled {
-    color: #ccc;
-    cursor: default;
-}
-
-.pageBtnActive {
-    background: #e8fbfe;
-    color: #05aaaf;
-    font-weight: 600;
-    cursor: default;
-}
-
-.pageEllipsis {
-    padding: 0 4px;
-    color: #888;
-    font-size: 14px;
-    user-select: none;
-}
-
-/* ---- Empty state row ---- */
-.emptyRow {
-    text-align: center;
-    padding: 32px;
-    color: #888;
-}
-
 /* ---- Star slot stays at fixed width so View buttons align across rows ---- */
 .starSlot {
     width: 36px;
@@ -177,11 +121,6 @@
         width: 64px;
         height: 30px;
         font-size: 13px;
-    }
-
-    .paginationBar {
-        padding: 10px 8px;
-        justify-content: center;
     }
 }
 

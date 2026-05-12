@@ -56,26 +56,12 @@ function PageButton({
   active?: boolean
   children: React.ReactNode
 }) {
-  const [hovered, setHovered] = useState(false)
   return (
     <button
+      type="button"
       onClick={onClick}
       disabled={disabled}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        minWidth: '32px',
-        height: '32px',
-        borderRadius: '6px',
-        border: 'none',
-        background: active ? '#e8fbfe' : hovered && !disabled ? '#f0f0f0' : 'none',
-        cursor: disabled ? 'default' : 'pointer',
-        fontSize: '14px',
-        padding: '0 8px',
-        color: active ? '#05aaaf' : disabled ? '#ccc' : hovered ? '#333' : '#555',
-        fontWeight: active ? '600' : '400',
-        transition: 'background 0.15s, color 0.15s',
-      }}
+      className={`${styles.paginationBtn} ${active ? styles.paginationBtnActive : ''}`}
     >
       {children}
     </button>
@@ -263,70 +249,64 @@ export default function FostersPage() {
         {!isLoadingDogs && !dogsError && (
           <div className={styles.tableWrapper} ref={tableWrapperRef}>
             <div className={styles.tableContainer}>
-              <table className={styles.table}>
-                <thead>
-                  <tr>
-                    <th>Foster name</th>
-                    <th>Dog(s)</th>
-                    <th title="Latest movement date from Shelter Manager (not Task Log deadlines)">Movement</th>
-                    <th title="Overall Task Log status for this home (worst dog wins)">Household status</th>
-                    <th>Photos (log)</th>
-                    <th>Survey (log)</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {paginatedRows.map(row => (
-                    <tr key={row.id}>
-                      <td>
-                        <Link href={`/fosters/${row.id}`} className={styles.nameLink}>
-                          {row.fosterName}
-                        </Link>
-                      </td>
-                      <td>{row.dogs.map(d => d.name).join(', ')}</td>
-                      <td>{formatDateShort(row.lastUpdate)}</td>
-                      <td>{row.householdRollup}</td>
-                      <td>
-                        <div className={inboxStyles.laneCell}>
-                          <span>{laneLabel(row.photoWorst)}</span>
-                        </div>
-                      </td>
-                      <td>
-                        <div className={inboxStyles.laneCell}>
-                          <span>{laneLabel(row.surveyWorst)}</span>
-                        </div>
-                      </td>
-                      <td>
-                        <Link
-                          href={`/fosters/${row.id}`}
-                          className={styles.infoIconBtn}
-                          aria-label={`View details for ${row.fosterName}`}
-                          title={`View details for ${row.fosterName}`}
-                        >
-                          i
-                        </Link>
-                      </td>
-                    </tr>
-                  ))}
-                  {paginatedRows.length === 0 && (
+              <div className={styles.tableScroll}>
+                <table className={styles.table}>
+                  <thead>
                     <tr>
-                      <td colSpan={7} style={{ textAlign: 'center', padding: '32px', color: '#888' }}>
-                        No directory rows found.
-                      </td>
+                      <th>Foster name</th>
+                      <th>Dog(s)</th>
+                      <th title="Latest movement date from Shelter Manager (not Task Log deadlines)">Movement</th>
+                      <th title="Overall Task Log status for this home (worst dog wins)">Household status</th>
+                      <th>Photos (log)</th>
+                      <th>Survey (log)</th>
+                      <th></th>
                     </tr>
-                  )}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {paginatedRows.map(row => (
+                      <tr key={row.id}>
+                        <td>
+                          <Link href={`/fosters/${row.id}`} className={styles.nameLink}>
+                            {row.fosterName}
+                          </Link>
+                        </td>
+                        <td>{row.dogs.map(d => d.name).join(', ')}</td>
+                        <td>{formatDateShort(row.lastUpdate)}</td>
+                        <td>{row.householdRollup}</td>
+                        <td>
+                          <div className={inboxStyles.laneCell}>
+                            <span>{laneLabel(row.photoWorst)}</span>
+                          </div>
+                        </td>
+                        <td>
+                          <div className={inboxStyles.laneCell}>
+                            <span>{laneLabel(row.surveyWorst)}</span>
+                          </div>
+                        </td>
+                        <td>
+                          <Link
+                            href={`/fosters/${row.id}`}
+                            className={styles.infoIconBtn}
+                            aria-label={`View details for ${row.fosterName}`}
+                            title={`View details for ${row.fosterName}`}
+                          >
+                            i
+                          </Link>
+                        </td>
+                      </tr>
+                    ))}
+                    {paginatedRows.length === 0 && (
+                      <tr>
+                        <td colSpan={7} className={styles.emptyState}>
+                          No directory rows found.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
               {totalPages > 1 && (
-                <div
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'flex-end',
-                    alignItems: 'center',
-                    gap: '4px',
-                    padding: '12px 16px',
-                  }}
-                >
+                <div className={styles.pagination}>
                   <PageButton onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>
                     ‹ Previous
                   </PageButton>
@@ -340,7 +320,7 @@ export default function FostersPage() {
                     }, [])
                     .map((item, idx) =>
                       item === '...' ? (
-                        <span key={`ellipsis-${idx}`} style={{ padding: '0 4px', color: '#888', fontSize: '14px' }}>
+                        <span key={`ellipsis-${idx}`} className={styles.paginationEllipsis}>
                           ···
                         </span>
                       ) : (

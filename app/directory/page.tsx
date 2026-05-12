@@ -316,7 +316,7 @@ export default function DirectoryPage() {
                         <button
                             className={`${styles.toolbarBtn} ${styles.toolbarBtnStarred} ${showStarredOnly ? styles.toolbarBtnActive : ''}`}
                             onClick={() => setShowStarredOnly(v => !v)}
-                        >Starred</button>
+                        >Donor</button>
                         <FilterDropdown people={people} filters={filters} setFilters={setFilters} />
                     </div>
                 </div>
@@ -344,26 +344,27 @@ export default function DirectoryPage() {
 
                 <div className={styles.tableWrapper} ref={tableWrapperRef}>
                     <div className={styles.tableContainer}>
-                        <table className={`${styles.table} ${dirStyles.directoryTable}`}>
-                            <colgroup>
-                                <col className={dirStyles.colName} />
-                                <col className={dirStyles.colEmail} />
-                                <col className={dirStyles.colPhone} />
-                                <col className={dirStyles.colCurrent} />
-                                <col className={dirStyles.colTotal} />
-                                <col className={dirStyles.colActions} />
-                            </colgroup>
-                            <thead>
-                                <tr>
-                                    <th>Name</th>
-                                    <th>Email</th>
-                                    <th className={dirStyles.hideOnMobile}>Phone</th>
-                                    <th>Currently fostering</th>
-                                    <th className={dirStyles.hideOnTablet}>Total fostered</th>
-                                    <th></th>
-                                </tr>
-                            </thead>
-                            <tbody>
+                        <div className={styles.tableScroll}>
+                            <table className={`${styles.table} ${dirStyles.directoryTable}`}>
+                                <colgroup>
+                                    <col className={dirStyles.colName} />
+                                    <col className={dirStyles.colEmail} />
+                                    <col className={dirStyles.colPhone} />
+                                    <col className={dirStyles.colCurrent} />
+                                    <col className={dirStyles.colTotal} />
+                                    <col className={dirStyles.colActions} />
+                                </colgroup>
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Email</th>
+                                        <th className={dirStyles.hideOnMobile}>Phone</th>
+                                        <th>Currently fostering</th>
+                                        <th className={dirStyles.hideOnTablet}>Total fostered</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
                                 {paginatedRows.map((r, index) => {
                                     const key = r.fosterer.fostererId || r.email || `${r.displayName}-${index}`
                                     const personForModal = r.person ?? buildSyntheticPerson(r.fosterer)
@@ -388,8 +389,8 @@ export default function DirectoryPage() {
                                                                 e.stopPropagation()
                                                                 toggleStar(r.person!.email || '')
                                                             }}
-                                                            title={r.starred ? 'Unstar' : 'Star'}
-                                                            aria-label={r.starred ? `Unstar ${r.displayName}` : `Star ${r.displayName}`}
+                                                            title={r.starred ? 'Unmark donor' : 'Mark as donor'}
+                                                            aria-label={r.starred ? `Unmark ${r.displayName} as donor` : `Mark ${r.displayName} as donor`}
                                                         >
                                                             <svg viewBox="0 0 24 24" aria-hidden="true" className={styles.actionIconSvg}>
                                                                 <path
@@ -405,7 +406,7 @@ export default function DirectoryPage() {
                                                     ) : (
                                                         <span
                                                             className={`${dirStyles.starSlot} ${dirStyles.starSlotDisabled}`}
-                                                            title="No application on file — star unavailable"
+                                                            title="No application on file — donor flag unavailable"
                                                             aria-hidden="true"
                                                         >
                                                             <svg viewBox="0 0 24 24" aria-hidden="true" className={styles.actionIconSvg}>
@@ -436,18 +437,19 @@ export default function DirectoryPage() {
                                 })}
                                 {!isLoading && filtered.length === 0 && (
                                     <tr>
-                                        <td colSpan={6} className={dirStyles.emptyRow}>
+                                        <td colSpan={6} className={styles.emptyState}>
                                             No fosterers found.
                                         </td>
                                     </tr>
                                 )}
-                            </tbody>
-                        </table>
+                                </tbody>
+                            </table>
+                        </div>
 
                         {totalPages > 1 && (
-                            <div className={dirStyles.paginationBar}>
+                            <div className={styles.pagination}>
                                 <button
-                                    className={dirStyles.pageBtn}
+                                    className={styles.paginationBtn}
                                     onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                                     disabled={currentPage === 1}
                                     aria-label="Previous page"
@@ -457,11 +459,11 @@ export default function DirectoryPage() {
 
                                 {pageList.map((item, idx) =>
                                     item === 'ellipsis' ? (
-                                        <span key={`ellipsis-${idx}`} className={dirStyles.pageEllipsis}>···</span>
+                                        <span key={`ellipsis-${idx}`} className={styles.paginationEllipsis}>···</span>
                                     ) : (
                                         <button
                                             key={item}
-                                            className={`${dirStyles.pageBtn} ${currentPage === item ? dirStyles.pageBtnActive : ''}`}
+                                            className={`${styles.paginationBtn} ${currentPage === item ? styles.paginationBtnActive : ''}`}
                                             onClick={() => setCurrentPage(item)}
                                             aria-current={currentPage === item ? 'page' : undefined}
                                             aria-label={`Go to page ${item}`}
@@ -472,7 +474,7 @@ export default function DirectoryPage() {
                                 )}
 
                                 <button
-                                    className={dirStyles.pageBtn}
+                                    className={styles.paginationBtn}
                                     onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                                     disabled={currentPage === totalPages}
                                     aria-label="Next page"

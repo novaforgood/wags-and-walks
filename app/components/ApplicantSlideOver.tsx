@@ -2,7 +2,6 @@
 
 import { useEffect } from 'react'
 import type { Person } from '@/app/lib/peopleTypes'
-import type { TriageOutcome } from '@/app/lib/applicantTriage'
 import styles from './ApplicantSlideOver.module.css'
 
 /** Sections in the slide-over. Mirrors PersonModal's application sections so volunteers see
@@ -60,21 +59,10 @@ const APPLICATION_SECTIONS: { title: string; fields: string[] }[] = [
 
 type Props = {
   person: Person | null
-  /** Local-only mark (volunteer's own tag — does not affect the pipeline). */
-  mark?: TriageOutcome
   onClose: () => void
-  /** Set or toggle a mark. Passing the current mark again clears it. */
-  onSetMark: (outcome: TriageOutcome) => void
-  onClearMark: () => void
 }
 
-export default function ApplicantSlideOver({
-  person,
-  mark,
-  onClose,
-  onSetMark,
-  onClearMark,
-}: Props) {
+export default function ApplicantSlideOver({ person, onClose }: Props) {
   useEffect(() => {
     if (!person) return
     const prev = document.body.style.overflow
@@ -111,15 +99,7 @@ export default function ApplicantSlideOver({
         {/* Header */}
         <header className={styles.header}>
           <div className={styles.headerMain}>
-            <div className={styles.headerTitleRow}>
-              <h2 id="slideover-name" className={styles.name}>{fullName}</h2>
-              {mark === 'approved' && (
-                <span className={styles.triageBadgeApproved}>Marked Approved</span>
-              )}
-              {mark === 'rejected' && (
-                <span className={styles.triageBadgeRejected}>Marked Rejected</span>
-              )}
-            </div>
+            <h2 id="slideover-name" className={styles.name}>{fullName}</h2>
             <div className={styles.contactRow}>
               {person.email && <span className={styles.contactItem}>{person.email}</span>}
               {person.phone && <span className={styles.contactItem}>{person.phone}</span>}
@@ -159,40 +139,6 @@ export default function ApplicantSlideOver({
             )
           })}
         </div>
-
-        {/* Sticky footer — local-only mark; doesn't affect the pipeline */}
-        <footer className={styles.footer}>
-          <div className={styles.footerHint}>
-            Add a personal tag <span className={styles.footerHintMuted}>· local to this browser</span>
-          </div>
-          <div className={styles.footerTriage}>
-            {mark && (
-              <button
-                type="button"
-                className={styles.btnNeutral}
-                onClick={onClearMark}
-              >
-                Unmark
-              </button>
-            )}
-            <button
-              type="button"
-              className={`${styles.btnTriage} ${mark === 'approved' ? styles.btnTriageApprovedActive : ''}`}
-              onClick={() => (mark === 'approved' ? onClearMark() : onSetMark('approved'))}
-              aria-pressed={mark === 'approved'}
-            >
-              {mark === 'approved' ? '✓ Approved' : 'Mark Approved'}
-            </button>
-            <button
-              type="button"
-              className={`${styles.btnTriage} ${mark === 'rejected' ? styles.btnTriageRejectedActive : ''}`}
-              onClick={() => (mark === 'rejected' ? onClearMark() : onSetMark('rejected'))}
-              aria-pressed={mark === 'rejected'}
-            >
-              {mark === 'rejected' ? '✕ Rejected' : 'Mark Rejected'}
-            </button>
-          </div>
-        </footer>
       </aside>
     </div>
   )
