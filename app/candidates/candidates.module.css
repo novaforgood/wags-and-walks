@@ -285,8 +285,12 @@
     gap: 16px;
     padding: 16px 40px;
     background: #f3f7f7;
-    border-bottom: 1px solid rgba(4, 130, 137, 0.1);
+    border-bottom: 1px solid rgba(4, 130, 137, 0.08);
+    box-shadow: 0 4px 12px -6px rgba(15, 23, 42, 0.12);
     flex-shrink: 0;
+    position: sticky;
+    top: 0;
+    z-index: 20;
 }
 
 .topBarTitleBlock {
@@ -298,11 +302,11 @@
 
 .topBarTitle {
     font-size: 26px;
-    font-weight: 800;
+    font-weight: 600;
     color: #1a1a1a;
     margin: 0;
     font-family: 'Inter', sans-serif;
-    letter-spacing: -0.03em;
+    letter-spacing: -0.025em;
 }
 
 .topBarTimestamp {
@@ -563,66 +567,88 @@
 }
 
 /* ---- Table ---- */
+/* ── Table panel: scrollable card that fills available height ────────────
+   Matches the admin/users design system: white card, rounded corners,
+   subtle border + shadow, internal scroll, sticky header. */
+
 .tableWrapper {
-    padding: 0 40px 16px;
     flex: 1;
-    min-height: 0;
-    overflow: auto;
     display: flex;
     flex-direction: column;
+    min-height: 0;
+    width: 100%;
+    max-width: min(100%, 1536px);
+    margin: 0 auto;
+    padding: 0 40px 32px;
+    box-sizing: border-box;
 }
 
 .tableContainer {
-    background: white;
-    border-radius: 8px;
-    width: 100%;
-    max-width: 100%;
-    box-sizing: border-box;
+    flex: 1;
     display: flex;
     flex-direction: column;
-    flex: 1;
-    justify-content: space-between;
+    min-height: 0;
+    background: var(--color-surface, #ffffff);
+    border-radius: var(--radius-card, 14px);
+    border: 1px solid rgba(81, 81, 81, 0.07);
+    box-shadow:
+        0 1px 3px rgba(81, 81, 81, 0.05),
+        0 8px 32px rgba(81, 81, 81, 0.06);
+    overflow: hidden;
 }
 
-/* .tableContainerNarrow: Red Flags tab uses flex proportions instead of a fixed max-width */
+/* Internal scroll area for the table body — keeps header + pagination pinned */
+.tableScroll {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+}
 
 .table {
     width: 100%;
     border-collapse: collapse;
     font-size: 14px;
     font-family: 'Inter', sans-serif;
-    table-layout: auto;
-    min-width: 760px;
+}
+
+.table thead {
+    position: sticky;
+    top: 0;
+    z-index: 1;
 }
 
 .table thead tr {
-    background: #e0eaea;
-    border-bottom: 2px solid #bbcacb;
+    background: var(--color-gray-light-hover, #f3f4f6);
 }
 
 .table th {
     text-align: left;
-    font-weight: 700;
-    font-size: 14px;
-    color: black;
-    padding: 16px 16px;
+    padding: 12px 18px;
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 1.25;
+    color: var(--color-gray-black, #1a1a1a);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    background: var(--color-gray-light-hover, #f3f4f6);
+    border-bottom: 1px solid var(--color-gray-normal, #e5e7eb);
     white-space: nowrap;
 }
 
-.table th:first-child,
-.table td:first-child {
-    padding-left: 30px;
-}
-
-.table td:last-child {
-    text-align: right;
-    padding-right: 30px;
+.table th:not(:last-child),
+.table td:not(:last-child) {
+    border-right: 1px solid var(--color-gray-light-active, #f1f5f5);
 }
 
 .table td {
-    padding: 6px 16px;
-    color: black;
+    padding: 12px 18px;
+    color: var(--color-gray-black, #1a1a1a);
     vertical-align: middle;
+    border-bottom: 1px solid var(--color-gray-light-active, #f1f5f5);
+}
+
+.table tbody tr:last-child td {
+    border-bottom: none;
 }
 
 .signedDocumentSelect {
@@ -667,16 +693,65 @@
 }
 
 .table tbody tr {
-    background: #fbfbfb;
-    transition: background 0.12s;
+    background: var(--color-surface, #ffffff);
+    transition: background 0.15s ease;
 }
 
 .table tbody tr:hover {
-    background: unset;
+    background: var(--color-gray-light-hover, #f3f4f6);
 }
 
-.rowSelected {
-    background: #d4eeee !important;
+/* ── Pagination bar (lives at the bottom of the panel) ────────────────── */
+
+.pagination {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 4px;
+    padding: 10px 14px;
+    border-top: 1px solid var(--color-gray-light-active, #f1f5f5);
+    background: var(--color-surface, #ffffff);
+    flex-shrink: 0;
+    flex-wrap: wrap;
+}
+
+.paginationBtn {
+    min-width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 13px;
+    padding: 0 10px;
+    color: var(--color-gray-dark-hover, #6b7280);
+    font-weight: 500;
+    font-family: inherit;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.paginationBtn:hover:not(:disabled):not(.paginationBtnActive) {
+    background: var(--color-gray-light-hover, #f3f4f6);
+    color: var(--color-gray-black, #1a1a1a);
+}
+
+.paginationBtn:disabled {
+    color: #d1d5db;
+    cursor: not-allowed;
+}
+
+.paginationBtnActive {
+    background: rgba(5, 170, 175, 0.1);
+    color: var(--color-primary, #05aaaf);
+    font-weight: 600;
+    cursor: default;
+}
+
+.paginationEllipsis {
+    padding: 0 6px;
+    color: #9ca3af;
+    font-size: 13px;
+    user-select: none;
 }
 
 /* ---- Select Button ---- */
@@ -781,27 +856,6 @@
 .actionIconSvg {
     width: 18px;
     height: 18px;
-}
-
-.actionIconAccept {
-    color: #038a8d;
-    border-color: rgba(5, 170, 175, 0.25);
-    background: rgba(5, 170, 175, 0.10);
-}
-
-.actionIconAccept:hover {
-    background: rgba(5, 170, 175, 0.16);
-    border-color: rgba(5, 170, 175, 0.35);
-}
-
-.actionIconReject {
-    color: #888;
-}
-
-.actionIconReject:hover {
-    background: #fee2e2;
-    border-color: rgba(220, 38, 38, 0.25);
-    color: #dc2626;
 }
 
 .actionIconStar {
@@ -1096,113 +1150,6 @@
     line-height: 1.4;
 }
 
-.confirmActions {
-    display: flex;
-    gap: 16px;
-    justify-content: center;
-}
-
-.confirmCancelBtn {
-    padding: 10px 24px;
-    border-radius: 8px;
-    border: 1px solid #ddd;
-    background: white;
-    color: #666;
-    font-size: 14px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: background 0.15s;
-    flex: 1;
-}
-
-.confirmCancelBtn:hover {
-    background: #f5f5f5;
-}
-
-.confirmAcceptBtn {
-    padding: 10px 24px;
-    border-radius: 8px;
-    border: none;
-    background: #e3f4f4;
-    /* light blue/teal */
-    color: #038a8d;
-    font-size: 14px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: background 0.15s;
-    flex: 1;
-}
-
-.confirmAcceptBtn:hover {
-    background: #d3eded;
-}
-
-.confirmRejectBtn {
-    padding: 10px 24px;
-    border-radius: 8px;
-    border: none;
-    background: #fee2e2;
-    /* light red */
-    color: #dc2626;
-    font-size: 14px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: background 0.15s;
-    flex: 1;
-}
-
-.confirmRejectBtn:hover {
-    background: #fecaca;
-}
-
-/* ---- Accepted Toast ---- */
-.acceptToast {
-    position: fixed;
-    right: 24px;
-    bottom: 24px;
-    width: min(560px, calc(100vw - 48px));
-    background: #fbfbfb;
-    border: 1px solid rgba(0, 0, 0, 0.08);
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.18);
-    border-radius: 14px;
-    padding: 14px 16px 14px 16px;
-    z-index: 1100;
-    cursor: pointer;
-}
-
-.acceptToastTitle {
-    font-size: 14px;
-    font-weight: 700;
-    color: #038a8d;
-    margin-bottom: 6px;
-}
-
-.acceptToastBody {
-    font-size: 13px;
-    color: #414141;
-    line-height: 1.4;
-    padding-right: 24px; /* room for close */
-}
-
-.acceptToastClose {
-    position: absolute;
-    top: 8px;
-    right: 10px;
-    width: 28px;
-    height: 28px;
-    border: none;
-    background: transparent;
-    border-radius: 8px;
-    font-size: 18px;
-    line-height: 1;
-    color: #888;
-    cursor: pointer;
-}
-
-.acceptToastClose:hover {
-    background: rgba(5, 170, 175, 0.10);
-    color: #038a8d;
-}
 
 /* ---- Loading / Error ---- */
 .loadingContainer {
@@ -1504,4 +1451,204 @@
   color: #000000;
   cursor: pointer;
   filter: invert(60%) sepia(40%) saturate(400%) hue-rotate(150deg);
+}
+
+/* ──────────────────────────────────────────────────────────────────────
+   Applicants redesign — quick pills, bulk bar, status dot, flag chips
+   ────────────────────────────────────────────────────────────────────── */
+
+/* ── Quick-filter pill row ────────────────────────────────────────────── */
+
+.quickPills {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-left: 6px;
+}
+
+.quickPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  min-height: 32px;
+  border-radius: 999px;
+  border: 1px solid var(--color-gray-normal, #e6e6e6);
+  background: #fff;
+  color: var(--color-gray-black, #515151);
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.quickPill:hover {
+  border-color: var(--color-gray-normal-hover, #cfcfcf);
+  background: var(--color-gray-light-hover, #fbfbfb);
+}
+
+.quickPillActive,
+.quickPillActive:hover {
+  background: #fff;
+  border-color: var(--color-primary, #05aaaf);
+  color: var(--color-primary, #05aaaf);
+}
+
+.quickPillLabel {
+  white-space: nowrap;
+}
+
+.quickPillCount {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--color-gray-light-active, #f7f7f7);
+  color: var(--color-gray-black, #515151);
+}
+
+.quickPillActive .quickPillCount {
+  background: rgba(5, 170, 175, 0.12);
+  color: var(--color-primary, #05aaaf);
+}
+
+/* Tone variants — only affect the count chip when ACTIVE */
+.quickPillAccent.quickPillActive {
+  border-color: var(--color-primary, #05aaaf);
+  color: var(--color-primary, #05aaaf);
+}
+
+.quickPillDanger.quickPillActive {
+  border-color: #fca5a5;
+  color: #b91c1c;
+  background: #fff;
+}
+
+.quickPillDanger.quickPillActive .quickPillCount {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+/* Idle-state count for the danger pill — pop the red color even when off */
+.quickPillDanger .quickPillCount {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+/* ── Row states ───────────────────────────────────────────────────────── */
+
+.row {
+  transition: background-color 0.12s ease;
+}
+
+.rowClosed {
+  opacity: 0.6;
+}
+
+.rowClosed .nameButton {
+  color: var(--app-text-muted, #6b7280);
+  font-style: italic;
+}
+
+/* ── Name cell button + email subline ─────────────────────────────────── */
+
+.nameButton {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--app-text, #1a1a1a);
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  display: block;
+  line-height: 1.3;
+}
+
+.nameButton:hover {
+  color: var(--app-accent, #05aaaf);
+  text-decoration: underline;
+}
+
+.rowEmail {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--app-text-muted, #6b7280);
+}
+
+/* ── Red flag chips ───────────────────────────────────────────────────── */
+
+.flagChips {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.flagChip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+  white-space: nowrap;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.flagChipMore {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  background: #f3f4f6;
+  color: var(--app-text-muted, #6b7280);
+  border: 1px solid #e5e7eb;
+  cursor: help;
+}
+
+/* ── Empty state ──────────────────────────────────────────────────────── */
+
+.emptyState {
+  text-align: center;
+  padding: 56px 28px;
+  color: var(--color-gray-dark-hover, #6b7280);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* ── Bulk-action confirmation modal ───────────────────────────────────── */
+
+/* ── Toolbar layout for new pill row ──────────────────────────────────── */
+
+.toolbar {
+  flex-wrap: wrap;
+}
+
+@media (max-width: 900px) {
+  .bulkBar {
+    flex-direction: column;
+    align-items: stretch;
+    margin-left: 16px;
+    margin-right: 16px;
+  }
+  .bulkBarActions {
+    justify-content: space-between;
+  }
 }

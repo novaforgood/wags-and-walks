@@ -60,7 +60,7 @@ function buildPageList(totalPages: number, currentPage: number): (number | 'elli
 
 const QUICK_FILTERS: { id: QuickFilter; label: string; title: string }[] = [
   { id: 'all', label: 'All', title: 'Show all directory members' },
-  { id: 'starred', label: 'Starred', title: 'Admin-marked members' },
+  { id: 'starred', label: 'Donor', title: 'Members marked as donors' },
   { id: 'flagged', label: 'Flagged', title: 'Members with a flag on their application' },
   { id: 'current_foster', label: 'Fostering now', title: 'Currently has a foster dog in Shelter Manager' },
   { id: 'available', label: 'Available', title: 'Has Shelter Manager history but is not currently fostering' },
@@ -297,6 +297,7 @@ export default function DirectoryPage() {
                 </select>
               </label>
             </div>
+            <div className={styles.tableScroll}>
             <table className={`${styles.table} ${dirStyles.directoryTable}`}>
               <colgroup>
                 <col className={dirStyles.colName} />
@@ -346,7 +347,7 @@ export default function DirectoryPage() {
                   </tr>
                 ) : rows.length === 0 ? (
                   <tr data-directory-metrics-skip="">
-                    <td colSpan={6} className={dirStyles.emptyRow}>
+                    <td colSpan={6} className={styles.emptyState}>
                       No Google Group members returned for this directory.
                     </td>
                   </tr>
@@ -380,8 +381,8 @@ export default function DirectoryPage() {
                                     e.stopPropagation()
                                     toggleStar(r.application!.email || '')
                                   }}
-                                  title={r.starred ? 'Unstar' : 'Star'}
-                                  aria-label={r.starred ? `Unstar ${r.displayName}` : `Star ${r.displayName}`}
+                                  title={r.starred ? 'Unmark donor' : 'Mark as donor'}
+                                  aria-label={r.starred ? `Unmark ${r.displayName} as donor` : `Mark ${r.displayName} as donor`}
                                 >
                                   <svg viewBox="0 0 24 24" aria-hidden="true" className={styles.actionIconSvg}>
                                     <path
@@ -397,7 +398,7 @@ export default function DirectoryPage() {
                               ) : (
                                 <span
                                   className={`${styles.actionIconBtn} ${styles.actionIconStar} ${dirStyles.starSlot} ${dirStyles.starDisabledWrap}`}
-                                  title="No application on file — star unavailable"
+                                  title="No application on file — donor flag unavailable"
                                   aria-hidden="true"
                                 >
                                   <svg viewBox="0 0 24 24" aria-hidden="true" className={styles.actionIconSvg}>
@@ -428,7 +429,7 @@ export default function DirectoryPage() {
                     })}
                     {rows.length > 0 && filtered.length === 0 && (
                       <tr data-directory-metrics-skip="">
-                        <td colSpan={6} className={dirStyles.emptyRow}>
+                        <td colSpan={6} className={styles.emptyState}>
                           No fosterers match your filters.
                         </td>
                       </tr>
@@ -437,11 +438,12 @@ export default function DirectoryPage() {
                 )}
               </tbody>
             </table>
+            </div>
 
             {totalPages > 1 && rows.length > 0 && (
-              <div className={dirStyles.paginationBar}>
+              <div className={styles.pagination}>
                 <button
-                  className={dirStyles.pageBtn}
+                  className={styles.paginationBtn}
                   onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                   disabled={currentPage === 1}
                   aria-label="Previous page"
@@ -451,11 +453,11 @@ export default function DirectoryPage() {
 
                 {pageList.map((item, idx) =>
                   item === 'ellipsis' ? (
-                    <span key={`ellipsis-${idx}`} className={dirStyles.pageEllipsis}>···</span>
+                    <span key={`ellipsis-${idx}`} className={styles.paginationEllipsis}>···</span>
                   ) : (
                     <button
                       key={item}
-                      className={`${dirStyles.pageBtn} ${currentPage === item ? dirStyles.pageBtnActive : ''}`}
+                      className={`${styles.paginationBtn} ${currentPage === item ? styles.paginationBtnActive : ''}`}
                       onClick={() => setCurrentPage(item)}
                       aria-current={currentPage === item ? 'page' : undefined}
                       aria-label={`Go to page ${item}`}
@@ -466,7 +468,7 @@ export default function DirectoryPage() {
                 )}
 
                 <button
-                  className={dirStyles.pageBtn}
+                  className={styles.paginationBtn}
                   onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                   disabled={currentPage === totalPages}
                   aria-label="Next page"
