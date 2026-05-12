@@ -701,6 +701,16 @@
     background: var(--color-gray-light-hover, #f3f4f6);
 }
 
+/* Full-width row hit target (fosters directory, applicants table) */
+.table tbody tr.tableRowClickable {
+    cursor: pointer;
+}
+
+.table tbody tr.tableRowClickable:focus-visible {
+    outline: 2px solid var(--app-accent, #05aaaf);
+    outline-offset: -2px;
+}
+
 /* ── Pagination bar (lives at the bottom of the panel) ────────────────── */
 
 .pagination {

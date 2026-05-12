@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import ProtectedRoute from '@/app/components/ProtectedRoute'
 import NotificationPanel from '@/app/components/NotificationPanel'
 import TopBarProfileMenu from '@/app/components/TopBarProfileMenu'
@@ -68,7 +69,12 @@ function PageButton({
   )
 }
 
+function isInteractiveTableCellTarget(target: EventTarget | null): boolean {
+  return !!(target as HTMLElement | null)?.closest?.('a, button, input, select, textarea, label')
+}
+
 export default function FostersPage() {
+  const router = useRouter()
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | FosterStatus>('all')
   const [queueFilter, setQueueFilter] = useState<TaskInboxFilter>('needs_attention')
@@ -264,7 +270,22 @@ export default function FostersPage() {
                   </thead>
                   <tbody>
                     {paginatedRows.map(row => (
-                      <tr key={row.id}>
+                      <tr
+                        key={row.id}
+                        className={styles.tableRowClickable}
+                        tabIndex={0}
+                        aria-label={`Open foster home: ${row.fosterName}`}
+                        onClick={e => {
+                          if (isInteractiveTableCellTarget(e.target)) return
+                          router.push(`/fosters/${row.id}`)
+                        }}
+                        onKeyDown={e => {
+                          if (e.key !== 'Enter' && e.key !== ' ') return
+                          if (isInteractiveTableCellTarget(e.target)) return
+                          e.preventDefault()
+                          router.push(`/fosters/${row.id}`)
+                        }}
+                      >
                         <td>
                           <Link href={`/fosters/${row.id}`} className={styles.nameLink}>
                             {row.fosterName}

@@ -357,13 +357,25 @@ export default function DirectoryPage() {
                       const key = r.asmProfile?.fostererId || r.email || `${r.displayName}-${index}`
                       const personForModal = buildPersonForModal(r)
                       return (
-                        <tr key={key} className={r.flagged ? dirStyles.rowFlagged : undefined}>
-                          <td
-                            className={styles.nameCell}
-                            onClick={() => setSelectedPerson(personForModal)}
-                          >
-                            {r.displayName}
-                          </td>
+                        <tr
+                          key={key}
+                          className={[r.flagged ? dirStyles.rowFlagged : '', styles.tableRowClickable]
+                            .filter(Boolean)
+                            .join(' ')}
+                          tabIndex={0}
+                          aria-label={`Open directory entry for ${r.displayName}`}
+                          onClick={e => {
+                            if ((e.target as HTMLElement).closest('button')) return
+                            setSelectedPerson(personForModal)
+                          }}
+                          onKeyDown={e => {
+                            if (e.key !== 'Enter' && e.key !== ' ') return
+                            if ((e.target as HTMLElement).closest('button')) return
+                            e.preventDefault()
+                            setSelectedPerson(personForModal)
+                          }}
+                        >
+                          <td className={styles.nameCell}>{r.displayName}</td>
                           <td>{r.email || '—'}</td>
                           <td className={`${dirStyles.hideOnMobile} ${dirStyles.phoneCell}`}>
                             {r.phone || '—'}

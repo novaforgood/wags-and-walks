@@ -341,20 +341,25 @@ export default function CandidatesPage() {
                                     return (
                                         <tr
                                             key={person.rowIndex ?? `${email}-${i}`}
-                                            className={rowClasses}
+                                            className={`${rowClasses} ${styles.tableRowClickable}`}
+                                            tabIndex={0}
+                                            aria-label={`Open applicant ${name}`}
+                                            onClick={e => {
+                                                const el = e.target as HTMLElement
+                                                if (el.closest('button')) return
+                                                setSelectedPerson(person)
+                                            }}
+                                            onKeyDown={e => {
+                                                if (e.key !== 'Enter' && e.key !== ' ') return
+                                                const el = e.target as HTMLElement
+                                                if (el.closest('button')) return
+                                                e.preventDefault()
+                                                setSelectedPerson(person)
+                                            }}
                                         >
                                             {/* Name */}
-                                            <td
-                                                className={styles.nameCell}
-                                                onClick={() => setSelectedPerson(person)}
-                                            >
-                                                <button
-                                                    type="button"
-                                                    className={styles.nameButton}
-                                                    onClick={() => setSelectedPerson(person)}
-                                                >
-                                                    {name}
-                                                </button>
+                                            <td className={styles.nameCell}>
+                                                <span className={styles.nameButton}>{name}</span>
                                                 {person.email && (
                                                     <span className={styles.rowEmail}>{person.email}</span>
                                                 )}

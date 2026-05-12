@@ -3,6 +3,11 @@
 import { useState } from 'react'
 
 import type { Person, PersonStatus } from '@/app/lib/peopleTypes'
+import {
+  ALL_APPLICATION_FIELD_RAW_KEYS,
+  APPLICATION_FORM_SECTIONS,
+  applicationFieldDisplayValue,
+} from '@/app/lib/applicantApplicationFields'
 import NotificationPanel from './NotificationPanel'
 import TopBarProfileMenu from './TopBarProfileMenu'
 import layoutStyles from '@/app/candidates/candidates.module.css'
@@ -23,74 +28,6 @@ const SHOWN_RAW_KEYS = new Set([
     'When would you like to take your foster dog home?',
     'Are there any dogs with special needs that you would be comfortable fostering?'
 ])
-
-const APPLICATION_SECTIONS = [
-    {
-        title: 'Personal Information',
-        fields: [
-            'Submitted On',
-            'Name',
-            'Email',
-            'Phone',
-            'Address',
-            'How old are you',
-            'What do you do for a living',
-        ],
-    },
-    {
-        title: 'Household',
-        fields: [
-            'What is your living arrangement',
-            'How many children are in your home',
-            'How old are they Check all that apply',
-            'Other than yourself how many additional adults do you share your home with',
-            'How old are they',
-            'What is their relationship to you',
-        ],
-    },
-    {
-        title: 'Pet Experience',
-        fields: [
-            'Have you ever owned a pet before',
-            'What kind of pets have you owned check all that apply',
-            'Do you currently have any pets at home',
-            'Please list ALL pets that you CURRENTLY own Include type dogcat breed age gender length of time in your care etc',
-            'Are your current pets spayedneutered',
-        ],
-    },
-    {
-        title: 'Foster Preferences',
-        fields: [
-            'How would you rate your experience with dogs',
-            'Where will your foster dog be when you are not home',
-            'Where will your foster dog sleep during the night',
-            'When would you like to take your foster dog home',
-            'Please share your preferences in terms of size breed energy level etc Fosters for large dogs 45 lbs are always our biggest need Please note that you do not need a house or yard to foster a large dog Many bigger dogs are just fine in apartments and our team will pair you with a dog that will be a great match',
-            'Are you willing to foster dogs with special needs If so please check all that apply below',
-            'Are you willing to foster dogs with medical needs',
-            'Are you willing to foster pregnant mamas andor mamas and their litters',
-            'Are you willing to foster dogs that need training upkeepbehavior rehabilitation',
-        ],
-    },
-    {
-        title: 'How They Found Us',
-        fields: [
-            'How did you hear about us',
-            'If someone referred you please list their name here so we may thank them',
-        ],
-    },
-    {
-        title: 'Agreements',
-        fields: [
-            'Wags and Walks dogs will often have a transition period of 12 weeks after leaving the shelter and may exhibit signs of separation anxiety andor may have accidents in their new foster homes until they feel safe Please check that you agree to understanding that there could be a transition period',
-            'Aside from emergencies we require 48 hours notice if you need to return your foster dog Is that something you feel you can accommodate',
-            'I understand that any misrepresentation of the above information authorizes Wags  Walks to deny application andor reclaim the pet that is in my home I acknowledge that Wags  Walks cannot guarantee any animals against parasites diseases or destructive behavior If I foster a dog from Wags  Walks I will not hold Wags  Walks responsible nor seek any compensation for damages medical fees or other liabilities incurred by the pet I foster',
-            'I understand that I must follow all Wags and Walks protocols for fostering a dog which includes always having a collar on keeping a leash on my foster dog at all times when in public and using a crate for my foster dog when heshe is alone',
-        ],
-    },
-]
-
-const ALL_SECTION_FIELDS = new Set(APPLICATION_SECTIONS.flatMap(s => s.fields))
 
 function pipelineStatusLabel(status?: PersonStatus): string {
     if (!status || status === 'new') return 'New'
@@ -188,9 +125,17 @@ function ApplicationTab({ person }: { person: Person }) {
     const raw = person.raw ?? {}
 
     // Check if this person has any real application data
-    const hasApplicationData = Object.entries(raw).some(
-        ([k, v]) => !META_FIELDS.has(k) && v && v.trim() !== ''
-    )
+    const hasApplicationData =
+        APPLICATION_FORM_SECTIONS.some(section =>
+            section.fields.some(f => applicationFieldDisplayValue(person, f).trim() !== '')
+        ) ||
+        Object.entries(raw).some(
+            ([k, v]) =>
+                !META_FIELDS.has(k) &&
+                !ALL_APPLICATION_FIELD_RAW_KEYS.has(k) &&
+                v &&
+                v.trim() !== ''
+        )
 
     if (!hasApplicationData) {
         return (
@@ -210,23 +155,24 @@ function ApplicationTab({ person }: { person: Person }) {
 
     return (
         <div className={styles.profileContent}>
-            {APPLICATION_SECTIONS.map(section => {
-                const rows = section.fields
-                    .map(field => ({ label: field, value: raw[field] ?? '' }))
-                    .filter(row => row.value.trim() !== '')
-
-                if (rows.length === 0) return null
-
+            {APPLICATION_FORM_SECTIONS.map(section => {
                 return (
-                    <div key={section.title} className={styles.section}>
-                        <div className={styles.sectionTitle}>{section.title}</div>
+                    <div key={section.sectionTitle} className={styles.section}>
+                        <div className={styles.sectionTitle}>{section.sectionTitle}</div>
                         <div className={styles.threeColGrid}>
-                            {rows.map(({ label, value }) => (
-                                <div key={label} className={styles.field}>
-                                    <div className={styles.fieldLabel}>{label}:</div>
-                                    <div className={styles.fieldValue}>{value}</div>
-                                </div>
-                            ))}
+                            {section.fields.map(field => {
+                                const value = applicationFieldDisplayValue(person, field)
+                                const empty = value.trim() === ''
+                                const title = field.fullQuestionTitle ?? field.label
+                                return (
+                                    <div key={[...field.rawKeys].join('|')} className={styles.field}>
+                                        <div className={styles.fieldLabel} title={title}>{field.label}</div>
+                                        <div className={empty ? styles.fieldValueEmpty : styles.fieldValue}>
+                                            {empty ? '—' : value}
+                                        </div>
+                                    </div>
+                                )
+                            })}
                         </div>
                     </div>
                 )
@@ -234,7 +180,11 @@ function ApplicationTab({ person }: { person: Person }) {
 
             {(() => {
                 const remaining = Object.entries(raw).filter(
-                    ([k, v]) => !ALL_SECTION_FIELDS.has(k) && !META_FIELDS.has(k) && v && v.trim() !== ''
+                    ([k, v]) =>
+                        !ALL_APPLICATION_FIELD_RAW_KEYS.has(k) &&
+                        !META_FIELDS.has(k) &&
+                        v &&
+                        v.trim() !== ''
                 )
                 if (remaining.length === 0) return null
                 return (

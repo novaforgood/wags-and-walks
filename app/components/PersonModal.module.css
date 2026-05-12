@@ -196,6 +196,13 @@
     word-break: break-word;
 }
 
+.fieldValueEmpty {
+    font-size: 14px;
+    font-weight: 500;
+    color: #94a3b8;
+    font-style: italic;
+}
+
 @media (max-width: 1000px) {
     .profileContent {
         padding: 24px 24px 40px;
