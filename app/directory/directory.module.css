@@ -1,21 +1,159 @@
-/* ---- Results summary row (above table) ---- */
-.resultsRow {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 0 40px 8px;
-    color: #6b7280;
-    font-size: 13px;
+/*
+ * Shared .tableContainer uses justify-content: space-between so pagination
+ * sticks to the bottom on Candidates. Here that pushes the table away from
+ * the filter bar when the tbody is short (e.g. zero rows after filtering).
+ */
+.directoryTableContainer {
+    justify-content: flex-start;
+}
+
+/* ---- Loading / error inside table (tbody) ---- */
+.tableStateLoading,
+.tableStateError {
+    text-align: center;
+    vertical-align: middle;
+    padding: 72px 24px;
+    font-size: 14px;
     font-family: 'Inter', sans-serif;
 }
 
-.resultsCount {
-    font-weight: 500;
+.tableStateLoading {
+    color: #6b7280;
 }
 
-.resultsHint {
-    color: #9ca3af;
+.tableStateError {
+    color: #b91c1c;
+    background: #fef2f2;
+}
+
+/* Single-cell rows are also :last-child — beat shared .table td:last-child { text-align: right } */
+.directoryTable tbody td.tableStateLoading,
+.directoryTable tbody td.tableStateError {
+    text-align: center !important;
+}
+
+.tableStateWarn {
+    text-align: left;
+    vertical-align: middle;
+    padding: 12px 16px;
+    font-size: 13px;
+    font-family: 'Inter', sans-serif;
+    color: #92400e;
+    background: #fffbeb;
+    border-bottom: 1px solid #fde68a;
+}
+
+/* ---- Directory: search row only in shared toolbar ---- */
+.directoryToolbar {
+    padding-bottom: 14px;
+    align-items: flex-start;
+}
+
+/* ---- Filter + sort row (inside white table card, aligns with table padding) ---- */
+.directoryFilterBar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px 20px;
+    padding: 16px 30px 18px;
+    box-sizing: border-box;
+    /* Match main shell background — not the white table body */
+    background: #f3f7f7;
+    border-radius: 8px 8px 0 0;
+    border-bottom: 1px solid rgba(4, 130, 137, 0.12);
+}
+
+.chipGroup {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    flex: 1;
+    min-width: 0;
+}
+
+.chip {
+    padding: 0 16px;
+    height: 36px;
+    border: 1px solid #c4c4c4;
+    border-radius: 30px;
+    background: #fff;
+    font-size: 14px;
+    font-family: 'Inter', sans-serif;
+    color: #374151;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.12s, border-color 0.12s, color 0.12s;
+    display: flex;
+    align-items: center;
+}
+
+.chip:hover:not(.chipActive) {
+    background: #f0f0f0;
+    border-color: #aaa;
+}
+
+/* Solid primary fill — matches View / selectBtn (#05aaaf) */
+.chipActive {
+    background: #05aaaf;
+    border-color: #05aaaf;
+    color: #fff;
+    font-weight: 600;
+}
+
+.chipActive:hover {
+    background: #05999e;
+    border-color: #05999e;
+}
+
+.chip:focus-visible {
+    outline: 2px solid #05aaaf;
+    outline-offset: 2px;
+}
+
+/* ---- Sort: native menu (no faux-gradient chevron) ---- */
+.sortWrap {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.sortLabel {
+    font-size: 14px;
+    color: #6b7280;
+    font-family: 'Inter', sans-serif;
+    white-space: nowrap;
+}
+
+.sortSelect {
+    appearance: auto;
+    -webkit-appearance: menulist;
+    height: 36px;
+    min-width: 140px;
+    padding: 0 8px;
+    border-radius: 8px;
+    border: 1px solid #c4c4c4;
+    background-color: #fff;
+    font-size: 14px;
+    font-family: 'Inter', sans-serif;
+    color: #111827;
+    cursor: pointer;
+    box-sizing: border-box;
+}
+
+.sortSelect:hover {
+    border-color: #9ca3af;
+}
+
+/* ---- Flagged row indicator ---- */
+.rowFlagged {
+    background: #fffbf0;
+}
+
+.rowFlagged:hover {
+    background: #fff5d6 !important;
 }
 
 /* ---- Pagination ---- */
@@ -70,8 +208,13 @@
 /* ---- Empty state row ---- */
 .emptyRow {
     text-align: center;
-    padding: 32px;
+    padding: 20px 32px 28px;
     color: #888;
+}
+
+/* Shared .table td:last-child { text-align: right } — empty row is only td, so override */
+.directoryTable tbody td.emptyRow {
+    text-align: center !important;
 }
 
 /* ---- Star slot stays at fixed width so View buttons align across rows ---- */
@@ -84,9 +227,11 @@
     flex-shrink: 0;
 }
 
-.starSlotDisabled {
-    opacity: 0.25;
+/* Disabled star: same circular chrome as .actionIconBtn (rows without application) */
+.starDisabledWrap {
+    opacity: 0.38;
     cursor: default;
+    pointer-events: none;
 }
 
 /* ---- Column widths (via <colgroup>) ---- */
@@ -100,29 +245,40 @@
     table-layout: fixed;
 }
 
-.colName { width: 22%; }
-.colEmail { width: 28%; }
+.colName { width: 21%; }
+.colEmail { width: 27%; }
 .colPhone { width: 14%; }
-.colCurrent { width: 13%; }
-.colTotal { width: 8%; }
+.colCurrent { width: 14%; }
+.colTotal { width: 9%; }
 .colActions { width: 15%; }
 
-/*
- * Shared .table th uses white-space: nowrap, which causes long headers like
- * "Currently fostering" to overflow into adjacent columns under
- * table-layout: fixed. Allow wrapping in this table only.
- */
-.directoryTable th {
-    white-space: normal;
+/* Headers: single line, no mid-word breaks (overflow-wrap:anywhere caused "foster|ed"). */
+.directoryTable thead th {
+    white-space: nowrap;
     vertical-align: middle;
-    line-height: 1.25;
+    line-height: 1.2;
+    font-size: 13px;
+    word-break: normal;
+    overflow-wrap: normal;
 }
 
-/* Wrap long emails gracefully instead of forcing the column wider. */
-.directoryTable td,
-.directoryTable th {
+.directoryTable thead th.thActions {
+    width: 1%;
+}
+
+/* Body: allow long emails to wrap; avoid breaking short tokens like "Yes" / "No". */
+.directoryTable tbody td {
     word-break: break-word;
     overflow-wrap: anywhere;
+}
+
+/* Phone: one line (ellipsis) — matches how admins scan numbers */
+.directoryTable tbody td.phoneCell {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    word-break: normal;
+    overflow-wrap: normal;
 }
 
 /* Trim the shared View button so the Actions column doesn't demand 128px. */
@@ -135,11 +291,7 @@
 
 /* ---- Responsive column hiding ---- */
 @media (max-width: 1024px) {
-    .resultsRow {
-        padding: 0 24px 8px;
-    }
-
-    /* Hide "Total fostered" — still visible in the modal's foster history tab. */
+    /* Hide Dogs column — still visible in the modal's foster history tab. */
     .hideOnTablet {
         display: none;
     }
@@ -153,13 +305,30 @@
 }
 
 @media (max-width: 720px) {
-    .resultsRow {
-        padding: 0 24px 8px;
-        font-size: 12px;
+    .directoryFilterBar {
+        padding: 14px 16px 16px;
+        gap: 12px 14px;
     }
 
-    .resultsHint {
-        display: none;
+    .chipGroup {
+        gap: 8px;
+    }
+
+    .chip {
+        padding: 0 12px;
+        height: 34px;
+        font-size: 13px;
+    }
+
+    .sortSelect {
+        min-width: 0;
+        flex: 1;
+        max-width: 200px;
+    }
+
+    .tableStateLoading,
+    .tableStateError {
+        padding: 48px 16px;
     }
 
     /* Hide phone on phones (it's available in the modal). */
@@ -186,10 +355,6 @@
 }
 
 @media (max-width: 480px) {
-    .resultsRow {
-        padding: 0 16px 6px;
-    }
-
     .selectBtnCompact {
         width: 56px;
     }
