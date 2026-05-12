@@ -29,9 +29,17 @@ yarn-error.log*
 .env*.local
 .env
 
+# Firebase Admin / service account keys (never commit)
+FIREBASE_SERVICE_ACCOUNT_JSON
+firebase-admin.local.json
+*-firebase-adminsdk-*.json
+
 # vercel
 .vercel
 
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Claude Code local config
+.claude/

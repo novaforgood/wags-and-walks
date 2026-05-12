@@ -16,7 +16,7 @@ import {
   type DogRecord,
   type FosterStatus,
 } from '@/app/lib/fosterDirectory'
-import type { TaskRow } from '@/app/api/tasks/route'
+import type { TaskRow } from '@/app/lib/taskTypes'
 import NotesCard from '@/app/components/NotesCard'
 import FosterHistoryPanel from '@/app/components/FosterHistoryPanel'
 import layoutStyles from '../../candidates/candidates.module.css'

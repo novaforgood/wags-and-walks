@@ -1,15 +1,19 @@
 'use client'
 
-import { useState, FormEvent } from 'react'
-import { useRouter } from 'next/navigation'
+import { Suspense, useState, FormEvent } from 'react'
+import Link from 'next/link'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/app/components/AuthProvider'
+import { getAuthErrorMessage } from '@/app/lib/authErrors'
 import Image from 'next/image'
 import styles from './login.module.css'
 
-export default function LoginPage() {
+function LoginPageInner() {
+    const searchParams = useSearchParams()
+    const justRegistered = searchParams.get('registered') === '1'
+
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
-    const [rememberMe, setRememberMe] = useState(false)
     const [showPassword, setShowPassword] = useState(false)
     const [error, setError] = useState('')
     const [loading, setLoading] = useState(false)
@@ -22,10 +26,10 @@ export default function LoginPage() {
         setLoading(true)
 
         try {
-            await signIn(email, password, rememberMe)
+            await signIn(email, password)
             router.push('/overview')
-        } catch (err: any) {
-            setError(err.message || 'Failed to sign in')
+        } catch (err: unknown) {
+            setError(getAuthErrorMessage(err, 'signIn'))
         } finally {
             setLoading(false)
         }
@@ -33,21 +37,13 @@ export default function LoginPage() {
 
     return (
         <div className={styles.container}>
-            {/* Background Decorations - Dogs and Paw Prints */}
-            <div className={styles.dogLeft} />
-            <div className={styles.dogRight} />
-            <div className={styles.pawBottomLeft} />
-            <div className={styles.pawMidLeft} />
-            <div className={styles.pawBottomRight} />
-            <div className={styles.pawMidRight} />
-
             {/* Logo */}
             <div className={styles.logoContainer}>
                 <Image
                     src="/assets/logo.svg"
                     alt="Wags & Walks"
-                    width={180}
-                    height={68}
+                    width={220}
+                    height={83}
                     priority
                 />
             </div>
@@ -59,11 +55,23 @@ export default function LoginPage() {
                     <div className={styles.header}>
                         <h1 className={styles.title}>Welcome Back</h1>
                         <p className={styles.subtitle}>Log in to manage your foster candidates.</p>
+                        <p className={styles.inviteHint}>
+                            Were you recently invited?{' '}
+                            <Link href="/signup" className={styles.signUpLink}>
+                                Create your account
+                            </Link>
+                        </p>
                     </div>
+
+                    {justRegistered && (
+                        <div className={styles.successNotice} role="status">
+                            Account created. Sign in with your new password.
+                        </div>
+                    )}
 
                     {/* Error Message */}
                     {error && (
-                        <div className={styles.error}>
+                        <div className={styles.error} role="alert">
                             {error}
                         </div>
                     )}
@@ -116,33 +124,41 @@ export default function LoginPage() {
                                 tabIndex={-1}
                             >
                                 {showPassword ? (
-                                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                                        <path d="M2 10s3-6 8-6 8 6 8 6-3 6-8 6-8-6-8-6z" stroke="currentColor" strokeWidth="1.5"/>
-                                        <circle cx="10" cy="10" r="2" stroke="currentColor" strokeWidth="1.5"/>
+                                    <svg viewBox="0 0 24 24" fill="none" aria-hidden>
+                                        <path
+                                            stroke="currentColor"
+                                            strokeWidth={1.5}
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z"
+                                        />
+                                        <path
+                                            stroke="currentColor"
+                                            strokeWidth={1.5}
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                                        />
                                     </svg>
                                 ) : (
-                                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                                        <path d="M3 3l14 14M10 7a3 3 0 0 1 3 3m-1.5 4.5A5.5 5.5 0 0 1 4.5 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                                    <svg viewBox="0 0 24 24" fill="none" aria-hidden>
+                                        <path
+                                            stroke="currentColor"
+                                            strokeWidth={1.5}
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88"
+                                        />
                                     </svg>
                                 )}
                             </button>
                         </div>
                     </div>
 
-                    {/* Remember Me & Forgot Password */}
-                    <div className={styles.utilityRow}>
-                        <label className={styles.checkboxLabel}>
-                            <input
-                                type="checkbox"
-                                checked={rememberMe}
-                                onChange={(e) => setRememberMe(e.target.checked)}
-                                className={styles.checkbox}
-                            />
-                            <span>Remember Me</span>
-                        </label>
-                        <a href="#" className={styles.forgotLink}>
+                    <div className={styles.forgotRow}>
+                        <Link href="/forgot-password" className={styles.forgotLink}>
                             Forgot Password?
-                        </a>
+                        </Link>
                     </div>
 
                     {/* Submit Button */}
@@ -174,8 +190,16 @@ export default function LoginPage() {
 
             {/* Copyright */}
             <div className={styles.copyright}>
-                © 2024 Wags & Walks, all rights reserved.
+                © 2026 Wags & Walks, all rights reserved.
             </div>
         </div>
+    )
+}
+
+export default function LoginPage() {
+    return (
+        <Suspense fallback={null}>
+            <LoginPageInner />
+        </Suspense>
     )
 }

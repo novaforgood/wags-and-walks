@@ -3,18 +3,12 @@
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from './AuthProvider'
+import styles from './ProtectedRoute.module.css'
 
 function LoadingScreen() {
   return (
-    <div style={{
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      minHeight: '100vh',
-      fontSize: '18px',
-      color: '#666',
-    }}>
-      Loading...
+    <div className={styles.loadingScreen} role="status" aria-live="polite">
+      Loading…
     </div>
   )
 }
