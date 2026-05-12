@@ -10,6 +10,7 @@ import {
   sendPasswordResetEmail,
   setPersistence,
   browserLocalPersistence,
+  updateProfile,
 } from 'firebase/auth'
 import { auth } from '@/firebase'
 import { getAllowedUser, UserRole } from '@/app/lib/allowedUsers'
@@ -23,6 +24,8 @@ type AuthContextType = {
   signOut: () => Promise<void>
   /** Sends Firebase’s password-reset email (configure template in Firebase Console → Authentication → Templates). */
   resetPassword: (email: string) => Promise<void>
+  /** Updates the signed-in user's `displayName` on Firebase Auth and refreshes context state. */
+  updateDisplayName: (name: string) => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -31,6 +34,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [role, setRole] = useState<UserRole | null>(null)
   const [loading, setLoading] = useState(true)
+  // Bumped whenever a profile mutation refreshes auth.currentUser in place,
+  // so consumers re-render and re-read fields like displayName.
+  const [, setProfileBump] = useState(0)
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -98,8 +104,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     )
   }
 
+  const updateDisplayName = async (name: string) => {
+    if (!auth.currentUser) throw new Error('You must be signed in to update your profile.')
+    const trimmed = name.trim()
+    await updateProfile(auth.currentUser, { displayName: trimmed || null })
+    await auth.currentUser.reload()
+    // Force a re-render so consumers re-read the now-mutated user object.
+    setProfileBump((b) => b + 1)
+  }
+
   return (
-    <AuthContext.Provider value={{ user, role, loading, signIn, signUp, signOut, resetPassword }}>
+    <AuthContext.Provider
+      value={{ user, role, loading, signIn, signUp, signOut, resetPassword, updateDisplayName }}
+    >
       {children}
     </AuthContext.Provider>
   )

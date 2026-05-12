@@ -39,6 +39,16 @@ const RESET: Record<string, string> = {
   'auth/user-not-found': "If an account exists for this email, you'll get reset instructions.",
   'auth/too-many-requests': 'Too many requests. Wait a few minutes, then try again.',
   'auth/network-request-failed': 'Network error. Check your connection and try again.',
+  'auth/unauthorized-continue-uri':
+    "Reset link's redirect URL isn't authorized in Firebase. Add this site's domain under Authentication → Settings → Authorized domains.",
+  'auth/invalid-continue-uri':
+    "The redirect URL Firebase received is invalid. Update Authentication → Settings → Authorized domains.",
+  'auth/missing-android-pkg-name':
+    'Firebase password-reset is misconfigured (missing Android package name). Contact an administrator.',
+  'auth/missing-continue-uri':
+    'Firebase password-reset is misconfigured (missing continue URL). Contact an administrator.',
+  'auth/operation-not-allowed':
+    "Password reset isn't enabled for this Firebase project. Enable Email/Password in Authentication → Sign-in method.",
 }
 
 const GENERIC = 'Something went wrong. Please try again.'
@@ -61,5 +71,8 @@ export function getAuthErrorMessage(err: unknown, context: AuthContext): string 
     if (m && !m.startsWith('Firebase:')) return m
   }
 
+  // Surface the raw Firebase code if we have one — much easier to diagnose
+  // than a generic "Something went wrong."
+  if (code) return `${GENERIC} (${code})`
   return GENERIC
 }
