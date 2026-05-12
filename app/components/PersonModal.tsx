@@ -2,8 +2,10 @@
 
 import { useState } from 'react'
 
-import type { Person } from '@/app/lib/peopleTypes'
+import type { Person, PersonStatus } from '@/app/lib/peopleTypes'
 import NotificationPanel from './NotificationPanel'
+import TopBarProfileMenu from './TopBarProfileMenu'
+import layoutStyles from '@/app/candidates/candidates.module.css'
 import NotesCard from './NotesCard'
 import FosterHistoryPanel from './FosterHistoryPanel'
 import styles from './PersonModal.module.css'
@@ -90,6 +92,16 @@ const APPLICATION_SECTIONS = [
 
 const ALL_SECTION_FIELDS = new Set(APPLICATION_SECTIONS.flatMap(s => s.fields))
 
+function pipelineStatusLabel(status?: PersonStatus): string {
+    if (!status || status === 'new') return 'New'
+    if (status === 'in-progress') return 'In Progress'
+    if (status === 'approved') return 'Approved'
+    if (status === 'current') return 'Current foster'
+    if (status === 'rejected') return 'Rejected'
+    if (status.startsWith('rejected_')) return 'Rejected'
+    return 'New'
+}
+
 // Fields that count as "real" application data (exclude meta fields)
 const META_FIELDS = new Set([
     'Submitted On', 'Name', 'Email', 'Phone', 'Address', 'Source',
@@ -105,7 +117,7 @@ export default function PersonModal({ person, onClose }: Props) {
     if (!person) return null
 
     const name = `${person.firstName ?? ''} ${person.lastName ?? ''}`.trim() || 'Unknown'
-    const statusLabel = person.status === 'in-progress' ? 'In Progress' : 'New'
+    const statusLabel = pipelineStatusLabel(person.status)
 
     const otherEntries = Object.entries(person.raw ?? {}).filter(
         ([key, value]) => !SHOWN_RAW_KEYS.has(key) && value && value.trim() !== ''
@@ -121,8 +133,9 @@ export default function PersonModal({ person, onClose }: Props) {
                         <span className={styles.statusLabel}>{statusLabel}</span>
                     </div>
                 </div>
-                <div className={styles.topBarIcon}>
+                <div className={layoutStyles.topBarActions}>
                     <NotificationPanel />
+                    <TopBarProfileMenu />
                 </div>
             </div>
 

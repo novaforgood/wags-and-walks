@@ -40,3 +40,6 @@ firebase-admin.local.json
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Claude Code local config
+.claude/

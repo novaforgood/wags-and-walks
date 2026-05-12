@@ -1,0 +1,31 @@
+.panel {
+    padding: 24px 52px 40px;
+    max-width: 560px;
+}
+
+.lead {
+    margin: 0 0 8px;
+    font-size: 16px;
+    color: #1e293b;
+    line-height: 1.5;
+}
+
+.muted {
+    margin: 0;
+    font-size: 14px;
+    color: #64748b;
+    line-height: 1.5;
+}
+
+@media (max-width: 900px) {
+    .panel {
+        padding: 20px 24px 32px;
+        max-width: none;
+    }
+}
+
+@media (max-width: 640px) {
+    .panel {
+        padding: 16px 16px 28px;
+    }
+}

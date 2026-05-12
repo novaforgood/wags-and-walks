@@ -1,4 +1,4 @@
-/* Extends brand: Inter, #05aaaf, #f3f7f7, cards on #fbfbfb */
+/* Overview charts — applicant queue uses globals.css --app-* tokens */
 
 .contentPadding {
     padding: 32px 40px 40px;
@@ -35,36 +35,321 @@
 }
 
 .statCard {
-    background: #fbfbfb;
-    border-radius: 12px;
-    padding: 20px 20px 18px;
-    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
-    border: 1px solid rgba(5, 170, 175, 0.12);
+    background: var(--app-card-bg);
+    border-radius: 10px;
+    padding: 18px 18px 16px;
+    box-shadow: var(--app-card-shadow);
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    min-height: 108px;
+    gap: 6px;
+    min-height: 100px;
 }
 
 .statLabel {
-    font-size: 13px;
-    font-weight: 500;
-    color: #666;
-    letter-spacing: 0.02em;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--app-text-muted);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
 }
 
 .statValue {
     font-size: 36px;
     font-weight: 700;
-    color: #05aaaf;
+    color: var(--app-accent);
     line-height: 1.1;
     font-variant-numeric: tabular-nums;
 }
 
 .statHint {
     font-size: 12px;
-    color: #888;
+    color: var(--app-text-subtle);
     line-height: 1.35;
+    font-weight: 500;
+}
+
+.fosterTaskSection {
+    margin-bottom: 20px;
+}
+
+.fosterTaskStatGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 4px;
+}
+
+.dataQualityBanner {
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--app-text);
+    background: #fff7ed;
+    border: 1px solid #fed7aa;
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin: 0 0 16px;
+}
+
+.fosterTaskFooter {
+    padding-top: 12px;
+    margin-top: 8px;
+    border-top: 1px solid var(--app-border);
+    text-align: center;
+}
+
+/* Applicant pipeline queue (not foster task follow-ups) */
+.applicantSectionWrap {
+    margin-bottom: 20px;
+    max-width: 100%;
+}
+
+.applicantCard {
+    background: var(--app-card-bg);
+    border-radius: var(--radius-card);
+    padding: 16px 16px 12px;
+    box-shadow: var(--app-card-shadow);
+    min-width: 0;
+}
+
+.applicantCard .cardTitle {
+    font-size: 16px;
+}
+
+.cardHead {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 0;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--app-border);
+}
+
+.cardHeadText {
+    min-width: 0;
+}
+
+.cardTitle {
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--app-text);
+    margin: 0;
+    letter-spacing: -0.02em;
+}
+
+.cardSubtitle {
+    font-size: 13px;
+    color: var(--app-text-muted);
+    margin: 4px 0 0;
+    line-height: 1.4;
+}
+
+.filterBar {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+    padding: 4px;
+    background: var(--app-filter-track);
+    border-radius: var(--radius-pill);
+    flex-shrink: 0;
+    border: 1px solid var(--app-border);
+}
+
+.filterBtn {
+    border: none;
+    background: transparent;
+    padding: 6px 12px;
+    border-radius: var(--radius-pill);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--app-text-muted);
+    cursor: pointer;
+    font-family: inherit;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.filterBtn:hover {
+    color: var(--app-text);
+}
+
+.filterBtn:focus-visible {
+    outline: 2px solid var(--color-focus-ring);
+    outline-offset: 2px;
+}
+
+.filterBtnActive {
+    background: var(--app-accent);
+    color: #fff;
+}
+
+.filterBtnActive:hover {
+    color: #fff;
+}
+
+.emptyQueue {
+    margin: 0;
+    padding: 14px 6px 10px;
+    text-align: center;
+    font-size: 13px;
+    color: var(--app-text-subtle);
+}
+
+.queueFooter {
+    padding: 10px 4px 0;
+    margin-top: 8px;
+    border-top: 1px solid var(--app-border);
+    text-align: center;
+}
+
+.queueFooterLink {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--app-accent);
+    text-decoration: none;
+}
+
+.queueFooterLink:hover {
+    text-decoration: underline;
+}
+
+.queueList {
+    list-style: none;
+    margin: 0;
+    padding: 4px 0 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.queueRow {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 8px;
+    text-decoration: none;
+    color: inherit;
+    transition: background-color 0.15s ease;
+    border-radius: 8px;
+    margin: 0;
+    min-width: 0;
+}
+
+.queueRow:hover {
+    background: var(--app-row-hover);
+}
+
+.queueRow:hover .queueChevron {
+    color: var(--app-text-muted);
+}
+
+.queueAvatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 700;
+    color: #fff;
+    flex-shrink: 0;
+}
+
+.queueMain {
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
+.queueName {
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--app-text);
+    line-height: 1.3;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: block;
+}
+
+.queueSub {
+    display: block;
+    font-size: 12px;
+    color: var(--app-text-muted);
+    line-height: 1.3;
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.queueRowTail {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+}
+
+.queueBadge {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    padding: 4px 8px;
+    border-radius: 6px;
+    white-space: nowrap;
+}
+
+.badgeFlag {
+    background: var(--app-badge-flag-bg);
+    color: var(--app-badge-flag-text);
+}
+
+.badgeNew {
+    background: var(--app-badge-new-bg);
+    color: var(--app-badge-new-text);
+}
+
+.badgeReview {
+    background: var(--app-badge-neutral-bg);
+    color: var(--app-badge-neutral-text);
+}
+
+.queueTime {
+    font-size: 12px;
+    color: var(--app-text-muted);
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+    min-width: 4.5rem;
+    text-align: right;
+}
+
+.queueChevron {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--app-text-subtle);
+    flex-shrink: 0;
+}
+
+@media (max-width: 480px) {
+    .queueRow {
+        gap: 8px;
+        padding: 8px 4px;
+    }
+
+    .queueRowTail {
+        gap: 6px;
+    }
+
+    .queueTime {
+        min-width: unset;
+        font-size: 11px;
+    }
+
+    .queueChevron {
+        display: none;
+    }
 }
 
 .chartsRow {
@@ -81,25 +366,19 @@
 }
 
 .panel {
-    background: #fbfbfb;
-    border-radius: 12px;
-    padding: 22px 24px 24px;
-    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
-    border: 1px solid rgba(0, 0, 0, 0.04);
+    background: var(--app-card-bg);
+    border-radius: 10px;
+    padding: 20px 22px 22px;
+    box-shadow: var(--app-card-shadow);
 }
 
 .panelTitle {
-    font-size: 17px;
+    font-size: 11px;
     font-weight: 600;
-    color: #1a1a1a;
-    margin: 0 0 6px;
-    font-family: 'Inter', sans-serif;
-}
-
-.panelSubtitle {
-    font-size: 13px;
-    color: #888;
-    margin: 0 0 20px;
+    color: var(--app-text-muted);
+    margin: 0 0 18px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
 }
 
 /* Status bar chart */
@@ -141,7 +420,7 @@
 }
 
 .barNew {
-    background: linear-gradient(180deg, #7ecbcd 0%, #05aaaf 100%);
+    background: linear-gradient(180deg, #7ecbcd 0%, var(--app-accent) 100%);
 }
 
 .barInProgress {
@@ -153,7 +432,7 @@
 }
 
 .barCurrent {
-    background: linear-gradient(180deg, #05aaaf 0%, #027a7e 100%);
+    background: linear-gradient(180deg, var(--app-accent) 0%, #027a7e 100%);
 }
 
 .barRejected {
@@ -183,6 +462,7 @@
     gap: 6px;
     min-height: 160px;
     padding: 8px 0 4px;
+    min-width: min(100%, 420px);
 }
 
 .monthCol {
@@ -208,7 +488,7 @@
 
 .monthFill {
     width: 100%;
-    background: linear-gradient(180deg, #b2e5e6 0%, #05aaaf 100%);
+    background: linear-gradient(180deg, #b2e5e6 0%, var(--app-accent) 100%);
     border-radius: 4px 4px 0 0;
     min-height: 2px;
     transition: height 0.35s ease;
@@ -260,9 +540,9 @@
 .donutHole {
     position: absolute;
     inset: 26%;
-    background: #fbfbfb;
+    background: #fff;
     border-radius: 50%;
-    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.06);
+    box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.06);
 }
 
 .donutCenterLabel {
@@ -336,6 +616,17 @@
     font-size: 14px;
 }
 
+.panel:has(.monthBars) {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 720px) {
+    .monthBars {
+        min-width: 480px;
+    }
+}
+
 @media (max-width: 640px) {
     .contentPadding {
         padding-top: 28px;
@@ -346,5 +637,45 @@
     .loadingBox {
         padding-left: 16px;
         padding-right: 16px;
+    }
+
+    .errorText {
+        padding-left: 16px;
+        padding-right: 16px;
+    }
+
+    .statusBars {
+        justify-content: flex-start;
+        gap: 8px;
+        overflow-x: auto;
+        padding-bottom: 6px;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: thin;
+    }
+
+    .statusBarCol {
+        flex: 0 0 auto;
+        min-width: 52px;
+    }
+
+    .statusBarTrack {
+        max-width: 44px;
+    }
+
+    .statValue {
+        font-size: 28px;
+    }
+
+    .donutRow {
+        justify-content: center;
+    }
+
+    .donutOuter {
+        width: 144px;
+        height: 144px;
+    }
+
+    .donutCenterValue {
+        font-size: 22px;
     }
 }

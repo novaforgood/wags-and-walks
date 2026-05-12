@@ -70,7 +70,7 @@ Two layout patterns coexist:
 - `NotesCard` — Shared notes textarea + email compose popup (draggable). Fetches/saves directly to `/api/foster-notes` on blur. Email popup (`Send Email` button) calls `/api/send-email` with `action: 'send_single_email'`
 - `FosterHistoryPanel` — Fetches from `/api/foster-history?email=` and renders current/past foster dog tables. Accepts optional `sectionClassName`/`sectionTitleClassName` for styling from the parent context.
 
-> **Sidebar duplication:** There is no shared sidebar component. Each page (`/candidates`, `/fosters/*`, `/overview`) renders its own sidebar JSX inline and imports `candidates/candidates.module.css` for the shared shell classes (`pageWrapper`, `sidebar`, `sidebarNav`, `navItem`, `navItemActive`, `mainContent`, `topBar`, `navResizeHandle`). When changing sidebar nav items or the resizable-width logic, update all pages.
+> **Sidebar duplication:** There is no shared sidebar component. Each page (`/candidates`, `/fosters/*`, `/overview`) renders its own sidebar JSX inline and imports `candidates/candidates.module.css` for the shared shell classes (`pageWrapper`, `sidebar`, `sidebarNav`, `navItem`, `navItemActive`, `mainContent`, `topBar`). The main nav width is fixed at 208px (`--app-sidebar-width`). When changing sidebar nav items, update all pages.
 
 > **Layout coupling:** `/fosters`, `/fosters/overview`, `/fosters/actions`, and `/fosters/[fosterId]` all import from `candidates/candidates.module.css` for the shared sidebar shell. This is intentional — there is no separate fosters layout file.
 
@@ -114,7 +114,6 @@ Key lib files:
 
 - `people_v2` — Cached array of `Person` objects from last successful fetch
 - `pending_status_updates_v1` — Queued status changes not yet flushed to Sheets (survives page refresh)
-- `app_nav_sidebar_width_v1` — Persisted sidebar width (px) for the resizable nav
 
 ### Dev Utilities
 

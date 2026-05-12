@@ -1,19 +1,29 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import Image from 'next/image'
-import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { usePeople } from '@/app/components/PeopleProvider'
-import { useAuth } from '@/app/components/AuthProvider'
 import ProtectedRoute from '@/app/components/ProtectedRoute'
 import PersonModal from '@/app/components/PersonModal'
 import NotificationPanel from '@/app/components/NotificationPanel'
+import TopBarProfileMenu from '@/app/components/TopBarProfileMenu'
+import { DashboardShell } from '@/app/components/DashboardShell'
 import FilterDropdown, { FilterState } from '@/app/components/FilterDropdown'
 import type { Person } from '@/app/lib/peopleTypes'
+import { formatRelativeTime } from '@/app/lib/formatRelativeTime'
 import styles from './candidates.module.css'
 
 
+function submissionTooltip(person: Person): string {
+    if (person.appliedAt) {
+        const d = new Date(person.appliedAt)
+        if (!Number.isNaN(d.getTime())) {
+            return d.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
+        }
+    }
+    const raw = String(person.raw?.['Submitted On'] || '').trim()
+    return raw || 'Submission time unknown'
+}
 function PageButton({ onClick, disabled, active, children }: {
     onClick: () => void, disabled?: boolean, active?: boolean, children: React.ReactNode
 }) {
@@ -40,10 +50,8 @@ function PageButton({ onClick, disabled, active, children }: {
 }
 
 export default function CandidatesPage() {
-    const pathname = usePathname()
     const router = useRouter()
     const { people, isLoading, error, setStatus, toggleStar, setSignedDocument } = usePeople()
-    const { user, role, signOut } = useAuth()
     const [selectedEmails, setSelectedEmails] = useState<Set<string>>(new Set())
     const [searchQuery, setSearchQuery] = useState('')
     const [expandedEmail, setExpandedEmail] = useState<string | null>(null)
@@ -70,18 +78,6 @@ export default function CandidatesPage() {
     const tableWrapperRef = useRef<HTMLDivElement>(null)
     const [itemsPerPage, setItemsPerPage] = useState(15)
 
-    const [navWidth, setNavWidth] = useState<number>(() => {
-        try {
-            const raw = localStorage.getItem('app_nav_sidebar_width_v1')
-            const n = raw ? Number(raw) : NaN
-            return Number.isFinite(n) ? Math.max(180, Math.min(280, n)) : 208
-        } catch {
-            return 208
-        }
-    })
-    const [isResizingNav, setIsResizingNav] = useState(false)
-    const navStartXRef = useRef(0)
-    const navStartWRef = useRef(208)
     const [filters, setFilters] = useState<FilterState>({
         livingSituation: [],
         dogTypes: [],
@@ -270,40 +266,6 @@ export default function CandidatesPage() {
     }, [acceptToast.isOpen])
 
     useEffect(() => {
-        try {
-            localStorage.setItem('app_nav_sidebar_width_v1', String(navWidth))
-        } catch {
-            // ignore
-        }
-    }, [navWidth])
-
-    useEffect(() => {
-        if (!isResizingNav) return
-        const prevUserSelect = document.body.style.userSelect
-        document.body.style.userSelect = 'none'
-
-        function onMove(e: PointerEvent) {
-            const delta = e.clientX - navStartXRef.current
-            const next = Math.max(180, Math.min(280, navStartWRef.current + delta))
-            setNavWidth(next)
-        }
-
-        function onUp() {
-            setIsResizingNav(false)
-        }
-
-        window.addEventListener('pointermove', onMove)
-        window.addEventListener('pointerup', onUp)
-        window.addEventListener('pointercancel', onUp)
-        return () => {
-            document.body.style.userSelect = prevUserSelect
-            window.removeEventListener('pointermove', onMove)
-            window.removeEventListener('pointerup', onUp)
-            window.removeEventListener('pointercancel', onUp)
-        }
-    }, [isResizingNav])
-
-    useEffect(() => {
         const el = tableWrapperRef.current
         if (!el) return
         function calc() {
@@ -323,84 +285,13 @@ export default function CandidatesPage() {
 
     return (
         <ProtectedRoute>
-        <div
-            className={styles.pageWrapper}
-            style={{ ['--app-sidebar-width' as any]: `${navWidth}px` }}
-        >
-            {/* ---- Left Sidebar ---- */}
-            <aside className={styles.sidebar}>
-                <div className={styles.sidebarLogo}>
-                    <Image src="/assets/logo.svg" alt="Wags & Walks" width={196} height={74} priority />
-                </div>
-
-                <nav className={styles.sidebarNav}>
-                    <Link href="/overview" className={styles.navItem}>
-                        <img src="/assets/Overview.svg" alt="Overview" width={18} height={18} />
-                        Overview
-                    </Link>
-                    <Link href="/candidates" className={`${styles.navItem} ${styles.navItemActive}`}>
-                        <img src="/assets/candidates.svg" alt="Applicants" width={18} height={18} />
-                        Applicants
-                    </Link>
-                    <Link
-                        href="/directory"
-                        className={`${styles.navItem} ${pathname === '/directory' ? styles.navItemActive : ''}`}
-                    >
-                        <img src="/assets/Search.svg" alt="Directory" width={18} height={18} />
-                        Directory
-                    </Link>
-                    <Link
-                        href="/fosters/overview"
-                        className={`${styles.navItem} ${pathname?.startsWith('/fosters') ? styles.navItemActive : ''}`}
-                    >
-                        <img src="/assets/fosters.svg" alt="Fosters" width={18} height={18} />
-                        Fosters
-                    </Link>
-                    {role === 'admin' && (
-                        <Link
-                            href="/admin/users"
-                            className={`${styles.navItem} ${pathname?.startsWith('/admin') ? styles.navItemActive : ''}`}
-                        >
-                            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden>
-                                <circle cx="9" cy="6" r="3" stroke="currentColor" strokeWidth="1.5" />
-                                <path d="M3 15c0-3.314 2.686-5 6-5s6 1.686 6 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                            </svg>
-                            Users
-                        </Link>
-                    )}
-                </nav>
-
-                <div className={styles.sidebarProfile}>
-                    <div className={styles.profileAvatar}>
-                        {user?.email && user.email.charAt(0).toUpperCase()}
-                    </div>
-                    <div className={styles.profileInfo}>
-                        <span className={styles.profileName}>
-                            {user?.displayName || user?.email?.split('@')[0] || 'User'}
-                        </span>
-                        <a href="#" className={styles.profileEmail}>{user?.email}</a>
-                        <button className={styles.profileLogout} onClick={signOut}>Log Out</button>
-                    </div>
-                </div>
-            </aside>
-
-            <div
-                className={styles.navResizeHandle}
-                onPointerDown={(e) => {
-                    e.preventDefault()
-                    e.currentTarget.setPointerCapture(e.pointerId)
-                    navStartXRef.current = e.clientX
-                    navStartWRef.current = navWidth
-                    setIsResizingNav(true)
-                }}
-            />
-
-            {/* ---- Main Content ---- */}
-            <div className={styles.mainContent}>
-                {/* Top bar */}
+        <DashboardShell>
                 <div className={styles.topBar}>
                     <h1 className={styles.topBarTitle}>Foster Applicants</h1>
-                    <NotificationPanel />
+                    <div className={styles.topBarActions}>
+                        <NotificationPanel />
+                        <TopBarProfileMenu />
+                    </div>
                 </div>
 
                 {/* Toolbar */}
@@ -443,6 +334,7 @@ export default function CandidatesPage() {
                                 <thead>
                                     <tr>
                                         <th>Name</th>
+                                        <th>Submitted</th>
                                         <th>Orientation Date</th>
                                         {/* TODO: Connect "Signed document" to actual sheet column when available */}
                                         <th>Signed Document</th>
@@ -471,6 +363,12 @@ export default function CandidatesPage() {
                                                     className={styles.nameCell}
                                                     onClick={() => setSelectedPerson(person)}
                                                 >{name}</td>
+                                                <td
+                                                    className={styles.submittedRelative}
+                                                    title={submissionTooltip(person)}
+                                                >
+                                                    {formatRelativeTime(person.appliedAt)}
+                                                </td>
                                                 <td>
                                                     <input
                                                         type="date"
@@ -597,7 +495,6 @@ export default function CandidatesPage() {
                             )}
                         </div>
                     </div>
-                </div>
             {/* Person detail modal */}
             <PersonModal person={selectedPerson} onClose={() => setSelectedPerson(null)} />
 
@@ -675,7 +572,7 @@ export default function CandidatesPage() {
                     </button>
                 </div>
             )}
-        </div>
+        </DashboardShell>
         </ProtectedRoute>
     )
 }

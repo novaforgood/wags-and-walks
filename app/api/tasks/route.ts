@@ -1,27 +1,39 @@
 import type { FosterStatus } from '@/app/lib/fosterDirectory'
-import type { TaskRow, TaskStatus } from '@/app/lib/taskTypes'
+import type {
+  TaskRow,
+  TaskRowSheetStatus,
+  TasksDataQuality,
+  TasksGetMetrics,
+} from '@/app/lib/taskTypes'
 
-export type { TaskRow, TaskStatus }
+export type { TaskRow, TaskRowSheetStatus, TasksDataQuality, TasksGetMetrics }
 
 const TASK_SCRIPT_URL = process.env.TASK_SCRIPT_URL
 
-// Status is pre-computed by the Apps Script and stored in the sheet's Status column.
-// Fall back to date fields only for rows where the sheet status is blank.
-function deriveStatus(sheetStatus: string, completedDate: string, retiredDate: string): TaskStatus {
-  if (retiredDate) return 'retired'
-  if (completedDate) return 'completed'
+/** Parse Sheet Status text only — do not infer from dates. */
+export function normalizeSheetStatus(sheetStatus: string): TaskRowSheetStatus {
   const s = sheetStatus.trim()
-  if (s === 'Overdue') return 'overdue'
-  if (s === 'Needs Review') return 'needs_review'
-  return 'pending'
+  if (!s) return 'unknown'
+  const lower = s.toLowerCase()
+  if (lower === 'good') return 'good'
+  if (lower === 'overdue') return 'overdue'
+  if (lower === 'completed') return 'completed'
+  if (lower === 'retired') return 'retired'
+  return 'unknown'
 }
 
-const STATUS_RANK: Record<FosterStatus, number> = { Good: 1, 'Needs Review': 2, Overdue: 3 }
+const ROLLUP_WEIGHT: Record<FosterStatus, number> = {
+  Good: 1,
+  Overdue: 2,
+  Unknown: 3,
+}
 
-function toFosterStatus(s: TaskStatus): FosterStatus {
-  if (s === 'overdue') return 'Overdue'
-  if (s === 'needs_review') return 'Needs Review'
-  return 'Good'
+/** Active rows that still affect follow-up health (Completed & Retired require no action). */
+function rollupContribution(status: TaskRowSheetStatus): FosterStatus | null {
+  if (status === 'completed' || status === 'retired') return null
+  if (status === 'overdue') return 'Overdue'
+  if (status === 'good') return 'Good'
+  return 'Unknown'
 }
 
 export async function POST(request: Request) {
@@ -70,15 +82,30 @@ export async function POST(request: Request) {
   }
 }
 
+const EMPTY_METRICS: TasksGetMetrics = {
+  activeOverdueTaskRows: 0,
+  unknownStatusRowCount: 0,
+}
+
+const EMPTY_QUALITY: TasksDataQuality = {
+  unknownStatusRowCount: 0,
+  hasUnknownTaskStatuses: false,
+}
+
 export async function GET() {
   if (!TASK_SCRIPT_URL) {
-    return Response.json({ success: true, rows: [], taskStatusByAnimalId: {} })
+    return Response.json({
+      success: true,
+      rows: [],
+      taskStatusByAnimalId: {},
+      metrics: EMPTY_METRICS,
+      dataQuality: EMPTY_QUALITY,
+    })
   }
 
   try {
     const url = new URL(TASK_SCRIPT_URL)
     url.searchParams.set('action', 'taskLog')
-
 
     const res = await fetch(url.toString(), { cache: 'no-store' })
     const data = (await res.json()) as {
@@ -94,10 +121,18 @@ export async function GET() {
       )
     }
 
+    let activeOverdueTaskRows = 0
+    let unknownStatusRowCount = 0
+
     const rows: TaskRow[] = data.rows.map(r => {
+      const rawStatus = String(r.status ?? '')
+      const normalized = normalizeSheetStatus(rawStatus)
+      if (normalized === 'overdue') activeOverdueTaskRows += 1
+      if (normalized === 'unknown') unknownStatusRowCount += 1
+
       const completedDate = String(r.completedDate ?? '').trim()
       const retiredDate = String(r.retiredDate ?? '').trim()
-      const sheetStatus = String(r.status ?? '').trim()
+
       return {
         animalId: String(r.animalId ?? '').trim(),
         dogName: String(r.dogName ?? '').trim(),
@@ -109,7 +144,8 @@ export async function GET() {
         retiredDate,
         fosterName: String(r.fosterName ?? '').trim(),
         fosterEmail: String(r.fosterEmail ?? '').trim(),
-        status: deriveStatus(sheetStatus, completedDate, retiredDate),
+        status: normalized,
+        statusRaw: normalized === 'unknown' ? rawStatus.trim() : undefined,
         driveLink: String(r.driveLink ?? r.driveFolder ?? r.folderUrl ?? r.photoFolder ?? '').trim(),
         scheduledEmail: String(r.scheduledEmail ?? ''),
         scheduledDate: String(r.scheduledDate ?? '').trim(),
@@ -117,18 +153,34 @@ export async function GET() {
       }
     })
 
-    // Worst active status per animal ID — used by fosters directory + overview
     const taskStatusByAnimalId: Record<string, FosterStatus> = {}
     for (const row of rows) {
-      if (!row.animalId || row.status === 'retired' || row.status === 'completed') continue
-      const fs = toFosterStatus(row.status)
+      if (!row.animalId) continue
+      const contrib = rollupContribution(row.status)
+      if (contrib === null) continue
       const existing = taskStatusByAnimalId[row.animalId]
-      if (!existing || STATUS_RANK[fs] > STATUS_RANK[existing]) {
-        taskStatusByAnimalId[row.animalId] = fs
+      if (!existing || ROLLUP_WEIGHT[contrib] > ROLLUP_WEIGHT[existing]) {
+        taskStatusByAnimalId[row.animalId] = contrib
       }
     }
 
-    return Response.json({ success: true, rows, taskStatusByAnimalId })
+    const dataQuality: TasksDataQuality = {
+      unknownStatusRowCount,
+      hasUnknownTaskStatuses: unknownStatusRowCount > 0,
+    }
+
+    const metrics: TasksGetMetrics = {
+      activeOverdueTaskRows,
+      unknownStatusRowCount,
+    }
+
+    return Response.json({
+      success: true,
+      rows,
+      taskStatusByAnimalId,
+      metrics,
+      dataQuality,
+    })
   } catch (error) {
     console.error('Tasks API error:', error)
     return Response.json({ success: false, error: 'Failed to load tasks' }, { status: 500 })
