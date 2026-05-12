@@ -59,8 +59,9 @@
   --app-filter-track: #ecf6f6;
   --app-badge-new-bg: rgba(5, 170, 175, 0.16);
   --app-badge-new-text: var(--app-accent-strong);
-  --app-badge-flag-bg: #fef2f2;
-  --app-badge-flag-text: #b91c1c;
+  /* “Needs attention” — teal tint (no red in brand palette) */
+  --app-badge-flag-bg: rgba(5, 170, 175, 0.14);
+  --app-badge-flag-text: var(--app-accent-strong);
   --app-badge-neutral-bg: #f3f4f6;
   --app-badge-neutral-text: #4b5563;
 
