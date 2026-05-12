@@ -142,7 +142,8 @@ There are **two independent Google Sheets / Apps Script projects**. Changes to e
 - `Code.gs` — `autoOrganizeFormFiles()`: form submit trigger that moves uploaded foster photos into per-dog Google Drive folders
 - `ResetStatuses.gs` — `resetAllStatusesToNew()`: bulk-resets all applicant statuses to `new` directly in the sheet (Apps Script side equivalent of `scripts/reset_status.js`)
 
-### Environment Variables
+**Optional — Google Group directory** (`appscript/GoogleGroupMembersWebApp.gs`)
+- Reference web app for `GOOGLE_GROUPS_SCRIPT_URL`: lists Workspace group members with `CacheService`, `LockService`, and `Utilities.sleep(1000)` between paginated Admin Directory reads (mitigates “premium groups read” rate limits). Set script property `GROUP_DIRECTORY_EMAIL` to the group address. Merge `handleGroupMembers_` into your deployed project if you already have a `doGet` entrypoint.
 
 Defined in `.env.local`:
 - `APPS_SCRIPT_URL` — Sheet 1 web app URL (applicant data API)
@@ -153,3 +154,6 @@ Defined in `.env.local`:
 - `ASM_API_KEY`, `ASM_REPORT_TITLE` — Used by `/api/foster-history` to call the ASM `json_report` method (different auth scheme from dogs route; `ASM_REPORT_TITLE` defaults to `'Foster History API'`)
 - `TASK_SCRIPT_URL` — Sheet 2 Apps Script URL used by `/api/tasks` and `/api/photo-status`. If unset, both routes return empty results rather than erroring.
 - `CRON_SECRET` — Bearer token checked by `/api/cron/send-scheduled`; Vercel injects this automatically in production (set in Vercel project env vars). The cron runs hourly per `vercel.json`.
+- `GOOGLE_GROUPS_SCRIPT_URL` / optional `GOOGLE_GROUPS_SCRIPT_KEY` — Web app that returns foster Google Group members (`?action=group_members`); proxied by `/api/google-group-members` for the Directory page.
+- `GOOGLE_GROUP_MEMBERS_CACHE_TTL_SEC` (optional, default `300`) — Server-side cache for successful group member fetches to avoid hitting Google’s “premium groups read” quota on every page load.
+- `GOOGLE_GROUP_MEMBERS_ERROR_CACHE_SEC` (optional, default `45`) — Short cache after upstream errors so a failing script is not hammered.
