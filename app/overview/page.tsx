@@ -46,7 +46,7 @@ function buildConicGradient(segments: { count: number; color: string }[]): strin
 export default function OverviewPage() {
     const pathname = usePathname()
     const { people, isLoading, error } = usePeople()
-    const { user, signOut } = useAuth()
+    const { user, role, signOut } = useAuth()
 
     // ── ADDED: ASM foster count from /api/fosters ──────────────────────────
     const [asmFosterCount, setAsmFosterCount] = useState<number | null>(null)
@@ -211,7 +211,7 @@ export default function OverviewPage() {
             <div className={layoutStyles.pageWrapper} style={{ ['--app-sidebar-width' as any]: `${navWidth}px` }}>
                 <aside className={layoutStyles.sidebar}>
                     <div className={layoutStyles.sidebarLogo}>
-                        <Image src="/assets/logo.svg" alt="Wags & Walks" width={160} height={60} priority />
+                        <Image src="/assets/logo.svg" alt="Wags & Walks" width={196} height={74} priority />
                     </div>
 
                     <nav className={layoutStyles.sidebarNav}>
@@ -235,13 +235,24 @@ export default function OverviewPage() {
                         </Link>
                         <Link
                             href="/fosters/overview"
-                            className={`${layoutStyles.navItem} ${
-                                pathname?.startsWith('/fosters') ? layoutStyles.navItemActive : ''
-                            }`}
+                            className={`${layoutStyles.navItem} ${pathname?.startsWith('/fosters') ? layoutStyles.navItemActive : ''
+                                }`}
                         >
                             <img src="/assets/fosters.svg" alt="" width={18} height={18} />
                             Fosters
                         </Link>
+                        {role === 'admin' && (
+                            <Link
+                                href="/admin/users"
+                                className={`${layoutStyles.navItem} ${pathname?.startsWith('/admin') ? layoutStyles.navItemActive : ''}`}
+                            >
+                                <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden>
+                                    <circle cx="9" cy="6" r="3" stroke="currentColor" strokeWidth="1.5" />
+                                    <path d="M3 15c0-3.314 2.686-5 6-5s6 1.686 6 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                                </svg>
+                                Users
+                            </Link>
+                        )}
                     </nav>
 
                     <div className={layoutStyles.sidebarProfile}>
@@ -284,10 +295,6 @@ export default function OverviewPage() {
 
                     {!isLoading && (
                         <div className={styles.contentPadding}>
-                            <p className={styles.intro}>
-                                Snapshot of your foster pipeline and roster, based on the same applicant data as
-                                Applicants and Fosters.
-                            </p>
 
                             <div className={styles.statsGrid}>
                                 <div className={styles.statCard}>

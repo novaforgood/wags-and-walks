@@ -72,7 +72,7 @@ function dogName(dog?: DogRecord) {
 
 export default function FostersSectionOverviewPage() {
   const pathname = usePathname()
-  const { user, signOut } = useAuth()
+  const { user, role, signOut } = useAuth()
   const [activeFosterCount, setActiveFosterCount] = useState<number | null>(null)
   const [dogs, setDogs] = useState<DogRecord[]>([])
   const [isLoadingDogs, setIsLoadingDogs] = useState(true)
@@ -139,22 +139,22 @@ export default function FostersSectionOverviewPage() {
     }
   }, [])
   useEffect(() => {
-  let active = true
-  async function loadFosterCount() {
-    try {
-      const res = await fetch('/api/fosters', { method: 'GET', cache: 'no-store' })
-      const data = await res.json()
-      if (!active) return
-      if (typeof data?.count === 'number') {
-        setActiveFosterCount(data.count)
+    let active = true
+    async function loadFosterCount() {
+      try {
+        const res = await fetch('/api/fosters', { method: 'GET', cache: 'no-store' })
+        const data = await res.json()
+        if (!active) return
+        if (typeof data?.count === 'number') {
+          setActiveFosterCount(data.count)
+        }
+      } catch {
+        // silently fail — the stat card will just show the fallback
       }
-    } catch {
-      // silently fail — the stat card will just show the fallback
     }
-  }
-  loadFosterCount()
-  return () => { active = false }
-}, [])
+    loadFosterCount()
+    return () => { active = false }
+  }, [])
 
   const updates = useMemo(() => {
     return dogs.map((dog, idx) => {
@@ -162,7 +162,11 @@ export default function FostersSectionOverviewPage() {
       const days = dog.movement?.daysInFoster
       const fosterName = nameOf(dog.foster)
       const animalId = String(dog.id ?? '')
-      const status: UpdateRow['status'] = taskStatusByAnimalId[animalId] ?? 'Good'
+      const taskStatus = taskStatusByAnimalId[animalId]
+      const status: UpdateRow['status'] = taskStatus ?? (
+        (days ?? 0) > 30 && !uploadedPhoto ? 'Overdue' :
+          (days ?? 0) > 14 || !uploadedPhoto ? 'Needs Review' : 'Good'
+      )
       const hasOpenPhotoTask = openPhotoAnimalIds.has(animalId)
       return {
         id: `${dog.id ?? idx}`,
@@ -227,7 +231,7 @@ export default function FostersSectionOverviewPage() {
       <div className={layoutStyles.pageWrapper} style={{ ['--app-sidebar-width' as any]: `${navWidth}px` }}>
         <aside className={layoutStyles.sidebar}>
           <div className={layoutStyles.sidebarLogo}>
-            <Image src="/assets/logo.svg" alt="Wags & Walks" width={160} height={60} priority />
+            <Image src="/assets/logo.svg" alt="Wags & Walks" width={196} height={74} priority />
           </div>
 
           <nav className={layoutStyles.sidebarNav}>
@@ -253,6 +257,18 @@ export default function FostersSectionOverviewPage() {
               <img src="/assets/fosters.svg" alt="" width={18} height={18} />
               Fosters
             </Link>
+            {role === 'admin' && (
+              <Link
+                href="/admin/users"
+                className={`${layoutStyles.navItem} ${pathname?.startsWith('/admin') ? layoutStyles.navItemActive : ''}`}
+              >
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden>
+                  <circle cx="9" cy="6" r="3" stroke="currentColor" strokeWidth="1.5" />
+                  <path d="M3 15c0-3.314 2.686-5 6-5s6 1.686 6 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                </svg>
+                Users
+              </Link>
+            )}
           </nav>
 
           <div className={layoutStyles.sidebarProfile}>
@@ -295,12 +311,6 @@ export default function FostersSectionOverviewPage() {
 
           {!isLoadingDogs && (
             <div className={styles.wrap}>
-              <section className={styles.heroPanel}>
-                <p className={styles.intro}>
-                  Action overview for active fosters. Prioritize overdue photo updates first, then dogs
-                  that are trending toward overdue.
-                </p>
-              </section>
 
               <div className={styles.statsGrid}>
                 <div className={styles.statCard}>

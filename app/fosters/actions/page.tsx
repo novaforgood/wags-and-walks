@@ -48,7 +48,7 @@ function statusLabel(status: ActionStatus): string {
 export default function FosterActionsPage() {
   const pathname = usePathname()
   const { people, isLoading, error } = usePeople()
-  const { user, signOut } = useAuth()
+  const { user, role, signOut } = useAuth()
   const [navWidth, setNavWidth] = useState<number>(() => {
     try {
       const raw = localStorage.getItem('app_nav_sidebar_width_v1')
@@ -218,7 +218,7 @@ export default function FosterActionsPage() {
       <div className={layoutStyles.pageWrapper} style={{ ['--app-sidebar-width' as any]: `${navWidth}px` }}>
         <aside className={layoutStyles.sidebar}>
           <div className={layoutStyles.sidebarLogo}>
-            <Image src="/assets/logo.svg" alt="Wags & Walks" width={160} height={60} priority />
+            <Image src="/assets/logo.svg" alt="Wags & Walks" width={196} height={74} priority />
           </div>
 
           <nav className={layoutStyles.sidebarNav}>
@@ -244,6 +244,18 @@ export default function FosterActionsPage() {
               <img src="/assets/fosters.svg" alt="" width={18} height={18} />
               Fosters
             </Link>
+            {role === 'admin' && (
+              <Link
+                href="/admin/users"
+                className={`${layoutStyles.navItem} ${pathname?.startsWith('/admin') ? layoutStyles.navItemActive : ''}`}
+              >
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden>
+                  <circle cx="9" cy="6" r="3" stroke="currentColor" strokeWidth="1.5" />
+                  <path d="M3 15c0-3.314 2.686-5 6-5s6 1.686 6 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                </svg>
+                Users
+              </Link>
+            )}
           </nav>
 
           <div className={layoutStyles.sidebarProfile}>

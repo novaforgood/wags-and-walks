@@ -17,6 +17,11 @@ type DogsApiResponse = {
   error?: string
 }
 
+type TasksApiResponse = {
+  success?: boolean
+  taskStatusByAnimalId?: Record<string, 'Good' | 'Needs Review' | 'Overdue'>
+}
+
 function PageButton({ onClick, disabled, active, children }: {
   onClick: () => void, disabled?: boolean, active?: boolean, children: React.ReactNode
 }) {
@@ -79,15 +84,16 @@ export default function FostersPage() {
     })
   }, [dogs, taskStatusByAnimalId, searchQuery, statusFilter])
 
+  const tableWrapperRef = useRef<HTMLDivElement>(null)
+  const [itemsPerPage, setItemsPerPage] = useState(15)
   const [currentPage, setCurrentPage] = useState(1)
-const ITEMS_PER_PAGE = 20
 
-const paginatedRows = useMemo(() => {
-  const start = (currentPage - 1) * ITEMS_PER_PAGE
-  return directoryRows.slice(start, start + ITEMS_PER_PAGE)
-}, [directoryRows, currentPage])
+  const paginatedRows = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage
+    return directoryRows.slice(start, start + itemsPerPage)
+  }, [directoryRows, currentPage, itemsPerPage])
 
-const totalPages = Math.ceil(directoryRows.length / ITEMS_PER_PAGE)
+  const totalPages = Math.ceil(directoryRows.length / itemsPerPage)
 
   useEffect(() => {
     let active = true
@@ -127,8 +133,26 @@ const totalPages = Math.ceil(directoryRows.length / ITEMS_PER_PAGE)
   }, [])
 
   useEffect(() => {
-  setCurrentPage(1)
-}, [searchQuery, statusFilter])
+    setCurrentPage(1)
+  }, [searchQuery, statusFilter])
+
+  useEffect(() => {
+    const el = tableWrapperRef.current
+    if (!el) return
+    function calc() {
+      const firstRow = el!.querySelector('tbody tr') as HTMLElement | null
+      const rowH = firstRow ? firstRow.getBoundingClientRect().height : 40
+      const thead = el!.querySelector('thead') as HTMLElement | null
+      const theadH = thead ? thead.getBoundingClientRect().height : 50
+      // subtract: thead + pagination (~56px) + wrapper bottom padding (16px)
+      const available = el!.clientHeight - theadH - 72
+      setItemsPerPage(Math.max(5, Math.floor(available / rowH)))
+    }
+    calc()
+    const ro = new ResizeObserver(calc)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
 
 
   useEffect(() => {
@@ -167,7 +191,7 @@ const totalPages = Math.ceil(directoryRows.length / ITEMS_PER_PAGE)
       <div className={styles.pageWrapper} style={{ ['--app-sidebar-width' as any]: `${navWidth}px` }}>
         <aside className={styles.sidebar}>
           <div className={styles.sidebarLogo}>
-            <Image src="/assets/logo.svg" alt="Wags & Walks" width={160} height={60} priority />
+            <Image src="/assets/logo.svg" alt="Wags & Walks" width={196} height={74} priority />
           </div>
 
           <nav className={styles.sidebarNav}>
@@ -262,7 +286,7 @@ const totalPages = Math.ceil(directoryRows.length / ITEMS_PER_PAGE)
           {dogsError && <div className={styles.errorText}>{dogsError}</div>}
 
           {!isLoadingDogs && (
-            <div className={styles.tableWrapper}>
+            <div className={styles.tableWrapper} ref={tableWrapperRef}>
               <div className={styles.tableContainer}>
                 <table className={styles.table}>
                   <thead>
@@ -307,33 +331,33 @@ const totalPages = Math.ceil(directoryRows.length / ITEMS_PER_PAGE)
                   </tbody>
                 </table>
                 {totalPages > 1 && (
-  <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '4px', padding: '16px' }}>
-    <PageButton onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>
-      ‹ Previous
-    </PageButton>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '4px', padding: '12px 16px' }}>
+                    <PageButton onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>
+                      ‹ Previous
+                    </PageButton>
 
-    {Array.from({ length: totalPages }, (_, i) => i + 1)
-      .filter(page => page === 1 || page === totalPages || Math.abs(page - currentPage) <= 1)
-      .reduce<(number | '...')[]>((acc, page, idx, arr) => {
-        if (idx > 0 && page - (arr[idx - 1] as number) > 1) acc.push('...')
-        acc.push(page)
-        return acc
-      }, [])
-      .map((item, idx) =>
-        item === '...' ? (
-          <span key={`ellipsis-${idx}`} style={{ padding: '0 4px', color: '#888', fontSize: '14px' }}>···</span>
-        ) : (
-          <PageButton key={item} onClick={() => setCurrentPage(item as number)} active={currentPage === item}>
-            {item}
-          </PageButton>
-        )
-      )}
+                    {Array.from({ length: totalPages }, (_, i) => i + 1)
+                      .filter(page => page === 1 || page === totalPages || Math.abs(page - currentPage) <= 1)
+                      .reduce<(number | '...')[]>((acc, page, idx, arr) => {
+                        if (idx > 0 && page - (arr[idx - 1] as number) > 1) acc.push('...')
+                        acc.push(page)
+                        return acc
+                      }, [])
+                      .map((item, idx) =>
+                        item === '...' ? (
+                          <span key={`ellipsis-${idx}`} style={{ padding: '0 4px', color: '#888', fontSize: '14px' }}>···</span>
+                        ) : (
+                          <PageButton key={item} onClick={() => setCurrentPage(item as number)} active={currentPage === item}>
+                            {item}
+                          </PageButton>
+                        )
+                      )}
 
-    <PageButton onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>
-      Next ›
-    </PageButton>
-  </div>
-)}
+                    <PageButton onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>
+                      Next ›
+                    </PageButton>
+                  </div>
+                )}
               </div>
             </div>
           )}

@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import styles from './NotificationPanel.module.css'
-import type { TaskRow } from '@/app/api/tasks/route'
+import type { TaskRow } from '@/app/lib/taskTypes'
 
 type Notification = {
   id: string
@@ -105,7 +105,6 @@ export default function NotificationPanel() {
         const notifs = data.rows
           .map(row => rowToNotification(row, readIds))
           .filter((n): n is Notification => n !== null)
-          // overdue first, then needs-review, then completed; within each group newest first
           .sort((a, b) => {
             const rank = (n: Notification) =>
               n.action.includes('overdue') ? 2 : n.action.startsWith('completed') ? 0 : 1
@@ -134,6 +133,23 @@ export default function NotificationPanel() {
     const readIds = getReadIds()
     readIds.add(id)
     saveReadIds(readIds)
+  }
+
+  const toggleRead = (id: string) => {
+    setNotifications(prev =>
+      prev.map(n => {
+        if (n.id !== id) return n
+        const nowRead = !n.isRead
+        const readIds = getReadIds()
+        if (nowRead) {
+          readIds.add(id)
+        } else {
+          readIds.delete(id)
+        }
+        saveReadIds(readIds)
+        return { ...n, isRead: nowRead }
+      })
+    )
   }
 
   const markAllAsRead = () => {
@@ -204,31 +220,46 @@ export default function NotificationPanel() {
                   key={n.id}
                   className={`${styles.card} ${!n.isRead ? styles.cardUnread : ''}`}
                 >
-                  <p className={styles.cardText}>
-                    <strong>{n.personName}</strong> {n.action}
-                    {n.entityName && <> <strong>{n.entityName}</strong></>}
-                  </p>
-                  <div className={styles.cardTimestamp}>
-                    {formatTimestamp(n.timestamp)}
-                  </div>
-                  {n.actionHref ? (
-                    <a
-                      className={styles.cardAction}
-                      href={n.actionHref}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={() => markAsRead(n.id)}
-                    >
-                      {n.actionLabel}
-                    </a>
-                  ) : (
+                  {/* Gmail-style dot indicator on the left */}
+                  <div className={styles.cardSide}>
                     <button
-                      className={styles.cardAction}
-                      onClick={() => markAsRead(n.id)}
+                      className={`${styles.readDot} ${!n.isRead ? styles.readDotUnread : styles.readDotRead}`}
+                      onClick={() => toggleRead(n.id)}
+                      aria-label={n.isRead ? 'Mark as unread' : 'Mark as read'}
                     >
-                      {n.actionLabel}
+                      <span className={styles.readDotTooltip}>
+                        {n.isRead ? 'Mark as unread' : 'Mark as read'}
+                      </span>
                     </button>
-                  )}
+                  </div>
+
+                  <div className={styles.cardBody}>
+                    <p className={styles.cardText}>
+                      <strong>{n.personName}</strong> {n.action}
+                      {n.entityName && <> <strong>{n.entityName}</strong></>}
+                    </p>
+                    <div className={styles.cardTimestamp}>
+                      {formatTimestamp(n.timestamp)}
+                    </div>
+                    {n.actionHref ? (
+                      <a
+                        className={styles.cardAction}
+                        href={n.actionHref}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={() => markAsRead(n.id)}
+                      >
+                        {n.actionLabel}
+                      </a>
+                    ) : (
+                      <button
+                        className={styles.cardAction}
+                        onClick={() => markAsRead(n.id)}
+                      >
+                        {n.actionLabel}
+                      </button>
+                    )}
+                  </div>
                 </div>
               ))
             )}
