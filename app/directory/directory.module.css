@@ -1,10 +1,13 @@
 /*
  * Shared .tableContainer uses justify-content: space-between so pagination
- * sticks to the bottom on Candidates. Here that pushes the table away from
- * the filter bar when the tbody is short (e.g. zero rows after filtering).
+ * sticks to the bottom on Candidates. On Directory, pagination is often
+ * hidden while loading — only [filter bar] + [table] remain as flex children,
+ * so space-between pins the table to the bottom and leaves a huge white gap
+ * above the header. We must override that (candidates.module may load later).
  */
 .directoryTableContainer {
-    justify-content: flex-start;
+    justify-content: flex-start !important;
+    flex: 0 1 auto !important;
 }
 
 /* ---- Loading / error inside table (tbody) ---- */
@@ -12,7 +15,7 @@
 .tableStateError {
     text-align: center;
     vertical-align: middle;
-    padding: 72px 24px;
+    padding: 20px 24px;
     font-size: 14px;
     font-family: 'Inter', sans-serif;
 }
@@ -328,7 +331,7 @@
 
     .tableStateLoading,
     .tableStateError {
-        padding: 48px 16px;
+        padding: 16px;
     }
 
     /* Hide phone on phones (it's available in the modal). */

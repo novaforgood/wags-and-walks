@@ -220,7 +220,9 @@ export default function DirectoryPage() {
     if (!el) return
     function calc() {
       const wrapper = el!
-      const firstRow = wrapper.querySelector('tbody tr') as HTMLElement | null
+      const firstRow = wrapper.querySelector(
+        'tbody tr:not([data-directory-metrics-skip])'
+      ) as HTMLElement | null
       const rowH = firstRow ? firstRow.getBoundingClientRect().height : 40
       const thead = wrapper.querySelector('thead') as HTMLElement | null
       const theadH = thead ? thead.getBoundingClientRect().height : 50
@@ -324,26 +326,26 @@ export default function DirectoryPage() {
               </thead>
               <tbody>
                 {error && rows.length > 0 && (
-                  <tr>
+                  <tr data-directory-metrics-skip="">
                     <td colSpan={6} className={dirStyles.tableStateWarn} role="alert">
                       {error}
                     </td>
                   </tr>
                 )}
                 {isLoading && rows.length === 0 ? (
-                  <tr>
+                  <tr data-directory-metrics-skip="">
                     <td colSpan={6} className={dirStyles.tableStateLoading}>
                       Loading directory…
                     </td>
                   </tr>
                 ) : error && rows.length === 0 ? (
-                  <tr>
+                  <tr data-directory-metrics-skip="">
                     <td colSpan={6} className={dirStyles.tableStateError} role="alert">
                       {error}
                     </td>
                   </tr>
                 ) : rows.length === 0 ? (
-                  <tr>
+                  <tr data-directory-metrics-skip="">
                     <td colSpan={6} className={dirStyles.emptyRow}>
                       No Google Group members returned for this directory.
                     </td>
@@ -425,7 +427,7 @@ export default function DirectoryPage() {
                       )
                     })}
                     {rows.length > 0 && filtered.length === 0 && (
-                      <tr>
+                      <tr data-directory-metrics-skip="">
                         <td colSpan={6} className={dirStyles.emptyRow}>
                           No fosterers match your filters.
                         </td>

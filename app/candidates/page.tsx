@@ -10,6 +10,7 @@ import TopBarProfileMenu from '@/app/components/TopBarProfileMenu'
 import { DashboardShell } from '@/app/components/DashboardShell'
 import FilterDropdown, { FilterState } from '@/app/components/FilterDropdown'
 import type { Person } from '@/app/lib/peopleTypes'
+import { formatFlagToken, parseRawFlagsTokens } from '@/app/lib/flagDisplay'
 import { formatRelativeTime } from '@/app/lib/formatRelativeTime'
 import styles from './candidates.module.css'
 
@@ -173,10 +174,7 @@ export default function CandidatesPage() {
         }
 
         if (showFlaggedOnly) {
-            result = result.filter(p => {
-                const flags = String(p.raw?.['Flags'] || '').trim().toLowerCase()
-                return flags && flags !== 'ok' && flags !== 'none'
-            })
+            result = result.filter(p => parseRawFlagsTokens(p.raw?.['Flags']).length > 0)
         }
 
         return result
@@ -202,33 +200,7 @@ export default function CandidatesPage() {
         })
     }
 
-    const getRedFlagsDisplay = (person: typeof people[0]) => {
-        const raw = String(person.raw?.['Flags'] || '').trim()
-        if (!raw || raw.toLowerCase() === 'ok') return 'None'
-        return raw
-    }
-
-    const getRedFlagTokens = (person: typeof people[0]) => {
-        const value = getRedFlagsDisplay(person)
-        if (value === 'None') return []
-
-        return value
-            .split(/[;,|]/)
-            .map(token => token.trim())
-            .filter(Boolean)
-    }
-
-    const formatRedFlagLabel = (token: string) => {
-        return token
-            .replace(/_/g, ' ')
-            .toLowerCase()
-            .replace(/\b\w/g, (char) => char.toUpperCase())
-    }
-
-    const hasFlags = (person: typeof people[0]) => {
-        const flags = getRedFlagsDisplay(person)
-        return flags !== 'None'
-    }
+    const hasFlags = (person: typeof people[0]) => parseRawFlagsTokens(person.raw?.['Flags']).length > 0
 
     // Maps API status values to human-readable display labels for the Status column.
     // API statuses on this page: 'new' | 'in-progress'
@@ -348,10 +320,11 @@ export default function CandidatesPage() {
                                         const email = person.email || String(i)
                                         const isSelected = selectedEmails.has(email)
                                         const name = `${person.firstName ?? ''} ${person.lastName ?? ''}`.trim() || 'Unknown'
-                                        const flagTokens = getRedFlagTokens(person)
-                                        const flagsDisplay = flagTokens.length > 0
-                                            ? flagTokens.map(formatRedFlagLabel).join(', ')
-                                            : 'None'
+                                        const flagTokens = parseRawFlagsTokens(person.raw?.['Flags'])
+                                        const flagsDisplay =
+                                            flagTokens.length > 0
+                                                ? flagTokens.map(formatFlagToken).join(', ')
+                                                : 'None'
                                         const signedDocument = person.signedDocument ?? 'No'
 
                                         return (
