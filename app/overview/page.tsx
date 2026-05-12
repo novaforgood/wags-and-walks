@@ -8,8 +8,10 @@ import NotificationPanel from '@/app/components/NotificationPanel'
 import TopBarProfileMenu from '@/app/components/TopBarProfileMenu'
 import { DashboardShell } from '@/app/components/DashboardShell'
 import type { Person, PersonStatus } from '@/app/lib/peopleTypes'
+import type { FostererHistory } from '@/app/lib/asmFosterHistory'
+import { countApplicantsAppliedThisWeek, countUniqueAnimalsPlacedThisMonth } from '@/app/lib/overviewMetrics'
 import { formatRelativeTime } from '@/app/lib/formatRelativeTime'
-import type { TasksDataQuality, TasksGetMetrics, TaskRow } from '@/app/api/tasks/route'
+import type { TasksGetMetrics, TaskRow } from '@/app/api/tasks/route'
 import type { DogRecord, FosterStatus } from '@/app/lib/fosterDirectory'
 import {
     compareNeedsAttentionPriority,
@@ -19,6 +21,7 @@ import {
     type EnrichedFosterRow,
     type TaskLane,
 } from '@/app/lib/fosterTaskEnrichment'
+import { formatFlagsForDisplay, rawFlagsHasMeaningfulTokens } from '@/app/lib/flagDisplay'
 import layoutStyles from '../candidates/candidates.module.css'
 import styles from './overview.module.css'
 
@@ -32,15 +35,20 @@ function isRejectedStatus(s?: PersonStatus): boolean {
     return s.startsWith('rejected_')
 }
 
+/** Raw sheet flags when at least one real token exists (excludes ok/none-only). */
+function sheetFlagText(person: Person): string | null {
+    const raw = String(person.raw?.['Flags'] ?? '').trim()
+    if (!rawFlagsHasMeaningfulTokens(raw)) return null
+    return raw
+}
+
 function hasRedFlag(person: Person): boolean {
-    const flags = String(person.raw?.['Flags'] || '').trim().toLowerCase()
-    return !!(flags && flags !== 'ok' && flags !== 'none')
+    return sheetFlagText(person) != null
 }
 
 type QueueFilter = 'all' | 'flagged'
-type TaskQueueFilter = 'attention' | 'overdue' | 'unknown'
 
-const APPLICANT_QUEUE_MAX = 6
+const APPLICANT_QUEUE_MAX = 7
 const TASK_QUEUE_MAX = 6
 
 const AVATAR_BG = [
@@ -94,42 +102,51 @@ function dogListLabel(dogs: EnrichedFosterRow['dogs']): string {
 type TaskQueueBadge = { label: string; cls: string }
 
 function badgeForTaskRow(row: EnrichedFosterRow, badgeStyles: Record<string, string>): TaskQueueBadge {
-    if (row.householdRollup === 'Overdue' || row.photoWorst === 'overdue' || row.surveyWorst === 'overdue') {
-        const photo = row.photoWorst === 'overdue'
-        const survey = row.surveyWorst === 'overdue'
-        const label =
-            photo && survey
-                ? 'Photos + survey overdue'
-                : photo
-                  ? 'Photos overdue'
-                  : survey
-                    ? 'Survey overdue'
-                    : 'Overdue'
-        return { label, cls: badgeStyles.badgeFlag }
+    const photoOd = row.photoWorst === 'overdue'
+    const surveyOd = row.surveyWorst === 'overdue'
+    if (photoOd || surveyOd) {
+        if (photoOd && surveyOd) return { label: 'Photos and survey overdue', cls: badgeStyles.badgeFlag }
+        if (photoOd) return { label: 'Photos overdue', cls: badgeStyles.badgeFlag }
+        return { label: 'Survey overdue', cls: badgeStyles.badgeFlag }
     }
-    if (row.householdRollup === 'Unknown' || row.photoWorst === 'unknown' || row.surveyWorst === 'unknown') {
-        return { label: 'Unknown status', cls: badgeStyles.badgeReview }
+    if (row.photoWorst === 'unknown' || row.surveyWorst === 'unknown') {
+        return { label: 'Task row status issue', cls: '' }
     }
     const missingPhoto = row.photoWorst === 'not_in_log'
     const missingSurvey = row.surveyWorst === 'not_in_log'
-    if (missingPhoto || missingSurvey) {
-        const label =
-            missingPhoto && missingSurvey
-                ? 'Not in Task Log'
-                : missingPhoto
-                  ? 'Photos: not in log'
-                  : 'Survey: not in log'
-        return { label, cls: badgeStyles.badgeNew }
+    if (missingPhoto && missingSurvey) return { label: 'Photos and survey not in log', cls: '' }
+    if (missingPhoto) return { label: 'Photos not in log', cls: '' }
+    if (missingSurvey) return { label: 'Survey not in log', cls: '' }
+    if (row.householdRollup === 'Unknown') {
+        return { label: '14–30 days in foster', cls: badgeStyles.badgePlacement }
     }
-    return { label: laneLabel(row.photoWorst === 'good' ? 'good' : row.surveyWorst), cls: badgeStyles.badgeReview }
+    if (row.householdRollup === 'Overdue') {
+        return { label: '30+ days in foster', cls: badgeStyles.badgePlacement }
+    }
+    return { label: laneLabel(row.photoWorst === 'good' ? 'good' : row.surveyWorst), cls: '' }
 }
 
-/**
- * Earliest active "overdue trigger" across a household — the oldest
- * `emailSentDate` (or `scheduledDate` if the email never went out) among the
- * household's active Overdue task rows. Falls back to any active non-Overdue
- * row's date, and finally to the placement date so the cell is never blank.
- */
+/** Task Log dates are often plain M/D/YYYY; show a readable absolute date for the row. */
+function formatTaskLogDate(isoOrSheetDate?: string): string {
+    if (!isoOrSheetDate?.trim()) return '—'
+    const raw = isoOrSheetDate.trim()
+    const d = new Date(raw)
+    if (!Number.isNaN(d.getTime())) {
+        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    }
+    const m = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/)
+    if (m) {
+        const month = Number(m[1])
+        const day = Number(m[2])
+        const year = Number(m[3])
+        const parsed = new Date(year, month - 1, day)
+        if (!Number.isNaN(parsed.getTime())) {
+            return parsed.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+        }
+    }
+    return raw
+}
+
 function earliestOverdueTrigger(
     row: EnrichedFosterRow,
     rowsByAnimalId: Map<string, TaskRow[]>
@@ -159,50 +176,17 @@ function earliestOverdueTrigger(
     return { date: row.lastUpdate, isOverdue: false }
 }
 
-function matchesTaskQueueFilter(row: EnrichedFosterRow, filter: TaskQueueFilter): boolean {
-    if (filter === 'attention') return fosterNeedsAttention(row)
-    if (filter === 'overdue') {
-        return (
-            row.householdRollup === 'Overdue' ||
-            row.photoWorst === 'overdue' ||
-            row.surveyWorst === 'overdue'
-        )
-    }
-    if (filter === 'unknown') {
-        const bad = (l: TaskLane) => l === 'unknown' || l === 'not_in_log'
-        return row.householdRollup === 'Unknown' || bad(row.photoWorst) || bad(row.surveyWorst)
-    }
-    return true
-}
-
-function buildConicGradient(segments: { count: number; color: string }[]): string | null {
-    const total = segments.reduce((a, s) => a + Math.max(0, s.count), 0)
-    if (total <= 0) return null
-    let deg = 0
-    const parts: string[] = []
-    for (const s of segments) {
-        if (s.count <= 0) continue
-        const span = (s.count / total) * 360
-        const end = deg + span
-        parts.push(`${s.color} ${deg}deg ${end}deg`)
-        deg = end
-    }
-    if (parts.length === 0) return null
-    return `conic-gradient(${parts.join(', ')})`
-}
-
 export default function OverviewPage() {
     const { people, isLoading, error } = usePeople()
     const [queueFilter, setQueueFilter] = useState<QueueFilter>('all')
 
-    // ── ADDED: ASM foster count from /api/fosters ──────────────────────────
     const [asmFosterCount, setAsmFosterCount] = useState<number | null>(null)
     const [taskMetrics, setTaskMetrics] = useState<TasksGetMetrics | null>(null)
-    const [dataQuality, setDataQuality] = useState<TasksDataQuality | null>(null)
     const [dogs, setDogs] = useState<DogRecord[]>([])
     const [taskRows, setTaskRows] = useState<TaskRow[]>([])
     const [taskStatusByAnimalId, setTaskStatusByAnimalId] = useState<Record<string, FosterStatus>>({})
-    const [taskQueueFilter, setTaskQueueFilter] = useState<TaskQueueFilter>('attention')
+    const [fosterers, setFosterers] = useState<FostererHistory[]>([])
+    const [fosterHistoryLoading, setFosterHistoryLoading] = useState(true)
 
     useEffect(() => {
         let active = true
@@ -211,12 +195,8 @@ export default function OverviewPage() {
                 const res = await fetch('/api/fosters', { method: 'GET', cache: 'no-store' })
                 const data = await res.json()
                 if (!active) return
-                if (typeof data?.count === 'number') {
-                    setAsmFosterCount(data.count)
-                }
-            } catch {
-                // silently fail — stat card falls back to spreadsheet count
-            }
+                if (typeof data?.count === 'number') setAsmFosterCount(data.count)
+            } catch { /* silently fail */ }
         }
         loadFosterCount()
         return () => { active = false }
@@ -231,19 +211,14 @@ export default function OverviewPage() {
                 const data = await res.json()
                 if (!active) return
                 if (data?.metrics) setTaskMetrics(data.metrics as TasksGetMetrics)
-                if (data?.dataQuality) setDataQuality(data.dataQuality as TasksDataQuality)
                 if (Array.isArray(data?.rows)) setTaskRows(data.rows as TaskRow[])
                 if (data?.taskStatusByAnimalId) {
                     setTaskStatusByAnimalId(data.taskStatusByAnimalId as Record<string, FosterStatus>)
                 }
-            } catch {
-                /* Task Log optional */
-            }
+            } catch { /* Task Log optional */ }
         }
         void loadTaskMetrics()
-        return () => {
-            active = false
-        }
+        return () => { active = false }
     }, [])
 
     useEffect(() => {
@@ -255,118 +230,61 @@ export default function OverviewPage() {
                 const data = await res.json()
                 if (!active) return
                 if (Array.isArray(data?.dogs)) setDogs(data.dogs as DogRecord[])
-            } catch {
-                /* dogs optional — queue gracefully empties */
-            }
+            } catch { /* dogs optional */ }
         }
         void loadDogs()
-        return () => {
-            active = false
-        }
+        return () => { active = false }
     }, [])
-    // ───────────────────────────────────────────────────────────────────────
+
+    useEffect(() => {
+        let active = true
+        async function loadFosterHistory() {
+            setFosterHistoryLoading(true)
+            try {
+                const res = await fetch('/api/foster-history', { cache: 'no-store' })
+                const data = await res.json()
+                if (!active) return
+                if (res.ok && data?.success && Array.isArray(data.fosterers)) {
+                    setFosterers(data.fosterers as FostererHistory[])
+                } else {
+                    setFosterers([])
+                }
+            } catch {
+                if (active) setFosterers([])
+            } finally {
+                if (active) setFosterHistoryLoading(false)
+            }
+        }
+        void loadFosterHistory()
+        return () => { active = false }
+    }, [])
 
     const stats = useMemo(() => {
         const rows = people.filter(hasEmail)
-
-        let newCount = 0
-        let inProgressCount = 0
-        let approvedCount = 0
-        let currentCount = 0
-        let rejectedCount = 0
-
+        let newCount = 0, inProgressCount = 0, approvedCount = 0, currentCount = 0
         for (const p of rows) {
             const s = p.status || 'new'
-            if (isRejectedStatus(s)) {
-                rejectedCount += 1
-                continue
-            }
-            switch (s) {
-                case 'new':
-                    newCount += 1
-                    break
-                case 'in-progress':
-                    inProgressCount += 1
-                    break
-                case 'approved':
-                    approvedCount += 1
-                    break
-                case 'current':
-                    currentCount += 1
-                    break
-                default:
-                    break
-            }
+            if (isRejectedStatus(s)) continue
+            if (s === 'new') newCount++
+            else if (s === 'in-progress') inProgressCount++
+            else if (s === 'approved') approvedCount++
+            else if (s === 'current') currentCount++
         }
-
         const pipelineCount = newCount + inProgressCount
         const flaggedInPipeline = rows.filter(p => {
             const s = p.status || 'new'
-            if (s !== 'new' && s !== 'in-progress') return false
-            return hasRedFlag(p)
+            return (s === 'new' || s === 'in-progress') && hasRedFlag(p)
         }).length
-
-        const monthBuckets = new Map<string, number>()
-        for (const p of rows) {
-            if (!p.appliedAt) continue
-            const d = new Date(p.appliedAt)
-            if (Number.isNaN(d.getTime())) continue
-            const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-            monthBuckets.set(key, (monthBuckets.get(key) || 0) + 1)
-        }
-        const sortedMonths = [...monthBuckets.keys()].sort()
-        const last12 = sortedMonths.slice(-12)
-        const monthly = last12.map(key => ({
-            key,
-            label: formatMonthLabel(key),
-            count: monthBuckets.get(key) || 0,
-        }))
-        const monthMax = Math.max(1, ...monthly.map(m => m.count))
-
-        const statusMax = Math.max(1, newCount, inProgressCount, approvedCount, currentCount, rejectedCount)
-
-        // ── CHANGED: use asmFosterCount for the donut if available ──────────
         const activeFosterCount = asmFosterCount ?? currentCount
-        const rosterTotal = activeFosterCount + pipelineCount + approvedCount + rejectedCount
-        const donutSegments = [
-            { key: 'current', label: 'Active fosters', count: activeFosterCount, color: '#05aaaf' },
-            { key: 'pipeline', label: 'Pipeline', count: pipelineCount, color: '#7ecbcd' },
-            { key: 'approved', label: 'Approved', count: approvedCount, color: '#3a9da0' },
-            { key: 'rejected', label: 'Rejected', count: rejectedCount, color: '#9e9e9e' },
-        ]
-        // ────────────────────────────────────────────────────────────────────
-
-        const donutGradient = buildConicGradient(
-            donutSegments.map(s => ({ count: s.count, color: s.color }))
-        )
-
-        return {
-            newCount,
-            inProgressCount,
-            pipelineCount,
-            approvedCount,
-            currentCount,
-            activeFosterCount,
-            rejectedCount,
-            flaggedInPipeline,
-            monthly,
-            monthMax,
-            statusMax,
-            rosterTotal,
-            donutSegments,
-            donutGradient,
-        }
-    }, [people, asmFosterCount]) // ← CHANGED: added asmFosterCount dependency
+        return { newCount, inProgressCount, pipelineCount, approvedCount, currentCount, activeFosterCount, flaggedInPipeline }
+    }, [people, asmFosterCount])
 
     const applicantQueue = useMemo(() => {
         const rows = people.filter(hasEmail).filter(p => {
             const s = p.status || 'new'
-            if (isRejectedStatus(s)) return false
-            return s === 'new' || s === 'in-progress'
+            return !isRejectedStatus(s) && (s === 'new' || s === 'in-progress')
         })
-        const filtered = rows.filter(p =>
-            queueFilter === 'all' ? true : hasRedFlag(p)
-        )
+        const filtered = rows.filter(p => queueFilter === 'all' ? true : hasRedFlag(p))
         const ts = (p: Person) => {
             const t = p.appliedAt ? new Date(p.appliedAt).getTime() : NaN
             return Number.isNaN(t) ? 0 : t
@@ -380,7 +298,11 @@ export default function OverviewPage() {
             (queueFilter === 'flagged' && stats.flaggedInPipeline > APPLICANT_QUEUE_MAX))
 
     const overdueFollowUpRows = taskMetrics?.activeOverdueTaskRows ?? 0
-    const unknownStatusRows = taskMetrics?.unknownStatusRowCount ?? 0
+    const applicantsThisWeek = useMemo(() => countApplicantsAppliedThisWeek(people), [people])
+    const placementsThisMonth = useMemo(
+        () => countUniqueAnimalsPlacedThisMonth(fosterers),
+        [fosterers]
+    )
 
     const enrichedFosters = useMemo(
         () => enrichFosterDirectoryWithLanes(dogs, taskRows, taskStatusByAnimalId),
@@ -400,114 +322,104 @@ export default function OverviewPage() {
     }, [taskRows])
 
     const taskQueueCounts = useMemo(() => {
-        let attention = 0
-        let overdue = 0
-        let unknown = 0
+        let attention = 0, overdue = 0, unknown = 0
         for (const row of enrichedFosters) {
-            if (fosterNeedsAttention(row)) attention += 1
-            if (
-                row.householdRollup === 'Overdue' ||
-                row.photoWorst === 'overdue' ||
-                row.surveyWorst === 'overdue'
-            ) overdue += 1
-            const badLane = (l: TaskLane) => l === 'unknown' || l === 'not_in_log'
-            if (row.householdRollup === 'Unknown' || badLane(row.photoWorst) || badLane(row.surveyWorst)) {
-                unknown += 1
-            }
+            if (fosterNeedsAttention(row)) attention++
+            if (row.householdRollup === 'Overdue' || row.photoWorst === 'overdue' || row.surveyWorst === 'overdue') overdue++
+            const bad = (l: TaskLane) => l === 'unknown' || l === 'not_in_log'
+            if (row.householdRollup === 'Unknown' || bad(row.photoWorst) || bad(row.surveyWorst)) unknown++
         }
         return { attention, overdue, unknown }
     }, [enrichedFosters])
 
     const taskQueue = useMemo(() => {
-        const filtered = enrichedFosters.filter(r => matchesTaskQueueFilter(r, taskQueueFilter))
+        const filtered = enrichedFosters.filter(fosterNeedsAttention)
         return [...filtered].sort(compareNeedsAttentionPriority).slice(0, TASK_QUEUE_MAX)
-    }, [enrichedFosters, taskQueueFilter])
+    }, [enrichedFosters])
 
-    const taskQueueTotal =
-        taskQueueFilter === 'attention'
-            ? taskQueueCounts.attention
-            : taskQueueFilter === 'overdue'
-              ? taskQueueCounts.overdue
-              : taskQueueCounts.unknown
-
-    const showTaskQueueSeeAll = taskQueue.length > 0 && taskQueueTotal > TASK_QUEUE_MAX
+    const showTaskQueueSeeAll = taskQueue.length > 0 && taskQueueCounts.attention > TASK_QUEUE_MAX
     const hasDogsLoaded = dogs.length > 0
 
     return (
         <ProtectedRoute>
             <DashboardShell>
-                    <div className={layoutStyles.topBar}>
-                        <h1 className={layoutStyles.topBarTitle}>Overview</h1>
-                        <div className={layoutStyles.topBarActions}>
-                            <NotificationPanel />
-                            <TopBarProfileMenu />
-                        </div>
+                <div className={layoutStyles.topBar}>
+                    <h1 className={layoutStyles.topBarTitle}>Overview</h1>
+                    <div className={layoutStyles.topBarActions}>
+                        <NotificationPanel />
+                        <TopBarProfileMenu />
                     </div>
+                </div>
 
-                    {isLoading && people.length === 0 && (
-                        <div className={styles.loadingBox}>Loading…</div>
-                    )}
-                    {error && <div className={styles.errorText}>{error}</div>}
+                {isLoading && people.length === 0 && (
+                    <div className={styles.loadingBox}>Loading…</div>
+                )}
+                {error && <div className={styles.errorText}>{error}</div>}
 
-                    {!isLoading && (
-                        <div className={styles.contentPadding}>
+                {!isLoading && (
+                    <div className={styles.contentPadding}>
 
-                            <div className={styles.statsGrid}>
-                                <div className={styles.statCard}>
-                                    <span className={styles.statLabel}>Pipeline</span>
-                                    <span className={styles.statValue}>{stats.pipelineCount}</span>
-                                    <span className={styles.statHint}>New and in progress</span>
-                                </div>
-                                <div className={styles.statCard}>
-                                    <span className={styles.statLabel}>Active fosters</span>
-                                    <span className={styles.statValue}>{stats.activeFosterCount}</span>
-                                    <span className={styles.statHint}>Shelter Manager</span>
-                                </div>
-                                <div className={styles.statCard}>
-                                    <span className={styles.statLabel}>Approved</span>
-                                    <span className={styles.statValue}>{stats.approvedCount}</span>
-                                    <span className={styles.statHint}>Directory-ready</span>
-                                </div>
-                                <div className={styles.statCard}>
-                                    <span className={styles.statLabel}>Flagged</span>
-                                    <span className={styles.statValue}>{stats.flaggedInPipeline}</span>
-                                    <span className={styles.statHint}>In pipeline</span>
-                                </div>
+                        <div className={styles.statCards}>
+                            <div className={styles.statCard}>
+                                <span className={styles.statCardLabel}>Active fosters</span>
+                                <span className={styles.statCardValue}>
+                                    {asmFosterCount !== null ? asmFosterCount : stats.activeFosterCount}
+                                </span>
                             </div>
 
-                            <div className={styles.applicantSectionWrap}>
-                            <section
-                                className={styles.applicantCard}
-                                id="foster-task-log"
-                                aria-labelledby="foster-task-log-title"
+                            <div
+                                className={styles.statCard}
+                                title="Rows in the Task Log marked overdue (photos or survey follow-ups)."
                             >
-                                <div className={styles.cardHead}>
-                                    <div className={styles.cardHeadText}>
-                                        <h2 id="foster-task-log-title" className={styles.cardTitle}>
-                                            Foster tasks
+                                <span className={styles.statCardLabel}>Tasks past due</span>
+                                <span
+                                    className={`${styles.statCardValue} ${overdueFollowUpRows > 0 ? styles.statCardValueAlert : ''}`}
+                                >
+                                    {overdueFollowUpRows}
+                                </span>
+                            </div>
+
+                            <div
+                                className={styles.statCard}
+                                title="Applicants who submitted this calendar week (Monday 12:00 a.m. through now, your local time). Rejected applications are excluded."
+                            >
+                                <span className={styles.statCardLabel}>Applicants this week</span>
+                                <span className={styles.statCardValue}>{applicantsThisWeek}</span>
+                            </div>
+
+                            <div
+                                className={styles.statCard}
+                                title="Each dog is counted once: foster start date falls in the current calendar month (through today), using ShelterManager foster history."
+                            >
+                                <span className={styles.statCardLabel}>Foster starts this month</span>
+                                <span className={styles.statCardValue}>
+                                    {fosterHistoryLoading ? (
+                                        <span className={styles.statCardValueMuted}>—</span>
+                                    ) : (
+                                        placementsThisMonth
+                                    )}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div className={styles.twoColumn}>
+                            {/* ── Applicants ────────────────────────────── */}
+                            <section className={styles.briefingSection} aria-labelledby="applicant-section-title">
+                                <div className={styles.sectionHeader}>
+                                    <div className={styles.sectionHeaderLeft}>
+                                        <h2 id="applicant-section-title" className={styles.sectionTitle}>
+                                            Applicants
                                         </h2>
-                                        <p className={styles.cardSubtitle}>
-                                            {overdueFollowUpRows} overdue follow-up{overdueFollowUpRows === 1 ? '' : 's'}
-                                            {unknownStatusRows > 0
-                                                ? ` · ${unknownStatusRows} unknown row${unknownStatusRows === 1 ? '' : 's'}`
-                                                : ''}
-                                        </p>
                                     </div>
-                                    <div className={styles.filterBar} role="tablist" aria-label="Foster task filters">
-                                        {(
-                                            [
-                                                ['attention', 'Needs attention'],
-                                                ['overdue', 'Overdue'],
-                                                ['unknown', 'Unknown / missing'],
-                                            ] as const satisfies readonly (readonly [TaskQueueFilter, string])[]
-                                        ).map(([key, label]) => (
+                                    <div className={`${styles.filterPills} ${styles.filterPillsCompact}`} role="tablist">
+                                        {([['all', 'All'], ['flagged', 'Flags']] as const).map(([key, label]) => (
                                             <button
                                                 key={key}
                                                 type="button"
                                                 role="tab"
-                                                aria-selected={taskQueueFilter === key}
-                                                className={`${styles.filterBtn} ${taskQueueFilter === key ? styles.filterBtnActive : ''}`}
-                                                onClick={() => setTaskQueueFilter(key)}
+                                                aria-selected={queueFilter === key}
+                                                className={`${styles.pill} ${styles.pillCompact} ${queueFilter === key ? styles.pillActive : ''}`}
+                                                onClick={() => setQueueFilter(key)}
                                             >
                                                 {label}
                                             </button>
@@ -515,299 +427,138 @@ export default function OverviewPage() {
                                     </div>
                                 </div>
 
-                                {dataQuality?.hasUnknownTaskStatuses ? (
-                                    <p className={styles.dataQualityBanner} role="status">
-                                        Data quality: {dataQuality.unknownStatusRowCount} task row
-                                        {dataQuality.unknownStatusRowCount === 1 ? '' : 's'} have missing or
-                                        unrecognized status in the Task Log — not counted as Good until fixed.
-                                    </p>
-                                ) : null}
-
-                                {!hasDogsLoaded ? (
-                                    <p className={styles.emptyQueue}>Loading foster households…</p>
-                                ) : taskQueue.length === 0 ? (
-                                    <p className={styles.emptyQueue}>
-                                        {taskQueueFilter === 'attention'
-                                            ? 'All households are caught up — nothing needs attention.'
-                                            : taskQueueFilter === 'overdue'
-                                              ? 'No overdue follow-ups right now.'
-                                              : 'No unknown / missing task rows right now.'}
-                                    </p>
-                                ) : (
-                                    <ul className={styles.queueList}>
-                                        {taskQueue.map(row => {
-                                            const href = `/fosters/${row.id}?from=overview`
-                                            const badge = badgeForTaskRow(row, styles)
-                                            const trigger = earliestOverdueTrigger(row, taskRowsByAnimalId)
-                                            const triggerTitle = trigger.isOverdue
-                                                ? `Overdue since ${trigger.date ?? 'unknown'}`
-                                                : trigger.date
-                                                  ? `Last task activity ${trigger.date}`
-                                                  : 'No task log activity'
-                                            return (
-                                                <li key={row.id}>
-                                                    <Link href={href} className={styles.queueRow}>
-                                                        <span
-                                                            className={styles.queueAvatar}
-                                                            style={{ background: avatarBg(row.fosterEmail) }}
-                                                            aria-hidden
-                                                        >
-                                                            {fosterInitials(row.fosterName, row.fosterEmail)}
-                                                        </span>
-                                                        <span className={styles.queueMain}>
-                                                            <span className={styles.queueName}>{row.fosterName}</span>
-                                                            <span className={styles.queueSub}>{dogListLabel(row.dogs)}</span>
-                                                        </span>
-                                                        <span className={styles.queueRowTail}>
-                                                            <span className={`${styles.queueBadge} ${badge.cls}`}>
-                                                                {badge.label}
-                                                            </span>
-                                                            <span className={styles.queueTime} title={triggerTitle}>
-                                                                {formatRelativeTime(trigger.date)}
-                                                            </span>
-                                                            <span className={styles.queueChevron} aria-hidden>
-                                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                                                                    <path
-                                                                        d="M9 6l6 6-6 6"
-                                                                        stroke="currentColor"
-                                                                        strokeWidth="2"
-                                                                        strokeLinecap="round"
-                                                                        strokeLinejoin="round"
-                                                                    />
-                                                                </svg>
-                                                            </span>
-                                                        </span>
-                                                    </Link>
-                                                </li>
-                                            )
-                                        })}
-                                    </ul>
-                                )}
-
-                                {showTaskQueueSeeAll && (
-                                    <div className={styles.queueFooter}>
-                                        <Link href="/fosters" className={styles.queueFooterLink}>
-                                            View all in Onboarded fosters
-                                        </Link>
-                                    </div>
-                                )}
-                            </section>
-                            </div>
-
-                            <div className={styles.applicantSectionWrap}>
-                                <section className={styles.applicantCard} aria-labelledby="applicant-queue-title">
-                                    <div className={styles.cardHead}>
-                                        <div className={styles.cardHeadText}>
-                                            <h2 id="applicant-queue-title" className={styles.cardTitle}>
-                                                Applicant queue
-                                            </h2>
-                                        </div>
-                                        <div className={styles.filterBar} role="tablist" aria-label="Applicant filters">
-                                            {(
-                                                [
-                                                    ['all', 'All'],
-                                                    ['flagged', 'Flagged'],
-                                                ] as const satisfies readonly (readonly [QueueFilter, string])[]
-                                            ).map(([key, label]) => (
-                                                <button
-                                                    key={key}
-                                                    type="button"
-                                                    role="tab"
-                                                    aria-selected={queueFilter === key}
-                                                    className={`${styles.filterBtn} ${queueFilter === key ? styles.filterBtnActive : ''}`}
-                                                    onClick={() => setQueueFilter(key)}
-                                                >
-                                                    {label}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </div>
-
+                                <div className={styles.panelBody}>
                                     {applicantQueue.length === 0 ? (
-                                        <p className={styles.emptyQueue}>
-                                            {stats.pipelineCount === 0
-                                                ? 'No applications in the pipeline yet.'
-                                                : 'No applicants match this filter.'}
-                                        </p>
+                                        <p className={styles.emptyState}>No applicants found.</p>
                                     ) : (
-                                        <ul className={styles.queueList}>
+                                        <ul className={styles.rowList}>
                                             {applicantQueue.map(p => {
                                                 const email = p.email!.trim()
                                                 const href = `/applicants/${encodeURIComponent(email)}?from=overview`
-                                                const badge = hasRedFlag(p)
-                                                    ? { label: 'Red flag', cls: styles.badgeFlag }
-                                                    : (p.status || 'new') === 'new'
-                                                      ? { label: 'New', cls: styles.badgeNew }
-                                                      : { label: 'In progress', cls: styles.badgeReview }
+                                                const rawFlags = sheetFlagText(p)
+                                                const flagDisplay = rawFlags ? formatFlagsForDisplay(rawFlags) : null
+                                                const isFlag = rawFlags != null
                                                 return (
                                                     <li key={email}>
-                                                        <Link href={href} className={styles.queueRow}>
+                                                        <Link
+                                                            href={href}
+                                                            className={styles.row}
+                                                            aria-label={
+                                                                isFlag && flagDisplay
+                                                                    ? `${displayName(p)}, flag: ${flagDisplay}`
+                                                                    : undefined
+                                                            }
+                                                        >
                                                             <span
-                                                                className={styles.queueAvatar}
+                                                                className={styles.avatar}
                                                                 style={{ background: avatarBg(email) }}
                                                                 aria-hidden
                                                             >
                                                                 {initialsOf(p)}
                                                             </span>
-                                                            <span className={styles.queueMain}>
-                                                                <span className={styles.queueName}>{displayName(p)}</span>
-                                                            </span>
-                                                            <span className={styles.queueRowTail}>
-                                                                <span className={`${styles.queueBadge} ${badge.cls}`}>
-                                                                    {badge.label}
-                                                                </span>
-                                                                <span className={styles.queueTime}>
+                                                            <div className={styles.rowMain}>
+                                                                <span className={styles.rowName}>{displayName(p)}</span>
+                                                                <span className={styles.rowSub}>{p.email}</span>
+                                                                {flagDisplay && (
+                                                                    <span className={styles.rowFlagDetail} title={rawFlags ?? undefined}>
+                                                                        {flagDisplay}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                            <div className={styles.rowTail}>
+                                                                <span className={styles.rowTime}>
                                                                     {formatRelativeTime(p.appliedAt)}
                                                                 </span>
-                                                                <span className={styles.queueChevron} aria-hidden>
-                                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                                                                        <path
-                                                                            d="M9 6l6 6-6 6"
-                                                                            stroke="currentColor"
-                                                                            strokeWidth="2"
-                                                                            strokeLinecap="round"
-                                                                            strokeLinejoin="round"
-                                                                        />
-                                                                    </svg>
-                                                                </span>
-                                                            </span>
+                                                            </div>
                                                         </Link>
                                                     </li>
                                                 )
                                             })}
                                         </ul>
                                     )}
-                                    {showQueueSeeAll && (
-                                        <div className={styles.queueFooter}>
-                                            <Link href="/candidates" className={styles.queueFooterLink}>
-                                                View all in Candidates
-                                            </Link>
-                                        </div>
-                                    )}
-                                </section>
-                            </div>
+                                </div>
 
-                            <div className={styles.chartsRow}>
-                                <div className={styles.panel}>
-                                    <h2 className={styles.panelTitle}>Pipeline</h2>
-                                    {stats.rosterTotal === 0 ? (
-                                        <div className={styles.emptyChart}>No applicants yet.</div>
+                                {showQueueSeeAll && (
+                                    <div className={styles.sectionFooter}>
+                                        <Link href="/candidates" className={styles.seeAllLink}>
+                                            View all applicants →
+                                        </Link>
+                                    </div>
+                                )}
+                            </section>
+
+                            {/* ── Fosters ───────────────────────────────── */}
+                            <section className={styles.briefingSection} aria-labelledby="foster-section-title">
+                                <div className={styles.sectionHeader}>
+                                    <div className={styles.sectionHeaderLeft}>
+                                        <h2 id="foster-section-title" className={styles.sectionTitle}>
+                                            Fosters
+                                        </h2>
+                                    </div>
+                                </div>
+
+                                <div className={styles.panelBody}>
+                                    {!hasDogsLoaded ? (
+                                        <p className={styles.emptyState}>Loading...</p>
+                                    ) : taskQueue.length === 0 ? (
+                                        <p className={styles.emptyState}>All caught up.</p>
                                     ) : (
-                                        <div className={styles.donutRow}>
-                                            <div className={styles.donutOuter}>
-                                                <div
-                                                    className={styles.donutRing}
-                                                    style={{
-                                                        background:
-                                                            stats.donutGradient ??
-                                                            'conic-gradient(#e0e0e0 0deg 360deg)',
-                                                    }}
-                                                />
-                                                <div className={styles.donutHole} />
-                                                <div className={styles.donutCenterLabel}>
-                                                    <span className={styles.donutCenterValue}>
-                                                        {stats.rosterTotal}
-                                                    </span>
-                                                    <span className={styles.donutCenterHint}>total</span>
-                                                </div>
-                                            </div>
-                                            <div className={styles.donutLegend}>
-                                                {stats.donutSegments.map(seg => (
-                                                    <div key={seg.key} className={styles.legendItem}>
-                                                        <span
-                                                            className={styles.legendSwatch}
-                                                            style={{ background: seg.color }}
-                                                        />
-                                                        <span className={styles.legendLabel}>{seg.label}</span>
-                                                        <span className={styles.legendValue}>{seg.count}</span>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
+                                        <ul className={styles.rowList}>
+                                            {taskQueue.map(row => {
+                                                const href = `/fosters/${row.id}?from=overview`
+                                                const badge = badgeForTaskRow(row, styles)
+                                                const trigger = earliestOverdueTrigger(row, taskRowsByAnimalId)
+                                                return (
+                                                    <li key={row.id}>
+                                                        <Link href={href} className={styles.row}>
+                                                            <span
+                                                                className={styles.avatar}
+                                                                style={{ background: avatarBg(row.fosterEmail) }}
+                                                                aria-hidden
+                                                            >
+                                                                {fosterInitials(row.fosterName, row.fosterEmail)}
+                                                            </span>
+                                                            <div className={styles.rowMain}>
+                                                                <span className={styles.rowName}>{row.fosterName}</span>
+                                                                <span className={styles.rowSub}>{dogListLabel(row.dogs)}</span>
+                                                            </div>
+                                                            <div className={`${styles.rowTail} ${styles.rowTailFoster}`}>
+                                                                <span className={`${styles.badge} ${badge.cls}`}>
+                                                                    {badge.label}
+                                                                </span>
+                                                                <div
+                                                                    className={styles.rowDateBlock}
+                                                                    title="Earliest date from the Task Log for this home’s dogs (scheduled follow-up, or last sent date when the sheet stores that instead)."
+                                                                >
+                                                                    <span className={styles.rowDateLabel}>
+                                                                        Task log
+                                                                    </span>
+                                                                    <span className={styles.rowDateValue}>
+                                                                        {formatTaskLogDate(trigger.date)}
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+                                                        </Link>
+                                                    </li>
+                                                )
+                                            })}
+                                        </ul>
                                     )}
                                 </div>
 
-                                <div className={styles.panel}>
-                                    <h2 className={styles.panelTitle}>Applications</h2>
-                                    {stats.monthly.length === 0 ? (
-                                        <div className={styles.emptyChart}>No submission dates on file.</div>
-                                    ) : (
-                                        <div className={styles.monthBars}>
-                                            {stats.monthly.map(m => (
-                                                <div key={m.key} className={styles.monthCol}>
-                                                    <div className={styles.monthTrack}>
-                                                        <div
-                                                            className={styles.monthFill}
-                                                            style={{
-                                                                height: `${(m.count / stats.monthMax) * 100}%`,
-                                                            }}
-                                                        />
-                                                    </div>
-                                                    <span className={styles.monthCount}>{m.count}</span>
-                                                    <span className={styles.monthLabel}>{m.label}</span>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-
-                            <div className={styles.panel}>
-                                <h2 className={styles.panelTitle}>By stage</h2>
-                                <div className={styles.statusBars}>
-                                    {[
-                                        {
-                                            label: 'New',
-                                            count: stats.newCount,
-                                            className: styles.barNew,
-                                        },
-                                        {
-                                            label: 'In progress',
-                                            count: stats.inProgressCount,
-                                            className: styles.barInProgress,
-                                        },
-                                        {
-                                            label: 'Approved',
-                                            count: stats.approvedCount,
-                                            className: styles.barApproved,
-                                        },
-                                        {
-                                            label: 'Active',
-                                            // ── CHANGED: use activeFosterCount (ASM) ──
-                                            count: stats.activeFosterCount,
-                                            className: styles.barCurrent,
-                                        },
-                                        {
-                                            label: 'Rejected',
-                                            count: stats.rejectedCount,
-                                            className: styles.barRejected,
-                                        },
-                                    ].map(col => (
-                                        <div key={col.label} className={styles.statusBarCol}>
-                                            <div className={styles.statusBarTrack}>
-                                                <div
-                                                    className={`${styles.statusBarFill} ${col.className}`}
-                                                    style={{
-                                                        height: `${(col.count / stats.statusMax) * 100}%`,
-                                                    }}
-                                                />
-                                            </div>
-                                            <span className={styles.statusBarCount}>{col.count}</span>
-                                            <span className={styles.statusBarLabel}>{col.label}</span>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
+                                {showTaskQueueSeeAll && (
+                                    <div className={styles.sectionFooter}>
+                                        <Link href="/fosters" className={styles.seeAllLink}>
+                                            View all fosters →
+                                        </Link>
+                                    </div>
+                                )}
+                            </section>
                         </div>
-                    )}
+
+                    </div>
+                )}
             </DashboardShell>
         </ProtectedRoute>
     )
-}
-
-function formatMonthLabel(ym: string): string {
-    const [y, m] = ym.split('-').map(Number)
-    if (!y || !m) return ym
-    const d = new Date(y, m - 1, 1)
-    return d.toLocaleDateString('en-US', { month: 'short' })
 }
