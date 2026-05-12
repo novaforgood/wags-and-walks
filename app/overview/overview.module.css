@@ -1,19 +1,22 @@
 /* Overview — Minimalist SaaS briefing */
 
+/* Fill the main column; avoid a fixed max-width that leaves empty space on wide screens */
 .contentPadding {
-    padding: 28px 40px 56px;
+    --overview-pad-x: clamp(20px, 3vw, 48px);
+    --overview-pad-y-top: clamp(20px, 2.5vw, 32px);
+    padding: var(--overview-pad-y-top) var(--overview-pad-x) clamp(40px, 5vw, 56px);
     width: 100%;
-    max-width: 1200px;
-    margin: 0 auto;
+    max-width: none;
+    margin: 0;
     box-sizing: border-box;
 }
 
 /* ── Stat cards (Ultra-minimal) ─────────────────────────── */
 .statCards {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 14px;
-    margin-bottom: 32px;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: clamp(10px, 1.2vw, 16px);
+    margin-bottom: clamp(24px, 3vw, 36px);
 }
 
 .statCard {
@@ -54,8 +57,8 @@
 /* ── Two-column briefing ────────────────────────────────── */
 .twoColumn {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 24px;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: clamp(16px, 2vw, 28px);
     /* Match card bottoms: both columns use the row height (max of the two). */
     align-items: stretch;
 }
@@ -260,7 +263,7 @@
 }
 
 .rowTailFoster .badge {
-    max-width: min(220px, 42vw);
+    max-width: min(320px, 100%);
     text-align: right;
     line-height: 1.35;
 }
@@ -348,30 +351,32 @@
 
 .errorText {
     color: var(--color-alert-error-text);
-    padding: 16px 40px;
+    padding: 16px clamp(20px, 3vw, 48px);
 }
 
 /* ── Responsive ─────────────────────────────────────────── */
 @media (max-width: 1024px) {
     .statCards {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 32px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: clamp(12px, 2vw, 16px);
     }
 
     .twoColumn {
         grid-template-columns: 1fr;
-        gap: 48px;
+        gap: clamp(20px, 3vw, 32px);
     }
 }
 
 @media (max-width: 640px) {
     .contentPadding {
-        padding: 24px 20px;
+        --overview-pad-x: 20px;
+        --overview-pad-y-top: 20px;
+        padding-bottom: 40px;
     }
 
     .statCards {
         grid-template-columns: 1fr;
-        gap: 24px;
+        gap: 12px;
     }
 
     .rowTail {
