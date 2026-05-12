@@ -29,7 +29,8 @@ export default function CurrentPage() {
             Current fosters
           </h1>
           <p className={styles.description} style={{ marginBottom: '2rem', textAlign: 'left' }}>
-            Applicants marked <strong>current</strong> in the pipeline spreadsheet ({currentFosters.length}).
+            Applicants marked <strong>current</strong> in the pipeline spreadsheet (
+            {isLoading && people.length === 0 ? '…' : currentFosters.length}).
           </p>
 
           {isLoading && people.length === 0 ? (

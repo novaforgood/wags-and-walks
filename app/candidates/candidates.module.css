@@ -623,10 +623,10 @@
 
 .table th {
     text-align: left;
-    padding: 12px 18px;
-    font-size: 10px;
+    padding: 16px 18px;
+    font-size: 12px;
     font-weight: 600;
-    line-height: 1.25;
+    line-height: 1.35;
     color: var(--color-gray-black, #1a1a1a);
     text-transform: uppercase;
     letter-spacing: 0.1em;
@@ -1376,6 +1376,11 @@
     .table td {
         padding-left: 12px;
         padding-right: 12px;
+    }
+
+    .table th {
+        padding-top: 14px;
+        padding-bottom: 14px;
     }
 
     .table th:first-child,

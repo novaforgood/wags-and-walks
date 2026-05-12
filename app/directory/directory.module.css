@@ -198,8 +198,8 @@
 .directoryTable thead th {
     white-space: nowrap;
     vertical-align: middle;
-    line-height: 1.2;
-    font-size: 13px;
+    line-height: 1.35;
+    font-size: 14px;
     word-break: normal;
     overflow-wrap: normal;
 }

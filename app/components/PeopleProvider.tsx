@@ -44,7 +44,7 @@ type PeopleContextValue = {
   toggleStar: (email: string) => void
   setSignedDocument: (email: string, value: 'Yes' | 'No') => Promise<void>
   setNotes: (email: string, content: string) => Promise<void>
-  refresh: () => Promise<void>
+  refresh: (options?: { suppressLoadingBar?: boolean }) => Promise<void>
 }
 
 const PeopleContext = createContext<PeopleContextValue | null>(null)
@@ -185,12 +185,16 @@ export function PeopleProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (options?: { suppressLoadingBar?: boolean }) => {
     abortRef.current?.abort()
     const controller = new AbortController()
     abortRef.current = controller
 
-    setIsLoading(true)
+    if (options?.suppressLoadingBar) {
+      setIsLoading(false)
+    } else {
+      setIsLoading(true)
+    }
     setError(null)
     try {
       const response = await fetch('/api/people', { method: 'GET', signal: controller.signal })
@@ -323,11 +327,13 @@ export function PeopleProvider({ children }: { children: React.ReactNode }) {
     }
 
     // Attempt to load cached people first (instant load)
+    let cacheSeeded = false
     try {
       const cachedRaw = localStorage.getItem('people_v2')
       if (cachedRaw) {
         const cachedPeople = JSON.parse(cachedRaw) as Person[]
         if (Array.isArray(cachedPeople) && cachedPeople.length > 0) {
+          cacheSeeded = true
           setPeople(applyPendingOptimistic(cachedPeople))
         }
       }
@@ -337,7 +343,7 @@ export function PeopleProvider({ children }: { children: React.ReactNode }) {
       console.error('Failed to load cached people', e)
     }
 
-    refresh()
+    void refresh({ suppressLoadingBar: cacheSeeded })
 
     return () => {
       abortRef.current?.abort()

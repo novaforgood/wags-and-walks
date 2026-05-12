@@ -92,6 +92,30 @@ function fosterInitials(name: string, email?: string): string {
     return (email || '?').slice(0, 2).toUpperCase()
 }
 
+/** Large stat value: avoid showing 0 before data exists (reads as “none” instead of “loading”). */
+function StatValueFigure({
+    pending,
+    children,
+    alert,
+}: {
+    pending: boolean
+    children: React.ReactNode
+    alert?: boolean
+}) {
+    if (pending) {
+        return (
+            <span className={styles.statCardValuePending} aria-busy="true" title="Loading">
+                …
+            </span>
+        )
+    }
+    return (
+        <span className={`${styles.statCardValue} ${alert ? styles.statCardValueAlert : ''}`}>
+            {children}
+        </span>
+    )
+}
+
 function dogListLabel(dogs: EnrichedFosterRow['dogs']): string {
     const names = dogs.map(d => d.name).filter(Boolean)
     if (names.length === 0) return 'No dogs listed'
@@ -181,8 +205,11 @@ export default function OverviewPage() {
     const [queueFilter, setQueueFilter] = useState<QueueFilter>('all')
 
     const [asmFosterCount, setAsmFosterCount] = useState<number | null>(null)
+    const [fosterCountRequestDone, setFosterCountRequestDone] = useState(false)
     const [taskMetrics, setTaskMetrics] = useState<TasksGetMetrics | null>(null)
+    const [tasksRequestDone, setTasksRequestDone] = useState(false)
     const [dogs, setDogs] = useState<DogRecord[]>([])
+    const [dogsRequestDone, setDogsRequestDone] = useState(false)
     const [taskRows, setTaskRows] = useState<TaskRow[]>([])
     const [taskStatusByAnimalId, setTaskStatusByAnimalId] = useState<Record<string, FosterStatus>>({})
     const [fosterers, setFosterers] = useState<FostererHistory[]>([])
@@ -197,6 +224,9 @@ export default function OverviewPage() {
                 if (!active) return
                 if (typeof data?.count === 'number') setAsmFosterCount(data.count)
             } catch { /* silently fail */ }
+            finally {
+                if (active) setFosterCountRequestDone(true)
+            }
         }
         loadFosterCount()
         return () => { active = false }
@@ -216,6 +246,9 @@ export default function OverviewPage() {
                     setTaskStatusByAnimalId(data.taskStatusByAnimalId as Record<string, FosterStatus>)
                 }
             } catch { /* Task Log optional */ }
+            finally {
+                if (active) setTasksRequestDone(true)
+            }
         }
         void loadTaskMetrics()
         return () => { active = false }
@@ -231,6 +264,9 @@ export default function OverviewPage() {
                 if (!active) return
                 if (Array.isArray(data?.dogs)) setDogs(data.dogs as DogRecord[])
             } catch { /* dogs optional */ }
+            finally {
+                if (active) setDogsRequestDone(true)
+            }
         }
         void loadDogs()
         return () => { active = false }
@@ -298,6 +334,7 @@ export default function OverviewPage() {
             (queueFilter === 'flagged' && stats.flaggedInPipeline > APPLICANT_QUEUE_MAX))
 
     const overdueFollowUpRows = taskMetrics?.activeOverdueTaskRows ?? 0
+    const peoplePending = isLoading && people.length === 0
     const applicantsThisWeek = useMemo(() => countApplicantsAppliedThisWeek(people), [people])
     const placementsThisMonth = useMemo(
         () => countUniqueAnimalsPlacedThisMonth(fosterers),
@@ -338,7 +375,10 @@ export default function OverviewPage() {
     }, [enrichedFosters])
 
     const showTaskQueueSeeAll = taskQueue.length > 0 && taskQueueCounts.attention > TASK_QUEUE_MAX
-    const hasDogsLoaded = dogs.length > 0
+    const activeFosterPending =
+        asmFosterCount === null && (!fosterCountRequestDone || peoplePending)
+    const activeFosterDisplay =
+        asmFosterCount !== null ? asmFosterCount : stats.activeFosterCount
 
     return (
         <ProtectedRoute>
@@ -351,20 +391,21 @@ export default function OverviewPage() {
                     </div>
                 </div>
 
-                {isLoading && people.length === 0 && (
-                    <div className={styles.loadingBox}>Loading…</div>
+                {peoplePending && (
+                    <div className={styles.loadingBox} role="status" aria-live="polite">
+                        Loading applicant data…
+                    </div>
                 )}
                 {error && <div className={styles.errorText}>{error}</div>}
 
-                {!isLoading && (
-                    <div className={styles.contentPadding}>
+                <div className={styles.contentPadding}>
 
                         <div className={styles.statCards}>
                             <div className={styles.statCard}>
                                 <span className={styles.statCardLabel}>Active fosters</span>
-                                <span className={styles.statCardValue}>
-                                    {asmFosterCount !== null ? asmFosterCount : stats.activeFosterCount}
-                                </span>
+                                <StatValueFigure pending={activeFosterPending}>
+                                    {activeFosterDisplay}
+                                </StatValueFigure>
                             </div>
 
                             <div
@@ -372,11 +413,12 @@ export default function OverviewPage() {
                                 title="Rows in the Task Log marked overdue (photos or survey follow-ups)."
                             >
                                 <span className={styles.statCardLabel}>Tasks past due</span>
-                                <span
-                                    className={`${styles.statCardValue} ${overdueFollowUpRows > 0 ? styles.statCardValueAlert : ''}`}
+                                <StatValueFigure
+                                    pending={!tasksRequestDone}
+                                    alert={tasksRequestDone && overdueFollowUpRows > 0}
                                 >
                                     {overdueFollowUpRows}
-                                </span>
+                                </StatValueFigure>
                             </div>
 
                             <div
@@ -384,7 +426,7 @@ export default function OverviewPage() {
                                 title="Applicants who submitted this calendar week (Monday 12:00 a.m. through now, your local time). Rejected applications are excluded."
                             >
                                 <span className={styles.statCardLabel}>Applicants this week</span>
-                                <span className={styles.statCardValue}>{applicantsThisWeek}</span>
+                                <StatValueFigure pending={peoplePending}>{applicantsThisWeek}</StatValueFigure>
                             </div>
 
                             <div
@@ -394,7 +436,9 @@ export default function OverviewPage() {
                                 <span className={styles.statCardLabel}>Foster starts this month</span>
                                 <span className={styles.statCardValue}>
                                     {fosterHistoryLoading ? (
-                                        <span className={styles.statCardValueMuted}>—</span>
+                                        <span className={styles.statCardValuePending} aria-busy="true" title="Loading">
+                                            …
+                                        </span>
                                     ) : (
                                         placementsThisMonth
                                     )}
@@ -428,7 +472,11 @@ export default function OverviewPage() {
                                 </div>
 
                                 <div className={styles.panelBody}>
-                                    {applicantQueue.length === 0 ? (
+                                    {peoplePending ? (
+                                        <p className={styles.emptyState} role="status" aria-live="polite">
+                                            Loading applicants…
+                                        </p>
+                                    ) : applicantQueue.length === 0 ? (
                                         <p className={styles.emptyState}>No applicants found.</p>
                                     ) : (
                                         <ul className={styles.rowList}>
@@ -498,8 +546,14 @@ export default function OverviewPage() {
                                 </div>
 
                                 <div className={styles.panelBody}>
-                                    {!hasDogsLoaded ? (
-                                        <p className={styles.emptyState}>Loading...</p>
+                                    {!dogsRequestDone ? (
+                                        <p className={styles.emptyState} role="status" aria-live="polite">
+                                            Loading foster directory…
+                                        </p>
+                                    ) : dogs.length === 0 ? (
+                                        <p className={styles.emptyState}>
+                                            No active foster dogs returned from Shelter Manager.
+                                        </p>
                                     ) : taskQueue.length === 0 ? (
                                         <p className={styles.emptyState}>All caught up.</p>
                                     ) : (
@@ -556,8 +610,7 @@ export default function OverviewPage() {
                             </section>
                         </div>
 
-                    </div>
-                )}
+                </div>
             </DashboardShell>
         </ProtectedRoute>
     )

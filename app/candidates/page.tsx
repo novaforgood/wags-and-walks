@@ -261,7 +261,7 @@ export default function CandidatesPage() {
                     <div className={styles.quickPills} role="group" aria-label="Quick filters">
                         <QuickPill
                             label="Red Flags"
-                            count={bucketCounts.flagged}
+                            count={isLoading && people.length === 0 ? null : bucketCounts.flagged}
                             active={quickFilters.flagged}
                             tone="danger"
                             onClick={() =>
@@ -270,7 +270,7 @@ export default function CandidatesPage() {
                         />
                         <QuickPill
                             label="This Week"
-                            count={bucketCounts.thisWeek}
+                            count={isLoading && people.length === 0 ? null : bucketCounts.thisWeek}
                             active={quickFilters.thisWeek}
                             tone="neutral"
                             onClick={() =>
@@ -279,7 +279,7 @@ export default function CandidatesPage() {
                         />
                         <QuickPill
                             label="Donor"
-                            count={bucketCounts.starred}
+                            count={isLoading && people.length === 0 ? null : bucketCounts.starred}
                             active={quickFilters.starred}
                             tone="neutral"
                             onClick={() =>
@@ -478,7 +478,8 @@ function QuickPill({
     onClick,
 }: {
     label: string
-    count: number
+    /** `null` while applicant list is still loading (avoids showing 0 before data arrives). */
+    count: number | null
     active: boolean
     tone: 'accent' | 'danger' | 'neutral'
     onClick: () => void
@@ -497,7 +498,9 @@ function QuickPill({
             aria-pressed={active}
         >
             <span className={styles.quickPillLabel}>{label}</span>
-            <span className={styles.quickPillCount}>{count}</span>
+            <span className={styles.quickPillCount} aria-busy={count === null}>
+                {count === null ? '…' : count}
+            </span>
         </button>
     )
 }

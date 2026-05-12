@@ -196,8 +196,19 @@
 .table th,
 .table td {
   text-align: left;
-  padding: 10px 8px;
   border-bottom: 1px solid #edf2f7;
+}
+
+.table thead th {
+  padding: 14px 10px;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: #0f172a;
+}
+
+.table td {
+  padding: 10px 8px;
   font-size: 14px;
 }
 
