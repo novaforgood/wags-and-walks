@@ -375,7 +375,13 @@ export default function OverviewPage() {
         return [...filtered].sort(compareNeedsAttentionPriority).slice(0, TASK_QUEUE_MAX)
     }, [enrichedFosters])
 
-    const showTaskQueueSeeAll = taskQueue.length > 0 && taskQueueCounts.attention > TASK_QUEUE_MAX
+    /** Dogs + Task Log must both be settled before the queue is meaningful (otherwise every home looks “missing log”). */
+    const fosterQueueDataReady = dogsRequestDone && tasksRequestDone
+
+    const showTaskQueueSeeAll =
+        fosterQueueDataReady &&
+        taskQueue.length > 0 &&
+        taskQueueCounts.attention > TASK_QUEUE_MAX
     const activeFosterPending =
         asmFosterCount === null && (!fosterCountRequestDone || peoplePending)
     const activeFosterDisplay =
@@ -547,7 +553,7 @@ export default function OverviewPage() {
                                 </div>
 
                                 <div className={styles.panelBody}>
-                                    {!dogsRequestDone ? (
+                                    {!fosterQueueDataReady ? (
                                         <p className={styles.emptyState} role="status" aria-live="polite">
                                             Loading foster directory…
                                         </p>

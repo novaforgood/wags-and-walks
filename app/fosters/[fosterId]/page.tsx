@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useParams, useSearchParams } from 'next/navigation'
 import { usePeople } from '@/app/components/PeopleProvider'
@@ -305,7 +305,6 @@ export default function FosterDetailsPage() {
   const [dogsError, setDogsError] = useState<string | null>(null)
   const [taskStatusByAnimalId, setTaskStatusByAnimalId] = useState<Record<string, FosterStatus>>({})
   const [taskRows, setTaskRows] = useState<TaskRow[]>([])
-  const asmRegisteredRef = useRef(false)
 
   const [activeTab, setActiveTab] = useState<'overview' | 'tasks' | 'communication' | 'notes' | 'history'>('overview')
 
@@ -371,26 +370,6 @@ export default function FosterDetailsPage() {
     () => people.find(p => p.email?.toLowerCase() === foster?.fosterEmail?.toLowerCase()),
     [people, foster]
   )
-
-  // When a foster exists in ASM but has no matching Sheet 1 record, create a minimal
-  // record so notes and status can be tracked for them going forward.
-  useEffect(() => {
-    if (!foster || person || asmRegisteredRef.current) return
-    if (!foster.fosterEmail) return
-    asmRegisteredRef.current = true
-    fetch('/api/send-email', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action: 'create_person',
-        name: foster.fosterName,
-        email: foster.fosterEmail,
-        source: 'ASM',
-      }),
-    }).catch(() => {
-      asmRegisteredRef.current = false
-    })
-  }, [foster, person])
 
   // Decode the email from the slug immediately so notes can load in parallel with dogs.
   // fosterSlug() uses encodeURIComponent(email) when an email is available.
