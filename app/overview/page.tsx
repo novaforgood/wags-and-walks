@@ -117,6 +117,23 @@ function StatValueFigure({
     )
 }
 
+function OverviewSkeletonRows({ label }: { label: string }) {
+    return (
+        <div className={styles.skeletonRows} role="status" aria-live="polite" aria-label={label}>
+            {Array.from({ length: 4 }).map((_, i) => (
+                <div className={styles.skeletonRow} key={i} aria-hidden>
+                    <span className={styles.skeletonAvatar} />
+                    <span className={styles.skeletonMain}>
+                        <span className={`${styles.skeletonLine} ${styles.skeletonLineName}`} />
+                        <span className={`${styles.skeletonLine} ${styles.skeletonLineSub}`} />
+                    </span>
+                    <span className={styles.skeletonTail} />
+                </div>
+            ))}
+        </div>
+    )
+}
+
 function dogListLabel(dogs: EnrichedFosterRow['dogs']): string {
     const names = dogs.map(d => d.name).filter(Boolean)
     if (names.length === 0) return 'No dogs listed'
@@ -432,15 +449,9 @@ export default function OverviewPage() {
                     </div>
                 </div>
 
-                {peoplePending && (
-                    <div className={styles.loadingBox} role="status" aria-live="polite">
-                        Loading applicant data…
-                    </div>
-                )}
                 {error && <div className={styles.errorText}>{error}</div>}
 
                 <div className={styles.contentPadding}>
-
                         <div className={styles.statCards}>
                             <div className={styles.statCard}>
                                 <span className={styles.statCardLabel}>Active fosters</span>
@@ -504,6 +515,7 @@ export default function OverviewPage() {
                                                 role="tab"
                                                 aria-selected={queueFilter === key}
                                                 className={`${styles.pill} ${styles.pillCompact} ${queueFilter === key ? styles.pillActive : ''}`}
+                                                disabled={peoplePending}
                                                 onClick={() => setQueueFilter(key)}
                                             >
                                                 {label}
@@ -514,9 +526,7 @@ export default function OverviewPage() {
 
                                 <div className={styles.panelBody}>
                                     {peoplePending ? (
-                                        <p className={styles.emptyState} role="status" aria-live="polite">
-                                            Loading applicants…
-                                        </p>
+                                        <OverviewSkeletonRows label="Loading applicants" />
                                     ) : applicantQueue.length === 0 ? (
                                         <p className={styles.emptyState}>No applicants found.</p>
                                     ) : (
@@ -588,9 +598,7 @@ export default function OverviewPage() {
 
                                 <div className={styles.panelBody}>
                                     {!fosterQueueDataReady ? (
-                                        <p className={styles.emptyState} role="status" aria-live="polite">
-                                            Loading foster directory…
-                                        </p>
+                                        <OverviewSkeletonRows label="Loading foster directory" />
                                     ) : dogs.length === 0 ? (
                                         <p className={styles.emptyState}>
                                             No active foster dogs returned from Shelter Manager.

@@ -24,10 +24,12 @@
     flex-direction: column;
     gap: 8px;
     padding: 16px 18px;
+    min-height: 92px;
     background: var(--app-card-bg);
     border: 1px solid var(--app-border);
     border-radius: 12px;
     box-shadow: var(--app-card-shadow);
+    box-sizing: border-box;
 }
 
 .statCardLabel {
@@ -95,7 +97,7 @@
     box-shadow: var(--app-card-shadow);
     min-width: 0;
     overflow: hidden;
-    min-height: 0;
+    min-height: 380px;
     height: 100%;
 }
 
@@ -173,10 +175,24 @@
     color: var(--app-text-muted);
 }
 
+.pill:disabled {
+    cursor: default;
+    opacity: 0.55;
+}
+
+.pill:disabled:hover {
+    color: var(--app-text-subtle);
+}
+
 .pillActive {
     color: #fff;
     background: var(--app-accent);
     font-weight: 600;
+}
+
+.pillActive:disabled,
+.pillActive:disabled:hover {
+    color: #fff;
 }
 
 .pillCompact {
@@ -353,9 +369,87 @@
 }
 
 .emptyState {
-    padding: 32px 0;
+    margin: 0;
+    padding: 32px 18px;
     font-size: 13px;
     color: var(--app-text-subtle);
+}
+
+.skeletonRows {
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+    padding: 0;
+}
+
+.skeletonRow {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 76px;
+    padding: 14px 18px;
+    border-bottom: 1px solid #f3f4f6;
+    box-sizing: border-box;
+}
+
+.skeletonAvatar,
+.skeletonLine,
+.skeletonTail {
+    display: block;
+    background: linear-gradient(
+        90deg,
+        var(--app-filter-track) 0%,
+        #eef3f3 42%,
+        var(--app-filter-track) 78%
+    );
+    background-size: 220% 100%;
+    animation: overviewSkeletonPulse 1.2s ease-in-out infinite;
+}
+
+.skeletonAvatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    flex-shrink: 0;
+}
+
+.skeletonMain {
+    display: flex;
+    flex: 1;
+    min-width: 0;
+    flex-direction: column;
+    gap: 7px;
+}
+
+.skeletonLine {
+    height: 12px;
+    border-radius: 999px;
+}
+
+.skeletonLineName {
+    width: min(180px, 58%);
+}
+
+.skeletonLineSub {
+    width: min(260px, 74%);
+    height: 10px;
+}
+
+.skeletonTail {
+    width: 78px;
+    height: 12px;
+    border-radius: 999px;
+    flex-shrink: 0;
+}
+
+@keyframes overviewSkeletonPulse {
+    0% {
+        background-position: 120% 0;
+    }
+
+    100% {
+        background-position: -120% 0;
+    }
 }
 
 .dataQualityBanner {
@@ -365,11 +459,6 @@
     padding: 8px 12px;
     border-radius: 6px;
     margin-bottom: 16px;
-}
-
-.loadingBox {
-    padding: 40px;
-    color: var(--app-text-subtle);
 }
 
 .errorText {
@@ -403,6 +492,10 @@
     }
 
     .rowTail {
+        display: none;
+    }
+
+    .skeletonTail {
         display: none;
     }
 }
