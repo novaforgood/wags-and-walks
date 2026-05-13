@@ -38,6 +38,7 @@ const QUEUE_FILTERS: { value: TaskInboxFilter; label: string }[] = [
   { value: 'needs_attention', label: 'Needs attention' },
   { value: 'rollup_overdue', label: 'Household: overdue' },
   { value: 'rollup_good', label: 'Household: Good (rollup)' },
+  { value: 'rollup_needs_review', label: 'Household: Needs Review (rollup)' },
   { value: 'rollup_unknown', label: 'Household: Unknown (rollup)' },
   { value: 'photo_overdue', label: 'Photos: overdue' },
   { value: 'survey_overdue', label: 'Survey: overdue' },
@@ -246,6 +247,7 @@ export default function FostersPage() {
             >
               <option value="all">Any household</option>
               <option value="Good">Good / No open tasks</option>
+              <option value="Needs Review">Needs Review</option>
               <option value="Overdue">Overdue</option>
               <option value="Unknown">Unknown</option>
             </select>

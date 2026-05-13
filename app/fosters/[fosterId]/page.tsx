@@ -50,6 +50,7 @@ function StatusBadge({ status }: { status: string }) {
   const cls =
     status === 'Overdue' ? styles.badgeOverdue :
     status === 'Unknown' ? styles.badgeUnknown :
+    status === 'Needs Review' ? styles.badgeNeedsReview :
     status === 'Good' ? styles.badgeGood :
     status === 'Completed' ? styles.badgeCompleted :
     status === 'Retired' ? styles.badgeRetired :
@@ -61,6 +62,8 @@ function sheetTaskBadgeLabel(status: TaskRow['status']): string {
   switch (status) {
     case 'good':
       return 'Good'
+    case 'needs_review':
+      return 'Needs Review'
     case 'overdue':
       return 'Overdue'
     case 'completed':

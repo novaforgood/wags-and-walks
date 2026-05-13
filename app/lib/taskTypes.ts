@@ -1,7 +1,13 @@
 /** Task log row shape returned by GET /api/tasks (Apps Script task log). */
 
-/** Normalized Sheet Status column — only these four labels are recognized (case-insensitive). */
-export type TaskRowSheetStatus = 'good' | 'overdue' | 'completed' | 'retired' | 'unknown'
+/** Normalized Sheet Status column — only these labels are recognized (case-insensitive). */
+export type TaskRowSheetStatus =
+  | 'good'
+  | 'needs_review'
+  | 'overdue'
+  | 'completed'
+  | 'retired'
+  | 'unknown'
 
 export type TaskRow = {
   animalId: string

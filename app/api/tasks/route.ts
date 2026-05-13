@@ -16,6 +16,7 @@ export function normalizeSheetStatus(sheetStatus: string): TaskRowSheetStatus {
   if (!s) return 'unknown'
   const lower = s.toLowerCase()
   if (lower === 'good') return 'good'
+  if (lower === 'needs review' || lower === 'needs_review') return 'needs_review'
   if (lower === 'overdue') return 'overdue'
   if (lower === 'completed') return 'completed'
   if (lower === 'retired') return 'retired'
@@ -24,14 +25,16 @@ export function normalizeSheetStatus(sheetStatus: string): TaskRowSheetStatus {
 
 const ROLLUP_WEIGHT: Record<FosterStatus, number> = {
   Good: 1,
-  Overdue: 2,
-  Unknown: 3,
+  'Needs Review': 2,
+  Overdue: 3,
+  Unknown: 4,
 }
 
 /** Active rows that still affect follow-up health (Completed & Retired require no action). */
 function rollupContribution(status: TaskRowSheetStatus): FosterStatus | null {
   if (status === 'completed' || status === 'retired') return null
   if (status === 'overdue') return 'Overdue'
+  if (status === 'needs_review') return 'Needs Review'
   if (status === 'good') return 'Good'
   return 'Unknown'
 }

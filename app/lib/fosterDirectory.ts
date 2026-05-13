@@ -1,4 +1,4 @@
-export type FosterStatus = 'Good' | 'Overdue' | 'Unknown'
+export type FosterStatus = 'Good' | 'Needs Review' | 'Overdue' | 'Unknown'
 
 export type DogRecord = {
   id?: number
@@ -35,8 +35,9 @@ export type FosterDirectoryItem = {
 }
 
 function statusRank(status: FosterStatus): number {
-  if (status === 'Unknown') return 3
-  if (status === 'Overdue') return 2
+  if (status === 'Unknown') return 4
+  if (status === 'Overdue') return 3
+  if (status === 'Needs Review') return 2
   return 1
 }
 
@@ -106,7 +107,7 @@ function statusFromDaysInFoster(days?: number): FosterStatus {
   if (days === undefined || Number.isNaN(Number(days))) return 'Good'
   const d = Number(days)
   if (d > 30) return 'Overdue'
-  if (d >= 14) return 'Unknown'
+  if (d >= 14) return 'Needs Review'
   return 'Good'
 }
 

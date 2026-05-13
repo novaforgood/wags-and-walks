@@ -141,7 +141,10 @@ function badgeForTaskRow(row: EnrichedFosterRow, badgeStyles: Record<string, str
     if (missingPhoto) return { label: 'Photos not in log', cls: '' }
     if (missingSurvey) return { label: 'Survey not in log', cls: '' }
     if (row.householdRollup === 'Unknown') {
-        return { label: '14–30 days in foster', cls: badgeStyles.badgePlacement }
+        return { label: 'Task status unclear', cls: badgeStyles.badgePlacement }
+    }
+    if (row.householdRollup === 'Needs Review') {
+        return { label: 'Needs review', cls: badgeStyles.badgePlacement }
     }
     if (row.householdRollup === 'Overdue') {
         return { label: '30+ days in foster', cls: badgeStyles.badgePlacement }

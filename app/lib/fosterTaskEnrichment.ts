@@ -10,12 +10,13 @@ import {
 } from '@/app/lib/fosterDirectory'
 
 /** Aggregate status for photo or survey lanes from Task Log rows (animal-level). */
-export type TaskLane = 'none' | 'good' | 'overdue' | 'unknown' | 'not_in_log'
+export type TaskLane = 'none' | 'good' | 'needs_review' | 'overdue' | 'unknown' | 'not_in_log'
 
 const LANE_WEIGHT: Record<TaskLane, number> = {
-  overdue: 5,
-  unknown: 4,
-  not_in_log: 3,
+  overdue: 6,
+  unknown: 5,
+  not_in_log: 4,
+  needs_review: 3,
   good: 2,
   none: 1,
 }
@@ -39,8 +40,9 @@ function isRowActive(row: TaskRow): boolean {
 
 /** Rank for picking the worst label across dogs in a home (higher = needs attention first). */
 const SHEET_LABEL_RANK: Record<string, number> = {
-  Overdue: 50,
-  Unknown: 40,
+  Overdue: 60,
+  Unknown: 50,
+  'Needs Review': 40,
   Good: 30,
   'Not in log': 20,
   Completed: 11,
@@ -65,6 +67,7 @@ export function sheetStatusLabelForAnimalPrefix(
   if (active.length > 0) {
     if (active.some(r => r.status === 'overdue')) return 'Overdue'
     if (active.some(r => r.status === 'unknown')) return 'Unknown'
+    if (active.some(r => r.status === 'needs_review')) return 'Needs Review'
     if (active.some(r => r.status === 'good')) return 'Good'
     return 'Good'
   }
@@ -102,6 +105,7 @@ export function summarizeTaskLane(rows: TaskRow[], animalId: string, prefix: 'PH
 
   if (active.some(r => r.status === 'overdue')) return 'overdue'
   if (active.some(r => r.status === 'unknown')) return 'unknown'
+  if (active.some(r => r.status === 'needs_review')) return 'needs_review'
   if (active.some(r => r.status === 'good')) return 'good'
   return 'none'
 }
@@ -113,6 +117,8 @@ export function laneLabel(lane: TaskLane): string {
       return 'Overdue'
     case 'unknown':
       return 'Unknown'
+    case 'needs_review':
+      return 'Needs Review'
     case 'good':
       return 'Good'
     case 'not_in_log':
@@ -269,14 +275,19 @@ export function enrichFosterDirectoryWithLanes(
 export function householdRollupDisplay(row: EnrichedFosterRow): string {
   if (row.householdRollup === 'Overdue') return 'Overdue'
   if (row.householdRollup === 'Unknown') return 'Unknown'
+  if (row.householdRollup === 'Needs Review') return 'Needs Review'
   if (row.photoWorst === 'none' && row.surveyWorst === 'none') return 'No open tasks'
   return 'Good'
 }
 
 /** True when something in the household needs admin follow-up vs Task Log gaps or overdue states. */
 export function fosterNeedsAttention(row: EnrichedFosterRow): boolean {
-  if (row.householdRollup === 'Overdue' || row.householdRollup === 'Unknown') return true
-  const hot = new Set<TaskLane>(['overdue', 'unknown', 'not_in_log'])
+  if (
+    row.householdRollup === 'Overdue' ||
+    row.householdRollup === 'Unknown' ||
+    row.householdRollup === 'Needs Review'
+  ) return true
+  const hot = new Set<TaskLane>(['overdue', 'unknown', 'needs_review', 'not_in_log'])
   return hot.has(row.photoWorst) || hot.has(row.surveyWorst)
 }
 
@@ -286,6 +297,7 @@ export type TaskInboxFilter =
   | 'needs_attention'
   | 'rollup_overdue'
   | 'rollup_good'
+  | 'rollup_needs_review'
   | 'rollup_unknown'
   | 'photo_overdue'
   | 'survey_overdue'
@@ -294,9 +306,12 @@ export type TaskInboxFilter =
   | 'photo_missing_log'
   | 'survey_missing_log'
 
-/** Matches overview priority queue: Unknown worst, then Overdue, then Good. */
+/** Matches overview priority queue: Unknown worst, then Overdue, then Needs Review, then Good. */
 function rollupRankForSort(status: FosterStatus): number {
-  return status === 'Unknown' ? 3 : status === 'Overdue' ? 2 : 1
+  if (status === 'Unknown') return 4
+  if (status === 'Overdue') return 3
+  if (status === 'Needs Review') return 2
+  return 1
 }
 
 function maxDaysInFosterAcrossDogs(row: EnrichedFosterRow): number {
@@ -338,6 +353,8 @@ export function matchesTaskInboxFilter(row: EnrichedFosterRow, f: TaskInboxFilte
       return row.householdRollup === 'Overdue'
     case 'rollup_good':
       return row.householdRollup === 'Good'
+    case 'rollup_needs_review':
+      return row.householdRollup === 'Needs Review'
     case 'rollup_unknown':
       return row.householdRollup === 'Unknown'
     case 'photo_overdue':
