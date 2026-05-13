@@ -37,6 +37,61 @@ function isRowActive(row: TaskRow): boolean {
   return row.status !== 'completed' && row.status !== 'retired'
 }
 
+/** Rank for picking the worst label across dogs in a home (higher = needs attention first). */
+const SHEET_LABEL_RANK: Record<string, number> = {
+  Overdue: 50,
+  Unknown: 40,
+  Good: 30,
+  'Not in log': 20,
+  Completed: 11,
+  Retired: 11,
+  'Completed / Retired': 11,
+}
+
+/**
+ * Task Log **Status** for one dog and task family (PHOTOS_* / SURVEY_*), matching the sheet column.
+ */
+export function sheetStatusLabelForAnimalPrefix(
+  rows: readonly TaskRow[],
+  animalId: string,
+  prefix: 'PHOTOS' | 'SURVEY'
+): string {
+  const relevant = rows.filter(
+    r => r.animalId === animalId && r.taskType.startsWith(prefix)
+  )
+  if (relevant.length === 0) return 'Not in log'
+
+  const active = relevant.filter(isRowActive)
+  if (active.length > 0) {
+    if (active.some(r => r.status === 'overdue')) return 'Overdue'
+    if (active.some(r => r.status === 'unknown')) return 'Unknown'
+    if (active.some(r => r.status === 'good')) return 'Good'
+    return 'Good'
+  }
+
+  const hasCompleted = relevant.some(r => r.status === 'completed')
+  const hasRetired = relevant.some(r => r.status === 'retired')
+  if (hasCompleted && hasRetired) return 'Completed / Retired'
+  if (hasRetired) return 'Retired'
+  if (hasCompleted) return 'Completed'
+  return 'Completed / Retired'
+}
+
+/** Worst Task Log status string across dogs (e.g. one Overdue and one Good → Overdue). */
+export function worstSheetLabelAcrossHousehold(labels: readonly string[]): string {
+  if (labels.length === 0) return 'Not in log'
+  let maxR = -1
+  for (const l of labels) {
+    maxR = Math.max(maxR, SHEET_LABEL_RANK[l] ?? 0)
+  }
+  const atMax = labels.filter(l => (SHEET_LABEL_RANK[l] ?? 0) === maxR)
+  if (maxR === 11) {
+    const uniq = new Set(atMax)
+    if (uniq.has('Completed') && uniq.has('Retired')) return 'Completed / Retired'
+  }
+  return atMax[0] ?? 'Not in log'
+}
+
 /** Summarize all PHOTOS_* or SURVEY_* rows for one animal ID. */
 export function summarizeTaskLane(rows: TaskRow[], animalId: string, prefix: 'PHOTOS' | 'SURVEY'): TaskLane {
   const relevant = rows.filter(r => r.animalId === animalId && r.taskType.startsWith(prefix))
@@ -51,18 +106,19 @@ export function summarizeTaskLane(rows: TaskRow[], animalId: string, prefix: 'PH
   return 'none'
 }
 
+/** Fallback label from internal lane enum (prefers {@link sheetStatusLabelForAnimalPrefix} on the fosters table). */
 export function laneLabel(lane: TaskLane): string {
   switch (lane) {
     case 'overdue':
-      return 'Follow-up overdue'
+      return 'Overdue'
     case 'unknown':
-      return 'Bad status cell'
+      return 'Unknown'
     case 'good':
-      return 'On track'
+      return 'Good'
     case 'not_in_log':
-      return 'Not in Task Log'
+      return 'Not in log'
     case 'none':
-      return 'Done / cleared'
+      return 'Cleared'
     default:
       return '—'
   }
@@ -77,7 +133,83 @@ export type EnrichedFosterRow = Omit<FosterDirectoryItem, 'dogs'> & {
   dogs: EnrichedDog[]
   photoWorst: TaskLane
   surveyWorst: TaskLane
+  /** Worst Task Log Status (sheet wording) for PHOTOS_* across dogs in the home. */
+  photoHouseholdSheetLabel: string
+  /** Worst Task Log Status for SURVEY_* across dogs in the home. */
+  surveyHouseholdSheetLabel: string
   householdRollup: FosterStatus
+  /**
+   * Latest **milestone** date for PHOTOS_* in this home: prefers Completed; else max of Email sent/to send,
+   * Scheduled send, Task retired. **Follow-up sent** is excluded (reminder you sent, not foster submission).
+   */
+  lastPhotoTaskActivityDate?: string
+  /** Same milestone rules as {@link lastPhotoTaskActivityDate} for SURVEY_*. */
+  lastSurveyTaskActivityDate?: string
+}
+
+/** Parse sheet-style dates for ordering (YYYY-MM-DD… or M/D/YYYY). */
+function parseTaskSheetDateForSort(raw: string): number | null {
+  const s = String(raw ?? '').trim()
+  if (!s) return null
+  const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/)
+  if (iso) {
+    const d = new Date(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3]))
+    return Number.isNaN(d.getTime()) ? null : d.getTime()
+  }
+  const mdy = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/)
+  if (mdy) {
+    const d = new Date(Number(mdy[3]), Number(mdy[1]) - 1, Number(mdy[2]))
+    return Number.isNaN(d.getTime()) ? null : d.getTime()
+  }
+  const d = new Date(s)
+  return Number.isNaN(d.getTime()) ? null : d.getTime()
+}
+
+/**
+ * Latest Task Log touch for rows matching `taskPrefix` (PHOTOS_* or SURVEY_*) for any dog in the household.
+ * Prefers `completedDate`; if none, uses latest of follow-up sent, email sent, scheduled, or retired.
+ */
+export function householdLastTaskActivityDate(
+  taskRows: readonly TaskRow[],
+  animalIds: ReadonlySet<string>,
+  taskPrefix: 'PHOTOS' | 'SURVEY'
+): string | undefined {
+  type Best = { ts: number; raw: string }
+  const best: { completed: Best | null; any: Best | null } = {
+    completed: null,
+    any: null,
+  }
+
+  function consider(value: string, mode: 'completed' | 'any'): void {
+    const ts = parseTaskSheetDateForSort(value)
+    if (ts == null) return
+    const trimmed = value.trim()
+    if (mode === 'completed') {
+      if (!best.completed || ts >= best.completed.ts) best.completed = { ts, raw: trimmed }
+    }
+    if (!best.any || ts >= best.any.ts) best.any = { ts, raw: trimmed }
+  }
+
+  for (const r of taskRows) {
+    const id = String(r.animalId ?? '').trim()
+    if (!id || !animalIds.has(id)) continue
+    if (!String(r.taskType ?? '').startsWith(taskPrefix)) continue
+
+    const completed = String(r.completedDate ?? '').trim()
+    if (completed) {
+      consider(completed, 'completed')
+      consider(completed, 'any')
+    }
+
+    for (const dateRaw of [r.emailSentDate, r.scheduledDate, r.retiredDate]) {
+      const t = String(dateRaw ?? '').trim()
+      if (t) consider(t, 'any')
+    }
+  }
+
+  if (best.completed) return best.completed.raw
+  if (best.any) return best.any.raw
+  return undefined
 }
 
 export function enrichFosterDirectoryWithLanes(
@@ -105,14 +237,40 @@ export function enrichFosterDirectoryWithLanes(
     })
     const photoWorst = worstLanes(...enrichedDogs.map(d => d.photoLane))
     const surveyWorst = worstLanes(...enrichedDogs.map(d => d.surveyLane))
+    const photoLabels = enrichedDogs.map(d =>
+      sheetStatusLabelForAnimalPrefix(taskRows, d.id, 'PHOTOS')
+    )
+    const surveyLabels = enrichedDogs.map(d =>
+      sheetStatusLabelForAnimalPrefix(taskRows, d.id, 'SURVEY')
+    )
+    const photoHouseholdSheetLabel = worstSheetLabelAcrossHousehold(photoLabels)
+    const surveyHouseholdSheetLabel = worstSheetLabelAcrossHousehold(surveyLabels)
+    const animalIdSet = new Set(enrichedDogs.map(d => d.id))
+    const lastPhotoTaskActivityDate = householdLastTaskActivityDate(taskRows, animalIdSet, 'PHOTOS')
+    const lastSurveyTaskActivityDate = householdLastTaskActivityDate(taskRows, animalIdSet, 'SURVEY')
     return {
       ...item,
       dogs: enrichedDogs,
       householdRollup: item.status,
       photoWorst,
       surveyWorst,
+      photoHouseholdSheetLabel,
+      surveyHouseholdSheetLabel,
+      lastPhotoTaskActivityDate,
+      lastSurveyTaskActivityDate,
     }
   })
+}
+
+/**
+ * Display string for the household column: same Good/Overdue/Unknown rollup as the sheet for **open**
+ * rows, plus **No open tasks** when every photo/survey row is Completed or Retired (rollup is still Good).
+ */
+export function householdRollupDisplay(row: EnrichedFosterRow): string {
+  if (row.householdRollup === 'Overdue') return 'Overdue'
+  if (row.householdRollup === 'Unknown') return 'Unknown'
+  if (row.photoWorst === 'none' && row.surveyWorst === 'none') return 'No open tasks'
+  return 'Good'
 }
 
 /** True when something in the household needs admin follow-up vs Task Log gaps or overdue states. */

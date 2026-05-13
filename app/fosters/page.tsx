@@ -12,6 +12,7 @@ import type { TaskRow } from '@/app/api/tasks/route'
 import {
   compareNeedsAttentionPriority,
   enrichFosterDirectoryWithLanes,
+  householdRollupDisplay,
   laneLabel,
   matchesTaskInboxFilter,
   type TaskInboxFilter,
@@ -36,12 +37,12 @@ const QUEUE_FILTERS: { value: TaskInboxFilter; label: string }[] = [
   { value: 'all', label: 'All (work queue)' },
   { value: 'needs_attention', label: 'Needs attention' },
   { value: 'rollup_overdue', label: 'Household: overdue' },
-  { value: 'rollup_good', label: 'Household: good' },
-  { value: 'rollup_unknown', label: 'Household: unknown' },
+  { value: 'rollup_good', label: 'Household: Good (rollup)' },
+  { value: 'rollup_unknown', label: 'Household: Unknown (rollup)' },
   { value: 'photo_overdue', label: 'Photos: overdue' },
   { value: 'survey_overdue', label: 'Survey: overdue' },
-  { value: 'photo_on_track', label: 'Photos: on track' },
-  { value: 'survey_on_track', label: 'Survey: on track' },
+  { value: 'photo_on_track', label: 'Photos: Good' },
+  { value: 'survey_on_track', label: 'Survey: Good' },
   { value: 'photo_missing_log', label: 'Photos: missing row' },
   { value: 'survey_missing_log', label: 'Survey: missing row' },
 ]
@@ -98,11 +99,15 @@ export default function FostersPage() {
       if (statusFilter !== 'all' && r.householdRollup !== statusFilter) return false
       if (!q) return true
       const email = (r.fosterEmail ?? '').toLowerCase()
+      const roll = householdRollupDisplay(r).toLowerCase()
       return (
         r.fosterName.toLowerCase().includes(q) ||
         email.includes(q) ||
         r.dogs.some(d => d.name.toLowerCase().includes(q)) ||
         r.householdRollup.toLowerCase().includes(q) ||
+        roll.includes(q) ||
+        r.photoHouseholdSheetLabel.toLowerCase().includes(q) ||
+        r.surveyHouseholdSheetLabel.toLowerCase().includes(q) ||
         laneLabel(r.photoWorst).toLowerCase().includes(q) ||
         laneLabel(r.surveyWorst).toLowerCase().includes(q)
       )
@@ -202,7 +207,7 @@ export default function FostersPage() {
           <div className={styles.searchWrapper}>
             <input
               type="text"
-              placeholder="Search foster, dog, email, task lanes…"
+              placeholder="Search foster, dog, email, task status…"
               className={styles.searchInput}
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
@@ -237,10 +242,10 @@ export default function FostersPage() {
               className={`${styles.toolbarBtn} ${styles.statusFilterSelect} ${inboxStyles.fostersToolbarSelect}`}
               value={statusFilter}
               onChange={e => setStatusFilter(e.target.value as 'all' | FosterStatus)}
-              title="Overall Task Log status for the home—the worst status among dogs there"
+              title="Worst status among open Task Log rows (Completed/Retired ignored). Cleared homes show as No open tasks."
             >
-              <option value="all">Any status</option>
-              <option value="Good">Good</option>
+              <option value="all">Any household</option>
+              <option value="Good">Good / No open tasks</option>
               <option value="Overdue">Overdue</option>
               <option value="Unknown">Unknown</option>
             </select>
@@ -256,15 +261,20 @@ export default function FostersPage() {
           <div className={styles.tableWrapper} ref={tableWrapperRef}>
             <div className={styles.tableContainer}>
               <div className={styles.tableScroll}>
-                <table className={styles.table}>
+                <table className={`${styles.table} ${inboxStyles.fostersTaskTable}`}>
                   <thead>
                     <tr>
                       <th>Foster name</th>
                       <th>Dog(s)</th>
-                      <th title="Latest movement date from Shelter Manager (not Task Log deadlines)">Movement</th>
-                      <th title="Overall Task Log status for this home (worst dog wins)">Household status</th>
-                      <th>Photos (log)</th>
-                      <th>Survey (log)</th>
+                      <th title="Task Log Status for PHOTOS_* (worst dog in the home). Second line: latest milestone date—Completed if set, else latest of Email sent/to send, Scheduled send, or Task retired. Follow-up sent is omitted (that is your outbound reminder, not foster submission).">
+                        Photos
+                      </th>
+                      <th title="Task Log Status for SURVEY_* (worst dog in the home). Second line: same milestone rules as Photos (Follow-up sent excluded).">
+                        Survey
+                      </th>
+                      <th title="Worst status among open Task Log rows in this home (Completed and Retired are excluded). Cleared homes: No open tasks.">
+                        Household
+                      </th>
                       <th></th>
                     </tr>
                   </thead>
@@ -292,18 +302,33 @@ export default function FostersPage() {
                           </Link>
                         </td>
                         <td>{row.dogs.map(d => d.name).join(', ')}</td>
-                        <td>{formatDateShort(row.lastUpdate)}</td>
-                        <td>{row.householdRollup}</td>
                         <td>
                           <div className={inboxStyles.laneCell}>
-                            <span>{laneLabel(row.photoWorst)}</span>
+                            <span>{row.photoHouseholdSheetLabel}</span>
+                            <span
+                              className={inboxStyles.laneLastTouch}
+                              title="Completed date if set; otherwise latest of Email sent/to send, Scheduled send, or Task retired. Follow-up sent is not included."
+                            >
+                              {row.lastPhotoTaskActivityDate
+                                ? formatDateShort(row.lastPhotoTaskActivityDate)
+                                : '—'}
+                            </span>
                           </div>
                         </td>
                         <td>
                           <div className={inboxStyles.laneCell}>
-                            <span>{laneLabel(row.surveyWorst)}</span>
+                            <span>{row.surveyHouseholdSheetLabel}</span>
+                            <span
+                              className={inboxStyles.laneLastTouch}
+                              title="Same as Photos: milestone dates only; Follow-up sent excluded."
+                            >
+                              {row.lastSurveyTaskActivityDate
+                                ? formatDateShort(row.lastSurveyTaskActivityDate)
+                                : '—'}
+                            </span>
                           </div>
                         </td>
+                        <td>{householdRollupDisplay(row)}</td>
                         <td>
                           <Link
                             href={`/fosters/${row.id}`}
@@ -318,7 +343,7 @@ export default function FostersPage() {
                     ))}
                     {paginatedRows.length === 0 && (
                       <tr>
-                        <td colSpan={7} className={styles.emptyState}>
+                        <td colSpan={6} className={styles.emptyState}>
                           No directory rows found.
                         </td>
                       </tr>

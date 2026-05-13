@@ -130,16 +130,18 @@ export async function GET() {
       if (normalized === 'overdue') activeOverdueTaskRows += 1
       if (normalized === 'unknown') unknownStatusRowCount += 1
 
-      const completedDate = String(r.completedDate ?? '').trim()
-      const retiredDate = String(r.retiredDate ?? '').trim()
+      const completedDate = String(r.completedDate ?? r.taskCompletedDate ?? '').trim()
+      const retiredDate = String(r.retiredDate ?? r.taskRetiredDate ?? '').trim()
 
       return {
         animalId: String(r.animalId ?? '').trim(),
         dogName: String(r.dogName ?? '').trim(),
         taskType: String(r.taskType ?? '').trim(),
         triggerDay: Number(r.triggerDay) || 0,
-        emailSentDate: String(r.emailSentDate ?? '').trim(),
-        followUpSent: String(r.followUpSent ?? '').trim(),
+        emailSentDate: String(
+          r.emailSentDate ?? r.emailSentToSendDate ?? r.emailSent ?? ''
+        ).trim(),
+        followUpSent: String(r.followUpSent ?? r.followUpSentDate ?? '').trim(),
         completedDate,
         retiredDate,
         fosterName: String(r.fosterName ?? '').trim(),

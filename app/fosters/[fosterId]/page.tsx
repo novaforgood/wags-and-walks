@@ -446,20 +446,17 @@ export default function FosterDetailsPage() {
                     <div className={styles.chipRow}>
                       {foster.fosterEmail && (
                         <a href={`mailto:${foster.fosterEmail}`} className={styles.chip} style={{ textDecoration: 'none' }}>
-                          <span className={styles.chipIcon}>✉</span>{foster.fosterEmail}
+                          {foster.fosterEmail}
                         </a>
                       )}
                       {foster.fosterPhone && (
-                        <span className={styles.chip}>
-                          <span className={styles.chipIcon}>☎</span>{foster.fosterPhone}
-                        </span>
+                        <span className={styles.chip}>{foster.fosterPhone}</span>
                       )}
                       <span className={styles.chip}>
-                        <span className={styles.chipIcon}>🐾</span>
                         {foster.dogs.length} dog{foster.dogs.length === 1 ? '' : 's'}: {foster.dogs.map(d => d.name).join(', ') || '—'}
                       </span>
                       <span className={styles.chip}>
-                        <span className={styles.chipIcon}>📅</span>Placed {formatDateShort(foster.lastUpdate)}
+                        Placed {formatDateShort(foster.lastUpdate)}
                       </span>
                     </div>
                   </div>

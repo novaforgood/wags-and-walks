@@ -1,5 +1,13 @@
 /* Fosters directory — shared with candidates design tokens where possible */
 
+/* Narrower footprint: lane + last-activity stacked; top-align two-line cells */
+.fostersTaskTable td:nth-child(3),
+.fostersTaskTable td:nth-child(4) {
+    vertical-align: top;
+    padding-top: 14px;
+    padding-bottom: 14px;
+}
+
 .intro {
     margin: 6px 40px 10px;
     font-size: 13px;
@@ -44,9 +52,18 @@
 .laneCell {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 2px;
     font-size: 13px;
     line-height: 1.35;
+}
+
+/* Second line under lane label: last Task Log touch for that task type */
+.laneLastTouch {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    color: #64748b;
+    white-space: nowrap;
 }
 
 .perDogLane {

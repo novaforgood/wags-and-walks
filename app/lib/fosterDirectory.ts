@@ -200,6 +200,14 @@ export function formatDateShort(value?: string) {
     const day = Number(m[3])
     return `${month}/${day}/${year.toString().slice(-2)}`
   }
+  // Task Log / Sheets often use M/D/YYYY with an optional time (e.g. "4/29/2026 0:00:00").
+  const mdy = value.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})\b/)
+  if (mdy) {
+    const month = Number(mdy[1])
+    const day = Number(mdy[2])
+    const year = Number(mdy[3])
+    return `${month}/${day}/${year.toString().slice(-2)}`
+  }
   const d = new Date(value)
   if (Number.isNaN(d.getTime())) return 'Unknown'
   return `${d.getMonth() + 1}/${d.getDate()}/${d

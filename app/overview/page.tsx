@@ -17,7 +17,6 @@ import {
     compareNeedsAttentionPriority,
     enrichFosterDirectoryWithLanes,
     fosterNeedsAttention,
-    laneLabel,
     type EnrichedFosterRow,
     type TaskLane,
 } from '@/app/lib/fosterTaskEnrichment'
@@ -147,7 +146,9 @@ function badgeForTaskRow(row: EnrichedFosterRow, badgeStyles: Record<string, str
     if (row.householdRollup === 'Overdue') {
         return { label: '30+ days in foster', cls: badgeStyles.badgePlacement }
     }
-    return { label: laneLabel(row.photoWorst === 'good' ? 'good' : row.surveyWorst), cls: '' }
+    const pl = row.photoHouseholdSheetLabel
+    const sl = row.surveyHouseholdSheetLabel
+    return { label: [...new Set([pl, sl])].join(' · '), cls: '' }
 }
 
 /** Task Log dates are often plain M/D/YYYY; show a readable absolute date for the row. */
