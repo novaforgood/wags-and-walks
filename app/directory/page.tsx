@@ -103,6 +103,10 @@ function DirectorySkeletonRows() {
   )
 }
 
+function InlineSkeleton({ className = dirStyles.skeletonShort }: { className?: string }) {
+  return <span className={`${dirStyles.skeletonLine} ${dirStyles.inlineSkeleton} ${className}`} aria-hidden="true" />
+}
+
 export default function DirectoryPage() {
   const { people, isLoading: peopleLoading, error: peopleError, toggleStar } = usePeople()
   const [searchQuery, setSearchQuery] = useState('')
@@ -274,9 +278,9 @@ export default function DirectoryPage() {
     return () => ro.disconnect()
   }, [])
 
-  const isLoading =
-    isLoadingGroup || isLoadingFosterers || (peopleLoading && people.length === 0 && !groupError)
-  const initialDirectoryLoading = isLoading && rows.length === 0
+  const peoplePending = peopleLoading && people.length === 0 && !peopleError
+  const fosterersPending = isLoadingFosterers && fosterers.length === 0 && !fostererError
+  const initialDirectoryLoading = isLoadingGroup && rows.length === 0
   const error = groupError ?? fostererError ?? peopleError
   const pageList = totalPages > 1 ? buildPageList(totalPages, currentPage) : []
 
@@ -317,7 +321,11 @@ export default function DirectoryPage() {
                     type="button"
                     className={`${dirStyles.chip} ${quickFilter === f.id ? dirStyles.chipActive : ''}`}
                     onClick={() => setQuickFilter(f.id)}
-                    disabled={initialDirectoryLoading}
+                    disabled={
+                      initialDirectoryLoading ||
+                      ((f.id === 'starred' || f.id === 'flagged') && peoplePending) ||
+                      ((f.id === 'current_foster' || f.id === 'available') && fosterersPending)
+                    }
                     title={f.title}
                     aria-pressed={quickFilter === f.id}
                   >
@@ -335,7 +343,7 @@ export default function DirectoryPage() {
                   aria-label="Sort directory"
                 >
                   <option value="az">A – Z</option>
-                  <option value="most_fostered">Most fostered</option>
+                  <option value="most_fostered" disabled={fosterersPending}>Most fostered</option>
                 </select>
               </label>
             </div>
@@ -420,15 +428,37 @@ export default function DirectoryPage() {
                           <td className={styles.nameCell}>{r.displayName}</td>
                           <td>{r.email || '—'}</td>
                           <td className={`${dirStyles.hideOnMobile} ${dirStyles.phoneCell}`}>
-                            {r.phone || '—'}
+                            {r.phone ? (
+                              <span className={dirStyles.fadeIn}>{r.phone}</span>
+                            ) : peoplePending || fosterersPending ? (
+                              <InlineSkeleton className={dirStyles.skeletonPhone} />
+                            ) : (
+                              '—'
+                            )}
                           </td>
-                          <td>{r.hasASMProfile ? (r.currentlyFostering ? 'Yes' : 'No') : '—'}</td>
+                          <td>
+                            {fosterersPending ? (
+                              <InlineSkeleton />
+                            ) : r.hasASMProfile ? (
+                              <span className={dirStyles.fadeIn}>{r.currentlyFostering ? 'Yes' : 'No'}</span>
+                            ) : (
+                              '—'
+                            )}
+                          </td>
                           <td className={dirStyles.hideOnTablet}>
-                            {r.hasASMProfile ? r.totalFostered : '—'}
+                            {fosterersPending ? (
+                              <InlineSkeleton className={dirStyles.skeletonTiny} />
+                            ) : r.hasASMProfile ? (
+                              <span className={dirStyles.fadeIn}>{r.totalFostered}</span>
+                            ) : (
+                              '—'
+                            )}
                           </td>
                           <td>
                             <div className={styles.rowActions}>
-                              {r.hasApplication ? (
+                              {peoplePending ? (
+                                <span className={`${dirStyles.skeletonStar} ${dirStyles.starSlot}`} aria-hidden="true" />
+                              ) : r.hasApplication ? (
                                 <button
                                   className={`${styles.actionIconBtn} ${r.starred ? styles.actionIconStarActive : styles.actionIconStar} ${dirStyles.starSlot}`}
                                   onClick={e => {
