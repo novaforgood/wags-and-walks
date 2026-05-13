@@ -11,16 +11,40 @@ import {
 } from 'react'
 import type { Person, PersonStatus } from '@/app/lib/peopleTypes'
 import { normalizeEmailKey, PENDING_STATUS_UPDATES_STORAGE_KEY } from '@/app/lib/peopleTypes'
+import { auth } from '@/firebase'
+
+const PEOPLE_LAST_FETCHED_KEY = 'people_last_fetched_at'
+
+function readLastFetchedAtMs(): number | null {
+  try {
+    const raw = localStorage.getItem(PEOPLE_LAST_FETCHED_KEY)
+    if (!raw) return null
+    const n = Number(raw)
+    return Number.isFinite(n) && n > 0 ? n : null
+  } catch {
+    return null
+  }
+}
+
+function writeLastFetchedAtMs(ms: number) {
+  try {
+    localStorage.setItem(PEOPLE_LAST_FETCHED_KEY, String(ms))
+  } catch {
+    // ignore
+  }
+}
 
 type PeopleContextValue = {
   people: Person[]
   isLoading: boolean
   error: string | null
+  /** Milliseconds since epoch when `/api/people` last returned successfully. */
+  lastFetchedAt: number | null
   setStatus: (email: string, status: PersonStatus) => void
   toggleStar: (email: string) => void
   setSignedDocument: (email: string, value: 'Yes' | 'No') => Promise<void>
   setNotes: (email: string, content: string) => Promise<void>
-  refresh: () => Promise<void>
+  refresh: (options?: { suppressLoadingBar?: boolean }) => Promise<void>
 }
 
 const PeopleContext = createContext<PeopleContextValue | null>(null)
@@ -52,14 +76,11 @@ export function PeopleProvider({ children }: { children: React.ReactNode }) {
   const [people, setPeople] = useState<Person[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [lastFetchedAt, setLastFetchedAt] = useState<number | null>(null)
 
   const pendingRef = useRef<Map<string, PersonStatus>>(new Map())
   const flushTimerRef = useRef<number | null>(null)
   const abortRef = useRef<AbortController | null>(null)
-
-  // TODO: Replace this constant with the currently logged-in admin user's identity.
-  // For now, we store a fixed marker in the sheet to support multi-user visibility.
-  const UPDATED_BY = 'jay t'
 
   const applyPendingOptimistic = useCallback((base: Person[]) => {
     return base.map(p => {
@@ -164,12 +185,16 @@ export function PeopleProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (options?: { suppressLoadingBar?: boolean }) => {
     abortRef.current?.abort()
     const controller = new AbortController()
     abortRef.current = controller
 
-    setIsLoading(true)
+    if (options?.suppressLoadingBar) {
+      setIsLoading(false)
+    } else {
+      setIsLoading(true)
+    }
     setError(null)
     try {
       const response = await fetch('/api/people', { method: 'GET', signal: controller.signal })
@@ -183,6 +208,10 @@ export function PeopleProvider({ children }: { children: React.ReactNode }) {
         // Don't clear people on error if we have cached data
         return
       }
+
+      const now = Date.now()
+      setLastFetchedAt(now)
+      writeLastFetchedAtMs(now)
 
       setPeople(applyPendingOptimistic(data.people))
 
@@ -208,6 +237,11 @@ export function PeopleProvider({ children }: { children: React.ReactNode }) {
     )
     if (updates.length === 0) return
 
+    const updatedBy =
+      auth.currentUser?.email?.trim() ||
+      auth.currentUser?.displayName?.trim() ||
+      'unknown'
+
     for (const u of updates) {
       try {
         const response = await fetch('/api/send-email', {
@@ -217,7 +251,7 @@ export function PeopleProvider({ children }: { children: React.ReactNode }) {
             action: 'set_status',
             email: u.email,
             status: u.status,
-            updatedBy: UPDATED_BY
+            updatedBy,
           })
         })
 
@@ -293,19 +327,23 @@ export function PeopleProvider({ children }: { children: React.ReactNode }) {
     }
 
     // Attempt to load cached people first (instant load)
+    let cacheSeeded = false
     try {
       const cachedRaw = localStorage.getItem('people_v2')
       if (cachedRaw) {
         const cachedPeople = JSON.parse(cachedRaw) as Person[]
         if (Array.isArray(cachedPeople) && cachedPeople.length > 0) {
+          cacheSeeded = true
           setPeople(applyPendingOptimistic(cachedPeople))
         }
       }
+      const cachedFetched = readLastFetchedAtMs()
+      if (cachedFetched != null) setLastFetchedAt(cachedFetched)
     } catch (e) {
       console.error('Failed to load cached people', e)
     }
 
-    refresh()
+    void refresh({ suppressLoadingBar: cacheSeeded })
 
     return () => {
       abortRef.current?.abort()
@@ -314,8 +352,18 @@ export function PeopleProvider({ children }: { children: React.ReactNode }) {
   }, [refresh, applyPendingOptimistic])
 
   const value = useMemo<PeopleContextValue>(
-    () => ({ people, isLoading, error, setStatus, toggleStar, setSignedDocument, setNotes, refresh }),
-    [people, isLoading, error, setStatus, toggleStar, setSignedDocument, setNotes, refresh]
+    () => ({
+      people,
+      isLoading,
+      error,
+      lastFetchedAt,
+      setStatus,
+      toggleStar,
+      setSignedDocument,
+      setNotes,
+      refresh,
+    }),
+    [people, isLoading, error, lastFetchedAt, setStatus, toggleStar, setSignedDocument, setNotes, refresh]
   )
 
   return <PeopleContext.Provider value={value}>{children}</PeopleContext.Provider>

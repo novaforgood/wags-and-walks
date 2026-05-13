@@ -1,21 +1,24 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
-import Image from 'next/image'
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { useParams, usePathname, useSearchParams } from 'next/navigation'
-import { useAuth } from '@/app/components/AuthProvider'
+import { useParams, useSearchParams } from 'next/navigation'
 import { usePeople } from '@/app/components/PeopleProvider'
 import ProtectedRoute from '@/app/components/ProtectedRoute'
 import NotificationPanel from '@/app/components/NotificationPanel'
+import TopBarProfileMenu from '@/app/components/TopBarProfileMenu'
+import { DashboardShell } from '@/app/components/DashboardShell'
 import {
+  animalIdsFromTaskLogRows,
   buildFosterDirectory,
   formatDateShort,
+  strictTaskPresenceForRollup,
   type DogRecord,
   type FosterStatus,
 } from '@/app/lib/fosterDirectory'
 import type { TaskRow } from '@/app/lib/taskTypes'
 import NotesCard from '@/app/components/NotesCard'
+import EmailComposeTrigger from '@/app/components/EmailComposeTrigger'
 import FosterHistoryPanel from '@/app/components/FosterHistoryPanel'
 import layoutStyles from '../../candidates/candidates.module.css'
 import styles from './page.module.css'
@@ -46,11 +49,29 @@ function taskLabel(taskType: string) {
 function StatusBadge({ status }: { status: string }) {
   const cls =
     status === 'Overdue' ? styles.badgeOverdue :
-    status === 'Needs Review' ? styles.badgeNeedsReview :
+    status === 'Unknown' ? styles.badgeUnknown :
     status === 'Good' ? styles.badgeGood :
     status === 'Completed' ? styles.badgeCompleted :
-    styles.badgeRetired
+    status === 'Retired' ? styles.badgeRetired :
+    styles.badgeUnknown
   return <span className={cls}>{status || 'Good'}</span>
+}
+
+function sheetTaskBadgeLabel(status: TaskRow['status']): string {
+  switch (status) {
+    case 'good':
+      return 'Good'
+    case 'overdue':
+      return 'Overdue'
+    case 'completed':
+      return 'Completed'
+    case 'retired':
+      return 'Retired'
+    case 'unknown':
+      return 'Unknown'
+    default:
+      return 'Unknown'
+  }
 }
 
 type FosterDirectoryItem = ReturnType<typeof buildFosterDirectory>[number]
@@ -99,7 +120,7 @@ function ScheduledEmailsSection({
   allTasks: TaskRow[]
   onTasksChange: (rows: TaskRow[]) => void
 }) {
-  const activeTasks = tasks.filter(t => t.status !== 'retired')
+  const activeTasks = tasks.filter(t => t.status !== 'retired' && t.status !== 'completed')
   const [editingKey, setEditingKey] = useState<string | null>(null)
   const [draft, setDraft] = useState('')
   const [savingKey, setSavingKey] = useState<string | null>(null)
@@ -193,10 +214,7 @@ function ScheduledEmailsSection({
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8, flexWrap: 'wrap' }}>
                 <strong style={{ fontSize: 14, color: '#0f172a' }}>{t.dogName}</strong>
                 <span style={{ fontSize: 13, color: '#64748b' }}>{taskLabel(t.taskType)}</span>
-                <StatusBadge status={
-                  t.status === 'overdue' ? 'Overdue' :
-                  t.status === 'needs_review' ? 'Needs Review' : 'Good'
-                } />
+                <StatusBadge status={sheetTaskBadgeLabel(t.status)} />
                 <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
                   {!isEditing && (
                     <button
@@ -273,34 +291,37 @@ function ScheduledEmailsSection({
 
 // --- Main Page ---
 export default function FosterDetailsPage() {
-  const pathname = usePathname()
   const searchParams = useSearchParams()
-  const backHref = searchParams.get('from') === 'overview' ? '/fosters/overview' : '/fosters'
-  const backLabel = searchParams.get('from') === 'overview' ? '← Back to Overview' : '← Back to Current Directory'
+  const backHref =
+    searchParams.get('from') === 'overview' ? '/overview' : '/fosters'
+  const backLabel =
+    searchParams.get('from') === 'overview'
+      ? '← Back to Overview'
+      : '← Back to Active fosters'
   const params = useParams<{ fosterId: string }>()
   const fosterId = params?.fosterId
-  const { user, signOut } = useAuth()
   const { people } = usePeople()
   const [dogs, setDogs] = useState<DogRecord[]>([])
   const [isLoadingDogs, setIsLoadingDogs] = useState(true)
   const [dogsError, setDogsError] = useState<string | null>(null)
   const [taskStatusByAnimalId, setTaskStatusByAnimalId] = useState<Record<string, FosterStatus>>({})
   const [taskRows, setTaskRows] = useState<TaskRow[]>([])
-  const [navWidth, setNavWidth] = useState<number>(() => {
-    try {
-      const raw = localStorage.getItem('app_nav_sidebar_width_v1')
-      const n = raw ? Number(raw) : NaN
-      return Number.isFinite(n) ? Math.max(180, Math.min(280, n)) : 208
-    } catch {
-      return 208
-    }
-  })
-  const [isResizingNav, setIsResizingNav] = useState(false)
-  const navStartXRef = useRef(0)
-  const navStartWRef = useRef(208)
-  const asmRegisteredRef = useRef(false)
 
   const [activeTab, setActiveTab] = useState<'overview' | 'tasks' | 'communication' | 'notes' | 'history'>('overview')
+
+  useEffect(() => {
+    const tab = searchParams.get('tab')
+    const map = {
+      overview: 'overview',
+      tasks: 'tasks',
+      communication: 'communication',
+      notes: 'notes',
+      history: 'history',
+    } as const
+    if (tab && tab in map) {
+      setActiveTab(map[tab as keyof typeof map])
+    }
+  }, [searchParams])
 
   useEffect(() => {
     let active = true
@@ -337,32 +358,19 @@ export default function FosterDetailsPage() {
     return () => { active = false }
   }, [])
 
-  const directory = useMemo(() => buildFosterDirectory(dogs, taskStatusByAnimalId), [dogs, taskStatusByAnimalId])
+  const directory = useMemo(() => {
+    const strict = strictTaskPresenceForRollup(
+      taskRows.length,
+      taskStatusByAnimalId
+    )
+    const idSet = strict ? animalIdsFromTaskLogRows(taskRows) : undefined
+    return buildFosterDirectory(dogs, taskStatusByAnimalId, idSet)
+  }, [dogs, taskStatusByAnimalId, taskRows])
   const foster = useMemo(() => directory.find(f => f.id === fosterId), [directory, fosterId])
   const person = useMemo(
     () => people.find(p => p.email?.toLowerCase() === foster?.fosterEmail?.toLowerCase()),
     [people, foster]
   )
-
-  // When a foster exists in ASM but has no matching Sheet 1 record, create a minimal
-  // record so notes and status can be tracked for them going forward.
-  useEffect(() => {
-    if (!foster || person || asmRegisteredRef.current) return
-    if (!foster.fosterEmail) return
-    asmRegisteredRef.current = true
-    fetch('/api/send-email', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action: 'create_person',
-        name: foster.fosterName,
-        email: foster.fosterEmail,
-        source: 'ASM',
-      }),
-    }).catch(() => {
-      asmRegisteredRef.current = false
-    })
-  }, [foster, person])
 
   // Decode the email from the slug immediately so notes can load in parallel with dogs.
   // fosterSlug() uses encodeURIComponent(email) when an email is available.
@@ -384,91 +392,15 @@ export default function FosterDetailsPage() {
     return map
   }, [foster, taskRows])
 
-  useEffect(() => {
-    try { localStorage.setItem('app_nav_sidebar_width_v1', String(navWidth)) } catch { /* ignore */ }
-  }, [navWidth])
-
-  useEffect(() => {
-    if (!isResizingNav) return
-    const prevUserSelect = document.body.style.userSelect
-    document.body.style.userSelect = 'none'
-    function onMove(e: PointerEvent) {
-      const delta = e.clientX - navStartXRef.current
-      const next = Math.max(180, Math.min(280, navStartWRef.current + delta))
-      setNavWidth(next)
-    }
-    function onUp() { setIsResizingNav(false) }
-    window.addEventListener('pointermove', onMove)
-    window.addEventListener('pointerup', onUp)
-    window.addEventListener('pointercancel', onUp)
-    return () => {
-      document.body.style.userSelect = prevUserSelect
-      window.removeEventListener('pointermove', onMove)
-      window.removeEventListener('pointerup', onUp)
-      window.removeEventListener('pointercancel', onUp)
-    }
-  }, [isResizingNav])
-
   return (
     <ProtectedRoute>
-      <div className={layoutStyles.pageWrapper} style={{ ['--app-sidebar-width' as any]: `${navWidth}px` }}>
-        <aside className={layoutStyles.sidebar}>
-          <div className={layoutStyles.sidebarLogo}>
-            <Image src="/assets/logo.svg" alt="Wags & Walks" width={196} height={74} priority />
-          </div>
-          <nav className={layoutStyles.sidebarNav}>
-            <Link href="/overview" className={layoutStyles.navItem}>
-              <img src="/assets/Overview.svg" alt="" width={18} height={18} />
-              Overview
-            </Link>
-            <Link href="/candidates" className={layoutStyles.navItem}>
-              <img src="/assets/candidates.svg" alt="" width={18} height={18} />
-              Applicants
-            </Link>
-            <Link
-              href="/directory"
-              className={`${layoutStyles.navItem} ${pathname === '/directory' ? layoutStyles.navItemActive : ''}`}
-            >
-              <img src="/assets/Search.svg" alt="" width={18} height={18} />
-              Directory
-            </Link>
-            <Link
-              href="/fosters/overview"
-              className={`${layoutStyles.navItem} ${pathname?.startsWith('/fosters') ? layoutStyles.navItemActive : ''}`}
-            >
-              <img src="/assets/fosters.svg" alt="" width={18} height={18} />
-              Fosters
-            </Link>
-          </nav>
-          <div className={layoutStyles.sidebarProfile}>
-            <div className={layoutStyles.profileAvatar}>
-              {user?.email && user.email.charAt(0).toUpperCase()}
-            </div>
-            <div className={layoutStyles.profileInfo}>
-              <span className={layoutStyles.profileName}>
-                {user?.displayName || user?.email?.split('@')[0] || 'User'}
-              </span>
-              <a href="#" className={layoutStyles.profileEmail}>{user?.email}</a>
-              <button type="button" className={layoutStyles.profileLogout} onClick={signOut}>Log Out</button>
-            </div>
-          </div>
-        </aside>
-
-        <div
-          className={layoutStyles.navResizeHandle}
-          onPointerDown={(e) => {
-            e.preventDefault()
-            e.currentTarget.setPointerCapture(e.pointerId)
-            navStartXRef.current = e.clientX
-            navStartWRef.current = navWidth
-            setIsResizingNav(true)
-          }}
-        />
-
-        <div className={layoutStyles.mainContent}>
+      <DashboardShell>
           <div className={layoutStyles.topBar}>
             <h1 className={layoutStyles.topBarTitle}>Foster Details</h1>
-            <NotificationPanel />
+            <div className={layoutStyles.topBarActions}>
+              <NotificationPanel />
+              <TopBarProfileMenu />
+            </div>
           </div>
 
           <div className={styles.wrap}>
@@ -494,20 +426,17 @@ export default function FosterDetailsPage() {
                     <div className={styles.chipRow}>
                       {foster.fosterEmail && (
                         <a href={`mailto:${foster.fosterEmail}`} className={styles.chip} style={{ textDecoration: 'none' }}>
-                          <span className={styles.chipIcon}>✉</span>{foster.fosterEmail}
+                          {foster.fosterEmail}
                         </a>
                       )}
                       {foster.fosterPhone && (
-                        <span className={styles.chip}>
-                          <span className={styles.chipIcon}>☎</span>{foster.fosterPhone}
-                        </span>
+                        <span className={styles.chip}>{foster.fosterPhone}</span>
                       )}
                       <span className={styles.chip}>
-                        <span className={styles.chipIcon}>🐾</span>
                         {foster.dogs.length} dog{foster.dogs.length === 1 ? '' : 's'}: {foster.dogs.map(d => d.name).join(', ') || '—'}
                       </span>
                       <span className={styles.chip}>
-                        <span className={styles.chipIcon}>📅</span>Placed {formatDateShort(foster.lastUpdate)}
+                        Placed {formatDateShort(foster.lastUpdate)}
                       </span>
                     </div>
                   </div>
@@ -563,7 +492,9 @@ export default function FosterDetailsPage() {
                               <div className={styles.statValue} style={{ fontSize: 14 }}>{lastEmailSent ? formatDateShort(lastEmailSent) : '—'}</div>
                             </div>
                             <div className={styles.stat}>
-                              <div className={styles.statLabel}>Last update</div>
+                              <div className={styles.statLabel} title="Shelter Manager movement date (not Task Log)">
+                                Movement
+                              </div>
                               <div className={styles.statValue} style={{ fontSize: 14 }}>{formatDateShort(dog.lastUpdate)}</div>
                             </div>
                           </div>
@@ -631,12 +562,7 @@ export default function FosterDetailsPage() {
                                     )
                                   ) : '—'}
                                 </td>
-                                <td><StatusBadge status={
-                                  t.status === 'overdue' ? 'Overdue' :
-                                  t.status === 'needs_review' ? 'Needs Review' :
-                                  t.status === 'completed' ? 'Completed' :
-                                  t.status === 'retired' ? 'Retired' : 'Good'
-                                } /></td>
+                                <td><StatusBadge status={sheetTaskBadgeLabel(t.status)} /></td>
                               </tr>
                             )})}
                           </tbody>
@@ -653,6 +579,12 @@ export default function FosterDetailsPage() {
 
                 {activeTab === 'communication' && (
                   <div className={styles.tabPanel}>
+                    {emailFromSlug && (
+                      <section className={styles.card} style={{ marginBottom: 16 }}>
+                        <h3 className={styles.sectionTitle}>Email</h3>
+                        <EmailComposeTrigger email={emailFromSlug} recipientName={foster.fosterName} />
+                      </section>
+                    )}
                     <ScheduledEmailsSection
                       foster={foster}
                       tasks={Array.from(fosterTasksByDogId.values()).flat()}
@@ -665,7 +597,7 @@ export default function FosterDetailsPage() {
                 {activeTab === 'notes' && (
                   <div className={styles.tabPanel}>
                     <section className={styles.card}>
-                      <NotesCard email={emailFromSlug} name={foster.fosterName} hideSendEmail />
+                      <NotesCard email={emailFromSlug} />
                     </section>
                   </div>
                 )}
@@ -682,8 +614,7 @@ export default function FosterDetailsPage() {
               </>
             )}
           </div>
-        </div>
-      </div>
+      </DashboardShell>
     </ProtectedRoute>
   )
 }

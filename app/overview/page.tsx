@@ -1,14 +1,26 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
-import Image from 'next/image'
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
 import { usePeople } from '@/app/components/PeopleProvider'
-import { useAuth } from '@/app/components/AuthProvider'
 import ProtectedRoute from '@/app/components/ProtectedRoute'
 import NotificationPanel from '@/app/components/NotificationPanel'
+import TopBarProfileMenu from '@/app/components/TopBarProfileMenu'
+import { DashboardShell } from '@/app/components/DashboardShell'
 import type { Person, PersonStatus } from '@/app/lib/peopleTypes'
+import type { FostererHistory } from '@/app/lib/asmFosterHistory'
+import { countApplicantsAppliedThisWeek, countUniqueAnimalsPlacedThisMonth } from '@/app/lib/overviewMetrics'
+import { formatRelativeTime } from '@/app/lib/formatRelativeTime'
+import type { TasksGetMetrics, TaskRow } from '@/app/api/tasks/route'
+import type { DogRecord, FosterStatus } from '@/app/lib/fosterDirectory'
+import {
+    compareNeedsAttentionPriority,
+    enrichFosterDirectoryWithLanes,
+    fosterNeedsAttention,
+    type EnrichedFosterRow,
+    type TaskLane,
+} from '@/app/lib/fosterTaskEnrichment'
+import { formatFlagsForDisplay, rawFlagsHasMeaningfulTokens } from '@/app/lib/flagDisplay'
 import layoutStyles from '../candidates/candidates.module.css'
 import styles from './overview.module.css'
 
@@ -22,34 +34,187 @@ function isRejectedStatus(s?: PersonStatus): boolean {
     return s.startsWith('rejected_')
 }
 
-function hasRedFlag(person: Person): boolean {
-    const flags = String(person.raw?.['Flags'] || '').trim().toLowerCase()
-    return !!(flags && flags !== 'ok' && flags !== 'none')
+/** Raw sheet flags when at least one real token exists (excludes ok/none-only). */
+function sheetFlagText(person: Person): string | null {
+    const raw = String(person.raw?.['Flags'] ?? '').trim()
+    if (!rawFlagsHasMeaningfulTokens(raw)) return null
+    return raw
 }
 
-function buildConicGradient(segments: { count: number; color: string }[]): string | null {
-    const total = segments.reduce((a, s) => a + Math.max(0, s.count), 0)
-    if (total <= 0) return null
-    let deg = 0
-    const parts: string[] = []
-    for (const s of segments) {
-        if (s.count <= 0) continue
-        const span = (s.count / total) * 360
-        const end = deg + span
-        parts.push(`${s.color} ${deg}deg ${end}deg`)
-        deg = end
+function hasRedFlag(person: Person): boolean {
+    return sheetFlagText(person) != null
+}
+
+type QueueFilter = 'all' | 'flagged'
+
+const APPLICANT_QUEUE_MAX = 7
+const TASK_QUEUE_MAX = 6
+
+const AVATAR_BG = [
+    'var(--app-avatar-0)',
+    'var(--app-avatar-1)',
+    'var(--app-avatar-2)',
+    'var(--app-avatar-3)',
+    'var(--app-avatar-4)',
+    'var(--app-avatar-5)',
+] as const
+
+function initialsOf(p: Person): string {
+    const f = p.firstName?.trim().charAt(0) || ''
+    const l = p.lastName?.trim().charAt(0) || ''
+    if (f || l) return (f + l).toUpperCase()
+    const e = p.email?.trim() || '?'
+    return e.slice(0, 2).toUpperCase()
+}
+
+function displayName(p: Person): string {
+    const n = `${p.firstName ?? ''} ${p.lastName ?? ''}`.trim()
+    return n || p.email || 'Unknown'
+}
+
+function avatarBg(email?: string): string {
+    const s = email || 'x'
+    let h = 0
+    for (let i = 0; i < s.length; i++) h += s.charCodeAt(i)
+    return AVATAR_BG[h % AVATAR_BG.length]
+}
+
+function fosterInitials(name: string, email?: string): string {
+    const trimmed = name.trim()
+    if (trimmed) {
+        const parts = trimmed.split(/\s+/)
+        const first = parts[0]?.charAt(0) || ''
+        const last = parts.length > 1 ? parts[parts.length - 1].charAt(0) : ''
+        const combined = (first + last).toUpperCase()
+        if (combined) return combined
     }
-    if (parts.length === 0) return null
-    return `conic-gradient(${parts.join(', ')})`
+    return (email || '?').slice(0, 2).toUpperCase()
+}
+
+/** Large stat value: avoid showing 0 before data exists (reads as “none” instead of “loading”). */
+function StatValueFigure({
+    pending,
+    children,
+    alert,
+}: {
+    pending: boolean
+    children: React.ReactNode
+    alert?: boolean
+}) {
+    if (pending) {
+        return (
+            <span className={styles.statCardValuePending} aria-busy="true" title="Loading">
+                …
+            </span>
+        )
+    }
+    return (
+        <span className={`${styles.statCardValue} ${alert ? styles.statCardValueAlert : ''}`}>
+            {children}
+        </span>
+    )
+}
+
+function dogListLabel(dogs: EnrichedFosterRow['dogs']): string {
+    const names = dogs.map(d => d.name).filter(Boolean)
+    if (names.length === 0) return 'No dogs listed'
+    if (names.length <= 2) return names.join(', ')
+    return `${names.slice(0, 2).join(', ')} +${names.length - 2}`
+}
+
+type TaskQueueBadge = { label: string; cls: string }
+
+function badgeForTaskRow(row: EnrichedFosterRow, badgeStyles: Record<string, string>): TaskQueueBadge {
+    const photoOd = row.photoWorst === 'overdue'
+    const surveyOd = row.surveyWorst === 'overdue'
+    if (photoOd || surveyOd) {
+        if (photoOd && surveyOd) return { label: 'Photos and survey overdue', cls: badgeStyles.badgeFlag }
+        if (photoOd) return { label: 'Photos overdue', cls: badgeStyles.badgeFlag }
+        return { label: 'Survey overdue', cls: badgeStyles.badgeFlag }
+    }
+    if (row.photoWorst === 'unknown' || row.surveyWorst === 'unknown') {
+        return { label: 'Task row status issue', cls: '' }
+    }
+    const missingPhoto = row.photoWorst === 'not_in_log'
+    const missingSurvey = row.surveyWorst === 'not_in_log'
+    if (missingPhoto && missingSurvey) return { label: 'Photos and survey not in log', cls: '' }
+    if (missingPhoto) return { label: 'Photos not in log', cls: '' }
+    if (missingSurvey) return { label: 'Survey not in log', cls: '' }
+    if (row.householdRollup === 'Unknown') {
+        return { label: '14–30 days in foster', cls: badgeStyles.badgePlacement }
+    }
+    if (row.householdRollup === 'Overdue') {
+        return { label: '30+ days in foster', cls: badgeStyles.badgePlacement }
+    }
+    const pl = row.photoHouseholdSheetLabel
+    const sl = row.surveyHouseholdSheetLabel
+    return { label: [...new Set([pl, sl])].join(' · '), cls: '' }
+}
+
+/** Task Log dates are often plain M/D/YYYY; show a readable absolute date for the row. */
+function formatTaskLogDate(isoOrSheetDate?: string): string {
+    if (!isoOrSheetDate?.trim()) return '—'
+    const raw = isoOrSheetDate.trim()
+    const d = new Date(raw)
+    if (!Number.isNaN(d.getTime())) {
+        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    }
+    const m = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/)
+    if (m) {
+        const month = Number(m[1])
+        const day = Number(m[2])
+        const year = Number(m[3])
+        const parsed = new Date(year, month - 1, day)
+        if (!Number.isNaN(parsed.getTime())) {
+            return parsed.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+        }
+    }
+    return raw
+}
+
+function earliestOverdueTrigger(
+    row: EnrichedFosterRow,
+    rowsByAnimalId: Map<string, TaskRow[]>
+): { date?: string; isOverdue: boolean } {
+    const animalIds = row.dogs.map(d => d.id)
+    const candidatesOverdue: string[] = []
+    const candidatesActive: string[] = []
+    for (const id of animalIds) {
+        const list = rowsByAnimalId.get(id)
+        if (!list) continue
+        for (const t of list) {
+            if (t.status === 'completed' || t.status === 'retired') continue
+            const d = (t.emailSentDate || t.scheduledDate || '').trim()
+            if (!d) continue
+            if (t.status === 'overdue') candidatesOverdue.push(d)
+            else candidatesActive.push(d)
+        }
+    }
+    if (candidatesOverdue.length > 0) {
+        candidatesOverdue.sort()
+        return { date: candidatesOverdue[0], isOverdue: true }
+    }
+    if (candidatesActive.length > 0) {
+        candidatesActive.sort()
+        return { date: candidatesActive[0], isOverdue: false }
+    }
+    return { date: row.lastUpdate, isOverdue: false }
 }
 
 export default function OverviewPage() {
-    const pathname = usePathname()
     const { people, isLoading, error } = usePeople()
-    const { user, role, signOut } = useAuth()
+    const [queueFilter, setQueueFilter] = useState<QueueFilter>('all')
 
-    // ── ADDED: ASM foster count from /api/fosters ──────────────────────────
     const [asmFosterCount, setAsmFosterCount] = useState<number | null>(null)
+    const [fosterCountRequestDone, setFosterCountRequestDone] = useState(false)
+    const [taskMetrics, setTaskMetrics] = useState<TasksGetMetrics | null>(null)
+    const [tasksRequestDone, setTasksRequestDone] = useState(false)
+    const [dogs, setDogs] = useState<DogRecord[]>([])
+    const [dogsRequestDone, setDogsRequestDone] = useState(false)
+    const [taskRows, setTaskRows] = useState<TaskRow[]>([])
+    const [taskStatusByAnimalId, setTaskStatusByAnimalId] = useState<Record<string, FosterStatus>>({})
+    const [fosterers, setFosterers] = useState<FostererHistory[]>([])
+    const [fosterHistoryLoading, setFosterHistoryLoading] = useState(true)
 
     useEffect(() => {
         let active = true
@@ -58,403 +223,402 @@ export default function OverviewPage() {
                 const res = await fetch('/api/fosters', { method: 'GET', cache: 'no-store' })
                 const data = await res.json()
                 if (!active) return
-                if (typeof data?.count === 'number') {
-                    setAsmFosterCount(data.count)
-                }
-            } catch {
-                // silently fail — stat card falls back to spreadsheet count
+                if (typeof data?.count === 'number') setAsmFosterCount(data.count)
+            } catch { /* silently fail */ }
+            finally {
+                if (active) setFosterCountRequestDone(true)
             }
         }
         loadFosterCount()
         return () => { active = false }
     }, [])
-    // ───────────────────────────────────────────────────────────────────────
 
-    const [navWidth, setNavWidth] = useState<number>(() => {
-        try {
-            const raw = localStorage.getItem('app_nav_sidebar_width_v1')
-            const n = raw ? Number(raw) : NaN
-            return Number.isFinite(n) ? Math.max(180, Math.min(280, n)) : 208
-        } catch {
-            return 208
+    useEffect(() => {
+        let active = true
+        async function loadTaskMetrics() {
+            try {
+                const res = await fetch('/api/tasks', { cache: 'no-store' })
+                if (!res.ok || !active) return
+                const data = await res.json()
+                if (!active) return
+                if (data?.metrics) setTaskMetrics(data.metrics as TasksGetMetrics)
+                if (Array.isArray(data?.rows)) setTaskRows(data.rows as TaskRow[])
+                if (data?.taskStatusByAnimalId) {
+                    setTaskStatusByAnimalId(data.taskStatusByAnimalId as Record<string, FosterStatus>)
+                }
+            } catch { /* Task Log optional */ }
+            finally {
+                if (active) setTasksRequestDone(true)
+            }
         }
-    })
-    const [isResizingNav, setIsResizingNav] = useState(false)
-    const navStartXRef = useRef(0)
-    const navStartWRef = useRef(208)
+        void loadTaskMetrics()
+        return () => { active = false }
+    }, [])
+
+    useEffect(() => {
+        let active = true
+        async function loadDogs() {
+            try {
+                const res = await fetch('/api/dogs', { cache: 'no-store' })
+                if (!res.ok || !active) return
+                const data = await res.json()
+                if (!active) return
+                if (Array.isArray(data?.dogs)) setDogs(data.dogs as DogRecord[])
+            } catch { /* dogs optional */ }
+            finally {
+                if (active) setDogsRequestDone(true)
+            }
+        }
+        void loadDogs()
+        return () => { active = false }
+    }, [])
+
+    useEffect(() => {
+        let active = true
+        async function loadFosterHistory() {
+            setFosterHistoryLoading(true)
+            try {
+                const res = await fetch('/api/foster-history', { cache: 'no-store' })
+                const data = await res.json()
+                if (!active) return
+                if (res.ok && data?.success && Array.isArray(data.fosterers)) {
+                    setFosterers(data.fosterers as FostererHistory[])
+                } else {
+                    setFosterers([])
+                }
+            } catch {
+                if (active) setFosterers([])
+            } finally {
+                if (active) setFosterHistoryLoading(false)
+            }
+        }
+        void loadFosterHistory()
+        return () => { active = false }
+    }, [])
 
     const stats = useMemo(() => {
         const rows = people.filter(hasEmail)
-
-        let newCount = 0
-        let inProgressCount = 0
-        let approvedCount = 0
-        let currentCount = 0
-        let rejectedCount = 0
-
+        let newCount = 0, inProgressCount = 0, approvedCount = 0, currentCount = 0
         for (const p of rows) {
             const s = p.status || 'new'
-            if (isRejectedStatus(s)) {
-                rejectedCount += 1
-                continue
-            }
-            switch (s) {
-                case 'new':
-                    newCount += 1
-                    break
-                case 'in-progress':
-                    inProgressCount += 1
-                    break
-                case 'approved':
-                    approvedCount += 1
-                    break
-                case 'current':
-                    currentCount += 1
-                    break
-                default:
-                    break
-            }
+            if (isRejectedStatus(s)) continue
+            if (s === 'new') newCount++
+            else if (s === 'in-progress') inProgressCount++
+            else if (s === 'approved') approvedCount++
+            else if (s === 'current') currentCount++
         }
-
         const pipelineCount = newCount + inProgressCount
         const flaggedInPipeline = rows.filter(p => {
             const s = p.status || 'new'
-            if (s !== 'new' && s !== 'in-progress') return false
-            return hasRedFlag(p)
+            return (s === 'new' || s === 'in-progress') && hasRedFlag(p)
         }).length
-
-        const monthBuckets = new Map<string, number>()
-        for (const p of rows) {
-            if (!p.appliedAt) continue
-            const d = new Date(p.appliedAt)
-            if (Number.isNaN(d.getTime())) continue
-            const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-            monthBuckets.set(key, (monthBuckets.get(key) || 0) + 1)
-        }
-        const sortedMonths = [...monthBuckets.keys()].sort()
-        const last12 = sortedMonths.slice(-12)
-        const monthly = last12.map(key => ({
-            key,
-            label: formatMonthLabel(key),
-            count: monthBuckets.get(key) || 0,
-        }))
-        const monthMax = Math.max(1, ...monthly.map(m => m.count))
-
-        const statusMax = Math.max(1, newCount, inProgressCount, approvedCount, currentCount, rejectedCount)
-
-        // ── CHANGED: use asmFosterCount for the donut if available ──────────
         const activeFosterCount = asmFosterCount ?? currentCount
-        const rosterTotal = activeFosterCount + pipelineCount + approvedCount + rejectedCount
-        const donutSegments = [
-            { key: 'current', label: 'Active fosters', count: activeFosterCount, color: '#05aaaf' },
-            { key: 'pipeline', label: 'In review', count: pipelineCount, color: '#7ecbcd' },
-            { key: 'approved', label: 'Approved', count: approvedCount, color: '#3a9da0' },
-            { key: 'rejected', label: 'Rejected', count: rejectedCount, color: '#9e9e9e' },
-        ]
-        // ────────────────────────────────────────────────────────────────────
+        return { newCount, inProgressCount, pipelineCount, approvedCount, currentCount, activeFosterCount, flaggedInPipeline }
+    }, [people, asmFosterCount])
 
-        const donutGradient = buildConicGradient(
-            donutSegments.map(s => ({ count: s.count, color: s.color }))
-        )
+    const applicantQueue = useMemo(() => {
+        const rows = people.filter(hasEmail).filter(p => {
+            const s = p.status || 'new'
+            return !isRejectedStatus(s) && (s === 'new' || s === 'in-progress')
+        })
+        const filtered = rows.filter(p => queueFilter === 'all' ? true : hasRedFlag(p))
+        const ts = (p: Person) => {
+            const t = p.appliedAt ? new Date(p.appliedAt).getTime() : NaN
+            return Number.isNaN(t) ? 0 : t
+        }
+        return [...filtered].sort((a, b) => ts(b) - ts(a)).slice(0, APPLICANT_QUEUE_MAX)
+    }, [people, queueFilter])
 
-        return {
-            newCount,
-            inProgressCount,
-            pipelineCount,
-            approvedCount,
-            currentCount,
-            activeFosterCount,
-            rejectedCount,
-            flaggedInPipeline,
-            monthly,
-            monthMax,
-            statusMax,
-            rosterTotal,
-            donutSegments,
-            donutGradient,
-        }
-    }, [people, asmFosterCount]) // ← CHANGED: added asmFosterCount dependency
+    const showQueueSeeAll =
+        applicantQueue.length > 0 &&
+        ((queueFilter === 'all' && stats.pipelineCount > APPLICANT_QUEUE_MAX) ||
+            (queueFilter === 'flagged' && stats.flaggedInPipeline > APPLICANT_QUEUE_MAX))
 
-    useEffect(() => {
-        try {
-            localStorage.setItem('app_nav_sidebar_width_v1', String(navWidth))
-        } catch {
-            // ignore
-        }
-    }, [navWidth])
+    const overdueFollowUpRows = taskMetrics?.activeOverdueTaskRows ?? 0
+    const peoplePending = isLoading && people.length === 0
+    const applicantsThisWeek = useMemo(() => countApplicantsAppliedThisWeek(people), [people])
+    const placementsThisMonth = useMemo(
+        () => countUniqueAnimalsPlacedThisMonth(fosterers),
+        [fosterers]
+    )
 
-    useEffect(() => {
-        if (!isResizingNav) return
-        const prevUserSelect = document.body.style.userSelect
-        document.body.style.userSelect = 'none'
-        function onMove(e: PointerEvent) {
-            const delta = e.clientX - navStartXRef.current
-            const next = Math.max(180, Math.min(280, navStartWRef.current + delta))
-            setNavWidth(next)
+    const enrichedFosters = useMemo(
+        () => enrichFosterDirectoryWithLanes(dogs, taskRows, taskStatusByAnimalId),
+        [dogs, taskRows, taskStatusByAnimalId]
+    )
+
+    const taskRowsByAnimalId = useMemo(() => {
+        const map = new Map<string, TaskRow[]>()
+        for (const t of taskRows) {
+            const id = t.animalId
+            if (!id) continue
+            const list = map.get(id)
+            if (list) list.push(t)
+            else map.set(id, [t])
         }
-        function onUp() {
-            setIsResizingNav(false)
+        return map
+    }, [taskRows])
+
+    const taskQueueCounts = useMemo(() => {
+        let attention = 0, overdue = 0, unknown = 0
+        for (const row of enrichedFosters) {
+            if (fosterNeedsAttention(row)) attention++
+            if (row.householdRollup === 'Overdue' || row.photoWorst === 'overdue' || row.surveyWorst === 'overdue') overdue++
+            const bad = (l: TaskLane) => l === 'unknown' || l === 'not_in_log'
+            if (row.householdRollup === 'Unknown' || bad(row.photoWorst) || bad(row.surveyWorst)) unknown++
         }
-        window.addEventListener('pointermove', onMove)
-        window.addEventListener('pointerup', onUp)
-        window.addEventListener('pointercancel', onUp)
-        return () => {
-            document.body.style.userSelect = prevUserSelect
-            window.removeEventListener('pointermove', onMove)
-            window.removeEventListener('pointerup', onUp)
-            window.removeEventListener('pointercancel', onUp)
-        }
-    }, [isResizingNav])
+        return { attention, overdue, unknown }
+    }, [enrichedFosters])
+
+    const taskQueue = useMemo(() => {
+        const filtered = enrichedFosters.filter(fosterNeedsAttention)
+        return [...filtered].sort(compareNeedsAttentionPriority).slice(0, TASK_QUEUE_MAX)
+    }, [enrichedFosters])
+
+    /** Dogs + Task Log must both be settled before the queue is meaningful (otherwise every home looks “missing log”). */
+    const fosterQueueDataReady = dogsRequestDone && tasksRequestDone
+
+    const showTaskQueueSeeAll =
+        fosterQueueDataReady &&
+        taskQueue.length > 0 &&
+        taskQueueCounts.attention > TASK_QUEUE_MAX
+    const activeFosterPending =
+        asmFosterCount === null && (!fosterCountRequestDone || peoplePending)
+    const activeFosterDisplay =
+        asmFosterCount !== null ? asmFosterCount : stats.activeFosterCount
 
     return (
         <ProtectedRoute>
-            <div className={layoutStyles.pageWrapper} style={{ ['--app-sidebar-width' as any]: `${navWidth}px` }}>
-                <aside className={layoutStyles.sidebar}>
-                    <div className={layoutStyles.sidebarLogo}>
-                        <Image src="/assets/logo.svg" alt="Wags & Walks" width={196} height={74} priority />
-                    </div>
-
-                    <nav className={layoutStyles.sidebarNav}>
-                        <Link
-                            href="/overview"
-                            className={`${layoutStyles.navItem} ${pathname === '/overview' ? layoutStyles.navItemActive : ''}`}
-                        >
-                            <img src="/assets/Overview.svg" alt="" width={18} height={18} />
-                            Overview
-                        </Link>
-                        <Link href="/candidates" className={layoutStyles.navItem}>
-                            <img src="/assets/candidates.svg" alt="" width={18} height={18} />
-                            Applicants
-                        </Link>
-                        <Link
-                            href="/directory"
-                            className={`${layoutStyles.navItem} ${pathname === '/directory' ? layoutStyles.navItemActive : ''}`}
-                        >
-                            <img src="/assets/Search.svg" alt="" width={18} height={18} />
-                            Directory
-                        </Link>
-                        <Link
-                            href="/fosters/overview"
-                            className={`${layoutStyles.navItem} ${pathname?.startsWith('/fosters') ? layoutStyles.navItemActive : ''
-                                }`}
-                        >
-                            <img src="/assets/fosters.svg" alt="" width={18} height={18} />
-                            Fosters
-                        </Link>
-                        {role === 'admin' && (
-                            <Link
-                                href="/admin/users"
-                                className={`${layoutStyles.navItem} ${pathname?.startsWith('/admin') ? layoutStyles.navItemActive : ''}`}
-                            >
-                                <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden>
-                                    <circle cx="9" cy="6" r="3" stroke="currentColor" strokeWidth="1.5" />
-                                    <path d="M3 15c0-3.314 2.686-5 6-5s6 1.686 6 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                                </svg>
-                                Users
-                            </Link>
-                        )}
-                    </nav>
-
-                    <div className={layoutStyles.sidebarProfile}>
-                        <div className={layoutStyles.profileAvatar}>
-                            {user?.email && user.email.charAt(0).toUpperCase()}
-                        </div>
-                        <div className={layoutStyles.profileInfo}>
-                            <span className={layoutStyles.profileName}>
-                                {user?.displayName || user?.email?.split('@')[0] || 'User'}
-                            </span>
-                            <a href="#" className={layoutStyles.profileEmail}>{user?.email}</a>
-                            <button type="button" className={layoutStyles.profileLogout} onClick={signOut}>
-                                Log Out
-                            </button>
-                        </div>
-                    </div>
-                </aside>
-
-                <div
-                    className={layoutStyles.navResizeHandle}
-                    onPointerDown={(e) => {
-                        e.preventDefault()
-                        e.currentTarget.setPointerCapture(e.pointerId)
-                        navStartXRef.current = e.clientX
-                        navStartWRef.current = navWidth
-                        setIsResizingNav(true)
-                    }}
-                />
-
-                <div className={layoutStyles.mainContent}>
-                    <div className={layoutStyles.topBar}>
-                        <h1 className={layoutStyles.topBarTitle}>Overview</h1>
+            <DashboardShell>
+                <div className={layoutStyles.topBar}>
+                    <h1 className={layoutStyles.topBarTitle}>Overview</h1>
+                    <div className={layoutStyles.topBarActions}>
                         <NotificationPanel />
+                        <TopBarProfileMenu />
                     </div>
+                </div>
 
-                    {isLoading && people.length === 0 && (
-                        <div className={styles.loadingBox}>Loading dashboard…</div>
-                    )}
-                    {error && <div className={styles.errorText}>{error}</div>}
+                {peoplePending && (
+                    <div className={styles.loadingBox} role="status" aria-live="polite">
+                        Loading applicant data…
+                    </div>
+                )}
+                {error && <div className={styles.errorText}>{error}</div>}
 
-                    {!isLoading && (
-                        <div className={styles.contentPadding}>
+                <div className={styles.contentPadding}>
 
-                            <div className={styles.statsGrid}>
-                                <div className={styles.statCard}>
-                                    <span className={styles.statLabel}>Foster Candidates (in review)</span>
-                                    <span className={styles.statValue}>{stats.pipelineCount}</span>
-                                    <span className={styles.statHint}>
-                                        New + in progress (matches the Applicants list)
-                                    </span>
-                                </div>
-                                {/* ── CHANGED: use activeFosterCount (ASM) instead of currentCount ── */}
-                                <div className={styles.statCard}>
-                                    <span className={styles.statLabel}>Active fosters</span>
-                                    <span className={styles.statValue}>{stats.activeFosterCount}</span>
-                                    <span className={styles.statHint}>Active foster homes in ASM</span>
-                                </div>
-                                {/* ──────────────────────────────────────────────────────────────── */}
-                                <div className={styles.statCard}>
-                                    <span className={styles.statLabel}>In Directory</span>
-                                    <span className={styles.statValue}>{stats.approvedCount}</span>
-                                    <span className={styles.statHint}>Both approved and active fosters</span>
-                                </div>
-                                <div className={styles.statCard}>
-                                    <span className={styles.statLabel}>Red Flag Candidates</span>
-                                    <span className={styles.statValue}>{stats.flaggedInPipeline}</span>
-                                    <span className={styles.statHint}>Among new & in-progress with flags set</span>
-                                </div>
+                        <div className={styles.statCards}>
+                            <div className={styles.statCard}>
+                                <span className={styles.statCardLabel}>Active fosters</span>
+                                <StatValueFigure pending={activeFosterPending}>
+                                    {activeFosterDisplay}
+                                </StatValueFigure>
                             </div>
 
-                            <div className={styles.chartsRow}>
-                                <div className={styles.panel}>
-                                    <h2 className={styles.panelTitle}>Pipeline Mix</h2>
-                                    <p className={styles.panelSubtitle}>
-                                        Share of records by status (people with an email in the sheet)
-                                    </p>
-                                    {stats.rosterTotal === 0 ? (
-                                        <div className={styles.emptyChart}>No applicant data yet.</div>
-                                    ) : (
-                                        <div className={styles.donutRow}>
-                                            <div className={styles.donutOuter}>
-                                                <div
-                                                    className={styles.donutRing}
-                                                    style={{
-                                                        background:
-                                                            stats.donutGradient ??
-                                                            'conic-gradient(#e0e0e0 0deg 360deg)',
-                                                    }}
-                                                />
-                                                <div className={styles.donutHole} />
-                                                <div className={styles.donutCenterLabel}>
-                                                    <span className={styles.donutCenterValue}>
-                                                        {stats.rosterTotal}
-                                                    </span>
-                                                    <span className={styles.donutCenterHint}>total</span>
-                                                </div>
-                                            </div>
-                                            <div className={styles.donutLegend}>
-                                                {stats.donutSegments.map(seg => (
-                                                    <div key={seg.key} className={styles.legendItem}>
-                                                        <span
-                                                            className={styles.legendSwatch}
-                                                            style={{ background: seg.color }}
-                                                        />
-                                                        <span className={styles.legendLabel}>{seg.label}</span>
-                                                        <span className={styles.legendValue}>{seg.count}</span>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-
-                                <div className={styles.panel}>
-                                    <h2 className={styles.panelTitle}>Applications by Month</h2>
-                                    <p className={styles.panelSubtitle}>
-                                        Count of applications with a submission date (last 12 months in data)
-                                    </p>
-                                    {stats.monthly.length === 0 ? (
-                                        <div className={styles.emptyChart}>
-                                            No submission dates found — dates will appear as applicants include
-                                            them.
-                                        </div>
-                                    ) : (
-                                        <div className={styles.monthBars}>
-                                            {stats.monthly.map(m => (
-                                                <div key={m.key} className={styles.monthCol}>
-                                                    <div className={styles.monthTrack}>
-                                                        <div
-                                                            className={styles.monthFill}
-                                                            style={{
-                                                                height: `${(m.count / stats.monthMax) * 100}%`,
-                                                            }}
-                                                        />
-                                                    </div>
-                                                    <span className={styles.monthCount}>{m.count}</span>
-                                                    <span className={styles.monthLabel}>{m.label}</span>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
+                            <div
+                                className={styles.statCard}
+                                title="Rows in the Task Log marked overdue (photos or survey follow-ups)."
+                            >
+                                <span className={styles.statCardLabel}>Tasks past due</span>
+                                <StatValueFigure
+                                    pending={!tasksRequestDone}
+                                    alert={tasksRequestDone && overdueFollowUpRows > 0}
+                                >
+                                    {overdueFollowUpRows}
+                                </StatValueFigure>
                             </div>
 
-                            <div className={styles.panel}>
-                                <h2 className={styles.panelTitle}>Headcount by Status</h2>
-                                <p className={styles.panelSubtitle}>Raw counts across workflow stages</p>
-                                <div className={styles.statusBars}>
-                                    {[
-                                        {
-                                            label: 'New',
-                                            count: stats.newCount,
-                                            className: styles.barNew,
-                                        },
-                                        {
-                                            label: 'In progress',
-                                            count: stats.inProgressCount,
-                                            className: styles.barInProgress,
-                                        },
-                                        {
-                                            label: 'Approved',
-                                            count: stats.approvedCount,
-                                            className: styles.barApproved,
-                                        },
-                                        {
-                                            label: 'Active',
-                                            // ── CHANGED: use activeFosterCount (ASM) ──
-                                            count: stats.activeFosterCount,
-                                            className: styles.barCurrent,
-                                        },
-                                        {
-                                            label: 'Rejected',
-                                            count: stats.rejectedCount,
-                                            className: styles.barRejected,
-                                        },
-                                    ].map(col => (
-                                        <div key={col.label} className={styles.statusBarCol}>
-                                            <div className={styles.statusBarTrack}>
-                                                <div
-                                                    className={`${styles.statusBarFill} ${col.className}`}
-                                                    style={{
-                                                        height: `${(col.count / stats.statusMax) * 100}%`,
-                                                    }}
-                                                />
-                                            </div>
-                                            <span className={styles.statusBarCount}>{col.count}</span>
-                                            <span className={styles.statusBarLabel}>{col.label}</span>
-                                        </div>
-                                    ))}
-                                </div>
+                            <div
+                                className={styles.statCard}
+                                title="Applicants who submitted this calendar week (Monday 12:00 a.m. through now, your local time). Rejected applications are excluded."
+                            >
+                                <span className={styles.statCardLabel}>Applicants this week</span>
+                                <StatValueFigure pending={peoplePending}>{applicantsThisWeek}</StatValueFigure>
+                            </div>
+
+                            <div
+                                className={styles.statCard}
+                                title="Each dog is counted once: foster start date falls in the current calendar month (through today), using ShelterManager foster history."
+                            >
+                                <span className={styles.statCardLabel}>Foster starts this month</span>
+                                <span className={styles.statCardValue}>
+                                    {fosterHistoryLoading ? (
+                                        <span className={styles.statCardValuePending} aria-busy="true" title="Loading">
+                                            …
+                                        </span>
+                                    ) : (
+                                        placementsThisMonth
+                                    )}
+                                </span>
                             </div>
                         </div>
-                    )}
+
+                        <div className={styles.twoColumn}>
+                            {/* ── Applicants ────────────────────────────── */}
+                            <section className={styles.briefingSection} aria-labelledby="applicant-section-title">
+                                <div className={styles.sectionHeader}>
+                                    <div className={styles.sectionHeaderLeft}>
+                                        <h2 id="applicant-section-title" className={styles.sectionTitle}>
+                                            Applicants
+                                        </h2>
+                                    </div>
+                                    <div className={`${styles.filterPills} ${styles.filterPillsCompact}`} role="tablist">
+                                        {([['all', 'All'], ['flagged', 'Flags']] as const).map(([key, label]) => (
+                                            <button
+                                                key={key}
+                                                type="button"
+                                                role="tab"
+                                                aria-selected={queueFilter === key}
+                                                className={`${styles.pill} ${styles.pillCompact} ${queueFilter === key ? styles.pillActive : ''}`}
+                                                onClick={() => setQueueFilter(key)}
+                                            >
+                                                {label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div className={styles.panelBody}>
+                                    {peoplePending ? (
+                                        <p className={styles.emptyState} role="status" aria-live="polite">
+                                            Loading applicants…
+                                        </p>
+                                    ) : applicantQueue.length === 0 ? (
+                                        <p className={styles.emptyState}>No applicants found.</p>
+                                    ) : (
+                                        <ul className={styles.rowList}>
+                                            {applicantQueue.map(p => {
+                                                const email = p.email!.trim()
+                                                const href = `/applicants/${encodeURIComponent(email)}?from=overview`
+                                                const rawFlags = sheetFlagText(p)
+                                                const flagDisplay = rawFlags ? formatFlagsForDisplay(rawFlags) : null
+                                                const isFlag = rawFlags != null
+                                                return (
+                                                    <li key={email}>
+                                                        <Link
+                                                            href={href}
+                                                            className={styles.row}
+                                                            aria-label={
+                                                                isFlag && flagDisplay
+                                                                    ? `${displayName(p)}, flag: ${flagDisplay}`
+                                                                    : undefined
+                                                            }
+                                                        >
+                                                            <span
+                                                                className={styles.avatar}
+                                                                style={{ background: avatarBg(email) }}
+                                                                aria-hidden
+                                                            >
+                                                                {initialsOf(p)}
+                                                            </span>
+                                                            <div className={styles.rowMain}>
+                                                                <span className={styles.rowName}>{displayName(p)}</span>
+                                                                <span className={styles.rowSub}>{p.email}</span>
+                                                                {flagDisplay && (
+                                                                    <span className={styles.rowFlagDetail} title={rawFlags ?? undefined}>
+                                                                        {flagDisplay}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                            <div className={styles.rowTail}>
+                                                                <span className={styles.rowTime}>
+                                                                    {formatRelativeTime(p.appliedAt)}
+                                                                </span>
+                                                            </div>
+                                                        </Link>
+                                                    </li>
+                                                )
+                                            })}
+                                        </ul>
+                                    )}
+                                </div>
+
+                                {showQueueSeeAll && (
+                                    <div className={styles.sectionFooter}>
+                                        <Link href="/candidates" className={styles.seeAllLink}>
+                                            View all applicants →
+                                        </Link>
+                                    </div>
+                                )}
+                            </section>
+
+                            {/* ── Fosters ───────────────────────────────── */}
+                            <section className={styles.briefingSection} aria-labelledby="foster-section-title">
+                                <div className={styles.sectionHeader}>
+                                    <div className={styles.sectionHeaderLeft}>
+                                        <h2 id="foster-section-title" className={styles.sectionTitle}>
+                                            Fosters
+                                        </h2>
+                                    </div>
+                                </div>
+
+                                <div className={styles.panelBody}>
+                                    {!fosterQueueDataReady ? (
+                                        <p className={styles.emptyState} role="status" aria-live="polite">
+                                            Loading foster directory…
+                                        </p>
+                                    ) : dogs.length === 0 ? (
+                                        <p className={styles.emptyState}>
+                                            No active foster dogs returned from Shelter Manager.
+                                        </p>
+                                    ) : taskQueue.length === 0 ? (
+                                        <p className={styles.emptyState}>All caught up.</p>
+                                    ) : (
+                                        <ul className={styles.rowList}>
+                                            {taskQueue.map(row => {
+                                                const href = `/fosters/${row.id}?from=overview`
+                                                const badge = badgeForTaskRow(row, styles)
+                                                const trigger = earliestOverdueTrigger(row, taskRowsByAnimalId)
+                                                return (
+                                                    <li key={row.id}>
+                                                        <Link href={href} className={styles.row}>
+                                                            <span
+                                                                className={styles.avatar}
+                                                                style={{ background: avatarBg(row.fosterEmail) }}
+                                                                aria-hidden
+                                                            >
+                                                                {fosterInitials(row.fosterName, row.fosterEmail)}
+                                                            </span>
+                                                            <div className={styles.rowMain}>
+                                                                <span className={styles.rowName}>{row.fosterName}</span>
+                                                                <span className={styles.rowSub}>{dogListLabel(row.dogs)}</span>
+                                                            </div>
+                                                            <div className={`${styles.rowTail} ${styles.rowTailFoster}`}>
+                                                                <span className={`${styles.badge} ${badge.cls}`}>
+                                                                    {badge.label}
+                                                                </span>
+                                                                <div
+                                                                    className={styles.rowDateBlock}
+                                                                    title="Earliest date from the Task Log for this home’s dogs (scheduled follow-up, or last sent date when the sheet stores that instead)."
+                                                                >
+                                                                    <span className={styles.rowDateLabel}>
+                                                                        Task log
+                                                                    </span>
+                                                                    <span className={styles.rowDateValue}>
+                                                                        {formatTaskLogDate(trigger.date)}
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+                                                        </Link>
+                                                    </li>
+                                                )
+                                            })}
+                                        </ul>
+                                    )}
+                                </div>
+
+                                {showTaskQueueSeeAll && (
+                                    <div className={styles.sectionFooter}>
+                                        <Link href="/fosters" className={styles.seeAllLink}>
+                                            View all fosters →
+                                        </Link>
+                                    </div>
+                                )}
+                            </section>
+                        </div>
+
                 </div>
-            </div>
+            </DashboardShell>
         </ProtectedRoute>
     )
-}
-
-function formatMonthLabel(ym: string): string {
-    const [y, m] = ym.split('-').map(Number)
-    if (!y || !m) return ym
-    const d = new Date(y, m - 1, 1)
-    return d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
 }

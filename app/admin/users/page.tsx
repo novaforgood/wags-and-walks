@@ -1,12 +1,11 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import Image from 'next/image'
-import Link from 'next/link'
-import { usePathname } from 'next/navigation'
 import { useAuth } from '@/app/components/AuthProvider'
 import { AdminRoute } from '@/app/components/ProtectedRoute'
 import NotificationPanel from '@/app/components/NotificationPanel'
+import TopBarProfileMenu from '@/app/components/TopBarProfileMenu'
+import { DashboardShell } from '@/app/components/DashboardShell'
 import {
   listAllowedUsers,
   addAllowedUser,
@@ -151,8 +150,7 @@ function IconTrash({ className }: { className?: string }) {
 }
 
 export default function AdminUsersPage() {
-  const pathname = usePathname()
-  const { user, role, signOut } = useAuth()
+  const { user } = useAuth()
   const [users, setUsers] = useState<AllowedUser[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [filter, setFilter] = useState<RoleFilter>('all')
@@ -166,19 +164,6 @@ export default function AdminUsersPage() {
   const [pendingRemoveEmail, setPendingRemoveEmail] = useState<string | null>(null)
   const roleWrapRef = useRef<HTMLDivElement>(null)
 
-  const [navWidth, setNavWidth] = useState<number>(() => {
-    try {
-      const raw = localStorage.getItem('app_nav_sidebar_width_v1')
-      const n = raw ? Number(raw) : NaN
-      return Number.isFinite(n) ? Math.max(180, Math.min(280, n)) : 208
-    } catch {
-      return 208
-    }
-  })
-  const [isResizingNav, setIsResizingNav] = useState(false)
-  const navStartXRef = useRef(0)
-  const navStartWRef = useRef(208)
-
   const adminCount = useMemo(() => users.filter((u) => u.role === 'admin').length, [users])
   const userCount = useMemo(() => users.filter((u) => u.role === 'user').length, [users])
   const filteredUsers = useMemo(() => {
@@ -188,35 +173,6 @@ export default function AdminUsersPage() {
   }, [users, filter])
 
   const selectedRoleMeta = ROLE_OPTIONS.find((o) => o.value === newRole)!
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('app_nav_sidebar_width_v1', String(navWidth))
-    } catch {
-      /**/
-    }
-  }, [navWidth])
-
-  useEffect(() => {
-    if (!isResizingNav) return
-    const prev = document.body.style.userSelect
-    document.body.style.userSelect = 'none'
-    function onMove(e: PointerEvent) {
-      setNavWidth(Math.max(180, Math.min(280, navStartWRef.current + e.clientX - navStartXRef.current)))
-    }
-    function onUp() {
-      setIsResizingNav(false)
-    }
-    window.addEventListener('pointermove', onMove)
-    window.addEventListener('pointerup', onUp)
-    window.addEventListener('pointercancel', onUp)
-    return () => {
-      document.body.style.userSelect = prev
-      window.removeEventListener('pointermove', onMove)
-      window.removeEventListener('pointerup', onUp)
-      window.removeEventListener('pointercancel', onUp)
-    }
-  }, [isResizingNav])
 
   useEffect(() => {
     if (!inviteOpen && !pendingRemoveEmail) return
@@ -422,89 +378,17 @@ export default function AdminUsersPage() {
 
   return (
     <AdminRoute>
-      <div className={layoutStyles.pageWrapper} style={{ ['--app-sidebar-width' as any]: `${navWidth}px` }}>
-        <aside className={layoutStyles.sidebar}>
-          <div className={layoutStyles.sidebarLogo}>
-            <Image src="/assets/logo.svg" alt="Wags & Walks" width={196} height={74} priority />
+      <DashboardShell>
+        <div className={layoutStyles.topBar}>
+          <h1 className={layoutStyles.topBarTitle}>User Management</h1>
+          <div className={layoutStyles.topBarActions}>
+            <NotificationPanel />
+            <TopBarProfileMenu />
           </div>
+        </div>
 
-          <nav className={layoutStyles.sidebarNav}>
-            <Link href="/overview" className={layoutStyles.navItem}>
-              <img src="/assets/Overview.svg" alt="" width={18} height={18} />
-              Overview
-            </Link>
-            <Link href="/candidates" className={layoutStyles.navItem}>
-              <img src="/assets/candidates.svg" alt="" width={18} height={18} />
-              Applicants
-            </Link>
-            <Link
-              href="/directory"
-              className={`${layoutStyles.navItem} ${pathname === '/directory' ? layoutStyles.navItemActive : ''}`}
-            >
-              <img src="/assets/Search.svg" alt="" width={18} height={18} />
-              Directory
-            </Link>
-            <Link
-              href="/fosters/overview"
-              className={`${layoutStyles.navItem} ${pathname?.startsWith('/fosters') ? layoutStyles.navItemActive : ''}`}
-            >
-              <img src="/assets/fosters.svg" alt="" width={18} height={18} />
-              Fosters
-            </Link>
-            {role === 'admin' && (
-              <Link
-                href="/admin/users"
-                className={`${layoutStyles.navItem} ${pathname?.startsWith('/admin') ? layoutStyles.navItemActive : ''}`}
-              >
-                <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden>
-                  <circle cx="9" cy="6" r="3" stroke="currentColor" strokeWidth="1.5" />
-                  <path d="M3 15c0-3.314 2.686-5 6-5s6 1.686 6 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                </svg>
-                Users
-              </Link>
-            )}
-          </nav>
-
-          <div className={layoutStyles.sidebarProfile}>
-            <div className={layoutStyles.profileAvatar}>{user?.email && user.email.charAt(0).toUpperCase()}</div>
-            <div className={layoutStyles.profileInfo}>
-              <span className={layoutStyles.profileName}>
-                {user?.displayName || user?.email?.split('@')[0] || 'User'}
-              </span>
-              <a href="#" className={layoutStyles.profileEmail}>
-                {user?.email}
-              </a>
-              <button type="button" className={layoutStyles.profileLogout} onClick={signOut}>
-                Log Out
-              </button>
-            </div>
-          </div>
-        </aside>
-
-        <div
-          className={layoutStyles.navResizeHandle}
-          onPointerDown={(e) => {
-            e.preventDefault()
-            e.currentTarget.setPointerCapture(e.pointerId)
-            navStartXRef.current = e.clientX
-            navStartWRef.current = navWidth
-            setIsResizingNav(true)
-          }}
-        />
-
-        <div
-          className={layoutStyles.mainContent}
-          style={{ background: 'var(--color-gray-light-active)' }}
-        >
-          <div className={styles.dashboard}>
-            <header className={styles.dashboardHeader}>
-              <div className={styles.dashboardTitleBlock}>
-                <h1 className={styles.dashboardTitle}>User Management</h1>
-              </div>
-              <NotificationPanel />
-            </header>
-
-            <div className={styles.dashboardMain}>
+        <div className={styles.dashboard}>
+          <div className={styles.dashboardMain}>
             <div className={styles.toolbar}>
               <div className={styles.filterRow} role="tablist" aria-label="Filter by role">
                 <button
@@ -653,8 +537,7 @@ export default function AdminUsersPage() {
             </div>
             </div>
           </div>
-        </div>
-      </div>
+      </DashboardShell>
 
       {pendingRemoveEmail && (
         <div

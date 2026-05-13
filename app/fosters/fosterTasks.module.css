@@ -1,0 +1,77 @@
+/* Fosters directory — shared with candidates design tokens where possible */
+
+/* Narrower footprint: lane + last-activity stacked; top-align two-line cells */
+.fostersTaskTable td:nth-child(3),
+.fostersTaskTable td:nth-child(4) {
+    vertical-align: top;
+    padding-top: 14px;
+    padding-bottom: 14px;
+}
+
+.intro {
+    margin: 6px 40px 10px;
+    font-size: 13px;
+    line-height: 1.45;
+    color: #64748b;
+    max-width: 48rem;
+}
+
+.intro strong {
+    color: #475569;
+}
+
+.introLink {
+    color: #0f766e;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.introLink:hover {
+    text-decoration: underline;
+}
+
+@media (max-width: 900px) {
+    .intro {
+        margin-left: 24px;
+        margin-right: 24px;
+    }
+}
+
+.visuallyHidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+.laneCell {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-size: 13px;
+    line-height: 1.35;
+}
+
+/* Second line under lane label: last Task Log touch for that task type */
+.laneLastTouch {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    color: #64748b;
+    white-space: nowrap;
+}
+
+.perDogLane {
+    font-size: 12px;
+    color: #475569;
+}
+
+/* Toolbar selects: room for longer queue labels (same pill styling as candidates .toolbarBtn) */
+.fostersToolbarSelect {
+    min-width: 200px;
+}
