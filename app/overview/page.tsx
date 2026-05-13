@@ -254,8 +254,6 @@ export default function OverviewPage() {
     const { people, isLoading, error } = usePeople()
     const [queueFilter, setQueueFilter] = useState<QueueFilter>('all')
 
-    const [asmFosterCount, setAsmFosterCount] = useState<number | null>(null)
-    const [fosterCountRequestDone, setFosterCountRequestDone] = useState(false)
     const [taskMetrics, setTaskMetrics] = useState<TasksGetMetrics | null>(null)
     const [tasksRequestDone, setTasksRequestDone] = useState(false)
     const [dogs, setDogs] = useState<DogRecord[]>([])
@@ -264,23 +262,6 @@ export default function OverviewPage() {
     const [taskStatusByAnimalId, setTaskStatusByAnimalId] = useState<Record<string, FosterStatus>>({})
     const [fosterers, setFosterers] = useState<FostererHistory[]>([])
     const [fosterHistoryLoading, setFosterHistoryLoading] = useState(true)
-
-    useEffect(() => {
-        let active = true
-        async function loadFosterCount() {
-            try {
-                const res = await fetch('/api/fosters', { method: 'GET', cache: 'no-store' })
-                const data = await res.json()
-                if (!active) return
-                if (typeof data?.count === 'number') setAsmFosterCount(data.count)
-            } catch { /* silently fail */ }
-            finally {
-                if (active) setFosterCountRequestDone(true)
-            }
-        }
-        loadFosterCount()
-        return () => { active = false }
-    }, [])
 
     useEffect(() => {
         let active = true
@@ -361,9 +342,9 @@ export default function OverviewPage() {
             const s = p.status || 'new'
             return (s === 'new' || s === 'in-progress') && hasRedFlag(p)
         }).length
-        const activeFosterCount = asmFosterCount ?? currentCount
+        const activeFosterCount = dogsRequestDone ? dogs.length : currentCount
         return { newCount, inProgressCount, pipelineCount, approvedCount, currentCount, activeFosterCount, flaggedInPipeline }
-    }, [people, asmFosterCount])
+    }, [people, dogsRequestDone, dogs.length])
 
     const applicantQueue = useMemo(() => {
         const rows = people.filter(hasEmail).filter(p => {
@@ -432,9 +413,9 @@ export default function OverviewPage() {
         taskQueue.length > 0 &&
         taskQueueCounts.attention > TASK_QUEUE_MAX
     const activeFosterPending =
-        asmFosterCount === null && (!fosterCountRequestDone || peoplePending)
+        !dogsRequestDone && peoplePending
     const activeFosterDisplay =
-        asmFosterCount !== null ? asmFosterCount : stats.activeFosterCount
+        dogsRequestDone ? dogs.length : stats.activeFosterCount
 
     return (
         <ProtectedRoute>
