@@ -37,24 +37,20 @@ function LoginPageInner() {
 
     return (
         <div className={styles.container}>
-            {/* Logo */}
-            <div className={styles.logoContainer}>
-                <Image
-                    src="/assets/logo.svg"
-                    alt="Wags & Walks"
-                    width={220}
-                    height={83}
-                    priority
-                />
-            </div>
-
-            {/* Centered Login Card */}
             <div className={styles.card}>
+                <div className={styles.logoContainer}>
+                    <Image
+                        src="/assets/logo.svg"
+                        alt="Wags & Walks"
+                        width={176}
+                        height={66}
+                        priority
+                    />
+                </div>
+
                 <form onSubmit={handleSubmit} className={styles.form}>
-                    {/* Header */}
                     <div className={styles.header}>
                         <h1 className={styles.title}>Welcome Back</h1>
-                        <p className={styles.subtitle}>Log in to manage your foster candidates.</p>
                         <p className={styles.inviteHint}>
                             Were you recently invited?{' '}
                             <Link href="/signup" className={styles.signUpLink}>
@@ -76,6 +72,7 @@ function LoginPageInner() {
                         </div>
                     )}
 
+                    <div className={styles.fieldStack}>
                     {/* Email Field */}
                     <div className={styles.inputGroup}>
                         <label htmlFor="email" className={styles.label}>
@@ -160,6 +157,7 @@ function LoginPageInner() {
                             Forgot Password?
                         </Link>
                     </div>
+                    </div>
 
                     {/* Submit Button */}
                     <button
@@ -170,27 +168,27 @@ function LoginPageInner() {
                         {loading ? 'LOGGING IN...' : 'LOG IN'}
                     </button>
 
-                    {/* Footer Links */}
-                    <p className={styles.footer}>
-                        Need access?{' '}
-                        <a href="mailto:support@wagsandwalks.org" className={styles.signUpLink}>
-                            Contact an admin
-                        </a>
-                        .
-                    </p>
-                    <p className={styles.footer}>
-                        Need help?{' '}
-                        <a href="mailto:support@wagsandwalks.org" className={styles.signUpLink}>
-                            Contact support
-                        </a>
-                        .
+                    <div className={styles.footerGroup}>
+                        <p className={styles.footer}>
+                            Need access?{' '}
+                            <a href="mailto:support@wagsandwalks.org" className={styles.signUpLink}>
+                                Contact an admin
+                            </a>
+                            .
+                        </p>
+                        <p className={styles.footer}>
+                            Need help?{' '}
+                            <a href="mailto:support@wagsandwalks.org" className={styles.signUpLink}>
+                                Contact support
+                            </a>
+                            .
+                        </p>
+                    </div>
+
+                    <p className={styles.copyright}>
+                        © 2026 Wags & Walks, all rights reserved.
                     </p>
                 </form>
-            </div>
-
-            {/* Copyright */}
-            <div className={styles.copyright}>
-                © 2026 Wags & Walks, all rights reserved.
             </div>
         </div>
     )

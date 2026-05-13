@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
@@ -29,10 +29,11 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const { user, role, signOut } = useAuth()
   const [navOpen, setNavOpen] = useState(false)
-
-  useEffect(() => {
+  const prevPathnameRef = useRef(pathname)
+  if (pathname !== prevPathnameRef.current) {
+    prevPathnameRef.current = pathname
     setNavOpen(false)
-  }, [pathname])
+  }
 
   useEffect(() => {
     const mq = window.matchMedia('(min-width: 901px)')

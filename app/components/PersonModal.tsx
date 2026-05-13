@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useRef, useState } from 'react'
 
 import type { Person, PersonStatus } from '@/app/lib/peopleTypes'
 import {
@@ -62,11 +62,14 @@ const META_FIELDS = new Set([
 
 export default function PersonModal({ person, onClose }: Props) {
   const [activeTab, setActiveTab] = useState<ModalTab>('summary')
-
-  useEffect(() => {
-    if (!person?.email) return
-    setActiveTab('summary')
-  }, [person?.email])
+  const emailKey = person?.email ?? ''
+  const prevEmailKeyRef = useRef(emailKey)
+  if (emailKey !== prevEmailKeyRef.current) {
+    prevEmailKeyRef.current = emailKey
+    if (emailKey) {
+      setActiveTab('summary')
+    }
+  }
 
   if (!person) return null
 

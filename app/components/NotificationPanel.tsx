@@ -88,7 +88,7 @@ export default function NotificationPanel() {
   const panelRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    setLoading(true)
+    queueMicrotask(() => setLoading(true))
     fetch('/api/tasks', { cache: 'no-store' })
       .then(r => r.json())
       .then((data: { success?: boolean; rows?: TaskRow[] }) => {

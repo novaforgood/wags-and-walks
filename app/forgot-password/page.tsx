@@ -30,11 +30,11 @@ export default function ForgotPasswordPage() {
 
   return (
     <div className={styles.container}>
-      <div className={styles.logoContainer}>
-        <Image src="/assets/logo.svg" alt="Wags & Walks" width={220} height={83} priority />
-      </div>
-
       <div className={styles.card}>
+        <div className={styles.logoContainer}>
+          <Image src="/assets/logo.svg" alt="Wags & Walks" width={176} height={66} priority />
+        </div>
+
         <div className={styles.header}>
           <h1 className={styles.title}>Reset Password</h1>
           <p className={styles.subtitle}>
@@ -47,7 +47,7 @@ export default function ForgotPasswordPage() {
         </div>
 
         {done ? (
-          <>
+          <div className={styles.form}>
             <div className={styles.infoNotice} role="status">
               Check your inbox and spam. Still nothing? Finish{' '}
               <Link href="/signup" className={styles.signUpLink}>
@@ -55,12 +55,15 @@ export default function ForgotPasswordPage() {
               </Link>{' '}
               first if you&apos;re new, or ask your admin.
             </div>
-            <p className={styles.footer}>
-              <Link href="/login" className={styles.signUpLink}>
-                Back to Log In
-              </Link>
-            </p>
-          </>
+            <div className={styles.footerGroup}>
+              <p className={styles.footer}>
+                <Link href="/login" className={styles.signUpLink}>
+                  Back to Log In
+                </Link>
+              </p>
+            </div>
+            <p className={styles.copyright}>© 2026 Wags & Walks, all rights reserved.</p>
+          </div>
         ) : (
           <form onSubmit={handleSubmit} className={styles.form}>
             {error && (
@@ -69,31 +72,33 @@ export default function ForgotPasswordPage() {
               </div>
             )}
 
-            <div className={styles.inputGroup}>
-              <label htmlFor="email" className={styles.label}>
-                Email Address
-              </label>
-              <div className={styles.inputWrapper}>
-                <svg className={styles.inputIcon} width="20" height="20" viewBox="0 0 20 20" fill="none">
-                  <path
-                    d="M3 4h14a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
+            <div className={styles.fieldStack}>
+              <div className={styles.inputGroup}>
+                <label htmlFor="email" className={styles.label}>
+                  Email Address
+                </label>
+                <div className={styles.inputWrapper}>
+                  <svg className={styles.inputIcon} width="20" height="20" viewBox="0 0 20 20" fill="none">
+                    <path
+                      d="M3 4h14a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                    <path d="m2 5 8 6 8-6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  <input
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    className={styles.input}
+                    placeholder="email@wagsandwalks.org"
+                    autoComplete="email"
                   />
-                  <path d="m2 5 8 6 8-6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-                <input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  className={styles.input}
-                  placeholder="email@wagsandwalks.org"
-                  autoComplete="email"
-                />
+                </div>
               </div>
             </div>
 
@@ -101,16 +106,18 @@ export default function ForgotPasswordPage() {
               {loading ? 'SENDING…' : 'SEND RESET LINK'}
             </button>
 
-            <p className={styles.footer}>
-              <Link href="/login" className={styles.signUpLink}>
-                Back to Log In
-              </Link>
-            </p>
+            <div className={styles.footerGroup}>
+              <p className={styles.footer}>
+                <Link href="/login" className={styles.signUpLink}>
+                  Back to Log In
+                </Link>
+              </p>
+            </div>
+
+            <p className={styles.copyright}>© 2026 Wags & Walks, all rights reserved.</p>
           </form>
         )}
       </div>
-
-      <div className={styles.copyright}>© 2026 Wags & Walks, all rights reserved.</div>
     </div>
   )
 }

@@ -11,17 +11,21 @@ interface Props {
 
 export default function FosterHistoryPanel({ email, sectionClassName, sectionTitleClassName }: Props) {
   const [data, setData] = useState<FostererHistory | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(() => Boolean(email))
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!email) {
-      setLoading(false)
+      queueMicrotask(() => setLoading(false))
       return
     }
     let active = true
-    setLoading(true)
-    setError(null)
+    queueMicrotask(() => {
+      if (active) {
+        setLoading(true)
+        setError(null)
+      }
+    })
 
     fetch(`/api/foster-history?email=${encodeURIComponent(email)}`)
       .then(r => r.json())

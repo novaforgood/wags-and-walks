@@ -49,26 +49,21 @@ export default function SignUpPage() {
 
     return (
         <div className={styles.container}>
-            {/* Logo */}
-            <div className={styles.logoContainer}>
-                <Image
-                    src="/assets/logo.svg"
-                    alt="Wags & Walks"
-                    width={220}
-                    height={83}
-                    priority
-                />
-            </div>
-
-            {/* Centered Signup Card */}
             <div className={styles.card}>
+                <div className={styles.logoContainer}>
+                    <Image
+                        src="/assets/logo.svg"
+                        alt="Wags & Walks"
+                        width={176}
+                        height={66}
+                        priority
+                    />
+                </div>
+
                 <form onSubmit={handleSubmit} className={styles.form}>
                     {/* Header */}
                     <div className={styles.header}>
                         <h1 className={styles.title}>Create Account</h1>
-                        <p className={styles.subtitle}>
-                            Use the email an admin added for portal access, then choose a password below.
-                        </p>
                     </div>
 
                     {/* Error Message */}
@@ -78,6 +73,7 @@ export default function SignUpPage() {
                         </div>
                     )}
 
+                    <div className={styles.fieldStack}>
                     {/* Email Field */}
                     <div className={styles.inputGroup}>
                         <label htmlFor="email" className={styles.label}>
@@ -213,6 +209,7 @@ export default function SignUpPage() {
                             </button>
                         </div>
                     </div>
+                    </div>
 
                     {/* Submit Button */}
                     <button
@@ -223,20 +220,20 @@ export default function SignUpPage() {
                         {loading ? 'CREATING ACCOUNT...' : 'SIGN UP'}
                     </button>
 
-                    {/* Footer Links */}
-                    <p className={styles.footer}>
-                        Already have an account?{' '}
-                        <Link href="/login" className={styles.signUpLink}>
-                            Log in here
-                        </Link>
-                        .
+                    <div className={styles.footerGroup}>
+                        <p className={styles.footer}>
+                            Already have an account?{' '}
+                            <Link href="/login" className={styles.signUpLink}>
+                                Log in here
+                            </Link>
+                            .
+                        </p>
+                    </div>
+
+                    <p className={styles.copyright}>
+                        © 2026 Wags & Walks, all rights reserved.
                     </p>
                 </form>
-            </div>
-
-            {/* Copyright */}
-            <div className={styles.copyright}>
-                © 2026 Wags & Walks, all rights reserved.
             </div>
         </div>
     )

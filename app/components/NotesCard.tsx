@@ -15,11 +15,11 @@ export default function NotesCard({ email }: Props) {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [notesFromSheet, setNotesFromSheet] = useState<{ notes: string; notesUpdatedAt: string } | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
+  const [isLoading, setIsLoading] = useState(() => Boolean(email))
 
   useEffect(() => {
     if (!email) {
-      setIsLoading(false)
+      queueMicrotask(() => setIsLoading(false))
       return
     }
     let active = true

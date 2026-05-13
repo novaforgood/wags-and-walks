@@ -194,15 +194,21 @@ export default function CandidatesPage() {
     }, [allCandidates, searchQuery, quickFilters, filters])
 
     const [currentPage, setCurrentPage] = useState(1)
+    const filterResetKey = useMemo(
+        () => `${searchQuery}\n${JSON.stringify(quickFilters)}\n${JSON.stringify(filters)}`,
+        [searchQuery, quickFilters, filters],
+    )
+    const prevFilterKeyRef = useRef(filterResetKey)
+    if (filterResetKey !== prevFilterKeyRef.current) {
+        prevFilterKeyRef.current = filterResetKey
+        setCurrentPage(1)
+    }
+
     const totalPages = Math.max(1, Math.ceil(filtered.length / itemsPerPage))
     const paginatedFiltered = useMemo(() => {
         const start = (currentPage - 1) * itemsPerPage
         return filtered.slice(start, start + itemsPerPage)
     }, [filtered, currentPage, itemsPerPage])
-
-    useEffect(() => {
-        setCurrentPage(1)
-    }, [searchQuery, filters, quickFilters])
 
     useEffect(() => {
         const el = tableWrapperRef.current
