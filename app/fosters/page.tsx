@@ -268,10 +268,10 @@ export default function FostersPage() {
                     <tr>
                       <th>Foster name</th>
                       <th>Dog(s)</th>
-                      <th title="Task Log Status for PHOTOS_* (worst dog in the home). Second line: latest milestone date—Completed if set, else latest of Email sent/to send, Scheduled send, or Task retired. Follow-up sent is omitted (that is your outbound reminder, not foster submission).">
+                      <th title="Task Log status for PHOTOS_* (worst dog in the home). Second line: last photo activity—Completed date from the log when present, otherwise the latest estimated upload date (Task Log email date minus 5 days), scheduled send, or task retired. Follow-up sent is excluded.">
                         Photos
                       </th>
-                      <th title="Task Log Status for SURVEY_* (worst dog in the home). Second line: same milestone rules as Photos (Follow-up sent excluded).">
+                      <th title="Task Log status for SURVEY_* (worst dog in the home). Second line: last survey activity—Completed when present, otherwise estimated last survey (Task Log email date minus 7 days), scheduled send, or retired. Follow-up sent is excluded.">
                         Survey
                       </th>
                       <th title="Worst status among open Task Log rows in this home (Completed and Retired are excluded). Cleared homes: No open tasks.">
@@ -309,7 +309,7 @@ export default function FostersPage() {
                             <span>{row.photoHouseholdSheetLabel}</span>
                             <span
                               className={inboxStyles.laneLastTouch}
-                              title="Completed date if set; otherwise latest of Email sent/to send, Scheduled send, or Task retired. Follow-up sent is not included."
+                              title="Last photo touchpoint: completed date from the log, or estimated last upload (email date −5 days), scheduled, or retired. Not the raw Task Log email date."
                             >
                               {row.lastPhotoTaskActivityDate
                                 ? formatDateShort(row.lastPhotoTaskActivityDate)
@@ -322,7 +322,7 @@ export default function FostersPage() {
                             <span>{row.surveyHouseholdSheetLabel}</span>
                             <span
                               className={inboxStyles.laneLastTouch}
-                              title="Same as Photos: milestone dates only; Follow-up sent excluded."
+                              title="Last survey touchpoint: completed from the log, or estimated last survey (email date −7 days), scheduled, or retired. Follow-up sent excluded."
                             >
                               {row.lastSurveyTaskActivityDate
                                 ? formatDateShort(row.lastSurveyTaskActivityDate)

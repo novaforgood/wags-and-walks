@@ -38,7 +38,7 @@ const PANEL_IDS: Record<ModalTab, string> = {
 const TABS: { id: ModalTab; label: string }[] = [
   { id: 'summary', label: 'Summary' },
   { id: 'application', label: 'Application' },
-  { id: 'foster-history', label: 'Foster history' },
+  { id: 'foster-history', label: 'Foster History' },
 ]
 
 function pipelineStatusLabel(status?: PersonStatus): string {

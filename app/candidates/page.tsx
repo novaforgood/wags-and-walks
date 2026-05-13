@@ -9,11 +9,11 @@ import TopBarProfileMenu from '@/app/components/TopBarProfileMenu'
 import { DashboardShell } from '@/app/components/DashboardShell'
 import FilterDropdown, { FilterState } from '@/app/components/FilterDropdown'
 import type { Person, PersonStatus } from '@/app/lib/peopleTypes'
+import { applicantAppliedThisWeek } from '@/app/lib/overviewMetrics'
 import { formatRelativeTime } from '@/app/lib/formatRelativeTime'
 import styles from './candidates.module.css'
 
 const MAX_VISIBLE_FLAGS = 2
-const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000
 
 type QuickFilters = {
     flagged: boolean
@@ -79,13 +79,6 @@ function isClosedStatus(s?: PersonStatus): boolean {
     return s === 'approved' || s === 'current' || isRejectedStatus(s)
 }
 
-function appliedWithinLastWeek(p: Person): boolean {
-    if (!p.appliedAt) return false
-    const t = new Date(p.appliedAt).getTime()
-    if (Number.isNaN(t)) return false
-    return Date.now() - t <= ONE_WEEK_MS
-}
-
 export default function CandidatesPage() {
     const { people, isLoading, error, toggleStar } = usePeople()
 
@@ -124,7 +117,7 @@ export default function CandidatesPage() {
         let starred = 0
         for (const p of allCandidates) {
             if (getRedFlagTokens(p).length > 0) flagged += 1
-            if (appliedWithinLastWeek(p)) thisWeek += 1
+            if (applicantAppliedThisWeek(p)) thisWeek += 1
             if (p.starred) starred += 1
         }
         return { flagged, thisWeek, starred }
@@ -147,7 +140,7 @@ export default function CandidatesPage() {
             result = result.filter((p) => getRedFlagTokens(p).length > 0)
         }
         if (quickFilters.thisWeek) {
-            result = result.filter(appliedWithinLastWeek)
+            result = result.filter(p => applicantAppliedThisWeek(p))
         }
         if (quickFilters.starred) {
             result = result.filter((p) => !!p.starred)
@@ -270,6 +263,7 @@ export default function CandidatesPage() {
                         />
                         <QuickPill
                             label="This Week"
+                            title="Applied since Monday 00:00 local (same as Overview). Requires email; rejected excluded."
                             count={isLoading && people.length === 0 ? null : bucketCounts.thisWeek}
                             active={quickFilters.thisWeek}
                             tone="neutral"
@@ -477,12 +471,14 @@ export default function CandidatesPage() {
 
 function QuickPill({
     label,
+    title,
     count,
     active,
     tone,
     onClick,
 }: {
     label: string
+    title?: string
     /** `null` while applicant list is still loading (avoids showing 0 before data arrives). */
     count: number | null
     active: boolean
@@ -501,6 +497,7 @@ function QuickPill({
             className={`${styles.quickPill} ${toneClass} ${active ? styles.quickPillActive : ''}`}
             onClick={onClick}
             aria-pressed={active}
+            title={title}
         >
             <span className={styles.quickPillLabel}>{label}</span>
             <span className={styles.quickPillCount} aria-busy={count === null}>

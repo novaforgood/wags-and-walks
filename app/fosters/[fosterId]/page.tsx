@@ -16,6 +16,10 @@ import {
   type DogRecord,
   type FosterStatus,
 } from '@/app/lib/fosterDirectory'
+import {
+  householdLastTaskActivityDate,
+  inferLastFosterSubmissionYmdFromEmailSent,
+} from '@/app/lib/fosterTaskEnrichment'
 import type { TaskRow } from '@/app/lib/taskTypes'
 import NotesCard from '@/app/components/NotesCard'
 import EmailComposeTrigger from '@/app/components/EmailComposeTrigger'
@@ -474,7 +478,9 @@ export default function FosterDetailsPage() {
                     {foster.dogs.map(dog => {
                       const tasks = fosterTasksByDogId.get(dog.id) ?? []
                       const activeTasks = tasks.filter(t => t.status !== 'retired' && t.status !== 'completed')
-                      const lastEmailSent = tasks.map(t => t.emailSentDate).filter(Boolean).sort().at(-1)
+                      const idSet = new Set([dog.id])
+                      const lastPhotoSubmitted = householdLastTaskActivityDate(taskRows, idSet, 'PHOTOS')
+                      const lastSurveySubmitted = householdLastTaskActivityDate(taskRows, idSet, 'SURVEY')
                       return (
                         <section key={dog.id} className={styles.card}>
                           <div className={styles.dogHeader}>
@@ -491,8 +497,26 @@ export default function FosterDetailsPage() {
                               <div className={styles.statValue}>{activeTasks.length}</div>
                             </div>
                             <div className={styles.stat}>
-                              <div className={styles.statLabel}>Last email</div>
-                              <div className={styles.statValue} style={{ fontSize: 14 }}>{lastEmailSent ? formatDateShort(lastEmailSent) : '—'}</div>
+                              <div
+                                className={styles.statLabel}
+                                title="Completed date from the Task Log when set; otherwise estimated last photo upload (log email date minus 5 days), scheduled, or retired."
+                              >
+                                Last photo (est.)
+                              </div>
+                              <div className={styles.statValue} style={{ fontSize: 14 }}>
+                                {lastPhotoSubmitted ? formatDateShort(lastPhotoSubmitted) : '—'}
+                              </div>
+                            </div>
+                            <div className={styles.stat}>
+                              <div
+                                className={styles.statLabel}
+                                title="Completed date from the Task Log when set; otherwise estimated last survey (log email date minus 7 days), scheduled, or retired."
+                              >
+                                Last survey (est.)
+                              </div>
+                              <div className={styles.statValue} style={{ fontSize: 14 }}>
+                                {lastSurveySubmitted ? formatDateShort(lastSurveySubmitted) : '—'}
+                              </div>
                             </div>
                             <div className={styles.stat}>
                               <div className={styles.statLabel} title="Shelter Manager movement date (not Task Log)">
@@ -523,7 +547,9 @@ export default function FosterDetailsPage() {
                           <thead>
                             <tr>
                               <th>Task</th>
-                              <th>Email sent</th>
+                              <th title="When the foster likely last submitted for this milestone: Completed date if logged; otherwise Task Log email date minus 5 days (photos) or 7 days (surveys). Hover the cell to see the raw log date.">
+                                Last submission (est.)
+                              </th>
                               <th>Last follow-up</th>
                               <th>Completed</th>
                               <th>Status</th>
@@ -538,12 +564,21 @@ export default function FosterDetailsPage() {
                               <tr key={i}>
                                 <td>{taskLabel(t.taskType)}</td>
                                 <td>
-                                  {t.emailSentDate ? formatDateShort(t.emailSentDate) : (
-                                    pendingSendDate ? (
-                                      <span className={styles.pendingEmail}>
-                                        Email pending — {formatDateShort(pendingSendDate)}
-                                      </span>
-                                    ) : '—'
+                                  {t.emailSentDate ? (
+                                    <span
+                                      title={`Task Log email / reminder date: ${formatDateShort(t.emailSentDate)}. Shown value is the estimated last foster submission (${t.taskType.startsWith('PHOTOS') ? 'email date −5 days' : t.taskType.startsWith('SURVEY') ? 'email date −7 days' : 'same as log'}).`}
+                                    >
+                                      {formatDateShort(
+                                        inferLastFosterSubmissionYmdFromEmailSent(t.emailSentDate, t.taskType) ??
+                                          t.emailSentDate
+                                      )}
+                                    </span>
+                                  ) : pendingSendDate ? (
+                                    <span className={styles.pendingEmail}>
+                                      Reminder pending — {formatDateShort(pendingSendDate)}
+                                    </span>
+                                  ) : (
+                                    '—'
                                   )}
                                 </td>
                                 <td>{t.followUpSent ? formatDateShort(t.followUpSent) : '—'}</td>

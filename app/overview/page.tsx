@@ -17,6 +17,8 @@ import {
     compareNeedsAttentionPriority,
     enrichFosterDirectoryWithLanes,
     fosterNeedsAttention,
+    inferLastFosterSubmissionYmdFromEmailSent,
+    parseTaskSheetDateForSort,
     type EnrichedFosterRow,
     type TaskLane,
 } from '@/app/lib/fosterTaskEnrichment'
@@ -175,32 +177,61 @@ function formatTaskLogDate(isoOrSheetDate?: string): string {
     return raw
 }
 
+/** Earlier of the home’s photo vs. survey “last touch” dates from the directory enricher (completed, else email-adjusted, etc.). */
+function oldestHouseholdPhotoOrSurveyEstimate(row: EnrichedFosterRow): string | undefined {
+    let best: { ts: number; raw: string } | null = null
+    for (const raw of [row.lastPhotoTaskActivityDate, row.lastSurveyTaskActivityDate]) {
+        const s = raw?.trim()
+        if (!s) continue
+        const ts = parseTaskSheetDateForSort(s)
+        if (ts == null) continue
+        if (!best || ts < best.ts) best = { ts, raw: s }
+    }
+    return best?.raw
+}
+
 function earliestOverdueTrigger(
     row: EnrichedFosterRow,
     rowsByAnimalId: Map<string, TaskRow[]>
 ): { date?: string; isOverdue: boolean } {
     const animalIds = row.dogs.map(d => d.id)
-    const candidatesOverdue: string[] = []
-    const candidatesActive: string[] = []
-    for (const id of animalIds) {
-        const list = rowsByAnimalId.get(id)
-        if (!list) continue
+    type Cand = { ts: number; display: string }
+
+    function pickEarlier(a: Cand | null, b: Cand): Cand | null {
+        if (!a || b.ts < a.ts) return b
+        return a
+    }
+
+    let bestOverdue: Cand | null = null
+    let bestActive: Cand | null = null
+
+    function bump(list: TaskRow[] | undefined) {
+        if (!list) return
         for (const t of list) {
             if (t.status === 'completed' || t.status === 'retired') continue
-            const d = (t.emailSentDate || t.scheduledDate || '').trim()
-            if (!d) continue
-            if (t.status === 'overdue') candidatesOverdue.push(d)
-            else candidatesActive.push(d)
+            const rawEmail = (t.emailSentDate || '').trim()
+            const rawSched = (t.scheduledDate || '').trim()
+            if (!rawEmail && !rawSched) continue
+
+            const display =
+                rawEmail
+                    ? inferLastFosterSubmissionYmdFromEmailSent(rawEmail, t.taskType) ?? rawEmail
+                    : rawSched
+            const rawForParse = rawEmail || rawSched
+            const ts =
+                parseTaskSheetDateForSort(display) ?? parseTaskSheetDateForSort(rawForParse)
+            if (ts == null) continue
+
+            const cand: Cand = { ts, display }
+            if (t.status === 'overdue') bestOverdue = pickEarlier(bestOverdue, cand)
+            else bestActive = pickEarlier(bestActive, cand)
         }
     }
-    if (candidatesOverdue.length > 0) {
-        candidatesOverdue.sort()
-        return { date: candidatesOverdue[0], isOverdue: true }
-    }
-    if (candidatesActive.length > 0) {
-        candidatesActive.sort()
-        return { date: candidatesActive[0], isOverdue: false }
-    }
+
+    for (const id of animalIds) bump(rowsByAnimalId.get(id))
+
+    if (bestOverdue) return { date: bestOverdue.display, isOverdue: true }
+    if (bestActive) return { date: bestActive.display, isOverdue: false }
     return { date: row.lastUpdate, isOverdue: false }
 }
 
@@ -571,7 +602,12 @@ export default function OverviewPage() {
                                             {taskQueue.map(row => {
                                                 const href = `/fosters/${row.id}?from=overview`
                                                 const badge = badgeForTaskRow(row, styles)
+                                                const fromLanes = oldestHouseholdPhotoOrSurveyEstimate(row)
                                                 const trigger = earliestOverdueTrigger(row, taskRowsByAnimalId)
+                                                const displayDate = fromLanes ?? trigger.date
+                                                const dateTitle = fromLanes
+                                                    ? 'Earlier of this home’s estimated last photo upload vs. last survey (matches directory: completed date when set, else log email date minus 5 or 7 days).'
+                                                    : 'No photo/survey “last touch” on file for both lanes; showing the earliest open-task date from the Task Log instead.'
                                                 return (
                                                     <li key={row.id}>
                                                         <Link href={href} className={styles.row}>
@@ -592,13 +628,13 @@ export default function OverviewPage() {
                                                                 </span>
                                                                 <div
                                                                     className={styles.rowDateBlock}
-                                                                    title="Earliest date from the Task Log for this home’s dogs (scheduled follow-up, or last sent date when the sheet stores that instead)."
+                                                                    title={dateTitle}
                                                                 >
                                                                     <span className={styles.rowDateLabel}>
-                                                                        Task log
+                                                                        Last submission
                                                                     </span>
                                                                     <span className={styles.rowDateValue}>
-                                                                        {formatTaskLogDate(trigger.date)}
+                                                                        {formatTaskLogDate(displayDate)}
                                                                     </span>
                                                                 </div>
                                                             </div>

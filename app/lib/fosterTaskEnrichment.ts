@@ -145,16 +145,65 @@ export type EnrichedFosterRow = Omit<FosterDirectoryItem, 'dogs'> & {
   surveyHouseholdSheetLabel: string
   householdRollup: FosterStatus
   /**
-   * Latest **milestone** date for PHOTOS_* in this home: prefers Completed; else max of Email sent/to send,
-   * Scheduled send, Task retired. **Follow-up sent** is excluded (reminder you sent, not foster submission).
+   * Latest **foster-facing** photo activity in this home: prefers Task Log **Completed**; else max of
+   * **estimated last upload** (Email sent date minus {@link TASK_LOG_EMAIL_SENT_AFTER_PHOTO_SUBMIT_DAYS} for PHOTOS_*),
+   * Scheduled send, or Task retired. Follow-up sent is excluded.
    */
   lastPhotoTaskActivityDate?: string
-  /** Same milestone rules as {@link lastPhotoTaskActivityDate} for SURVEY_*. */
+  /** Same rules as {@link lastPhotoTaskActivityDate} for SURVEY_* (email date minus {@link TASK_LOG_EMAIL_SENT_AFTER_SURVEY_SUBMIT_DAYS}). */
   lastSurveyTaskActivityDate?: string
 }
 
+/**
+ * Days between foster photo submission and when the Task Log records **Email sent date**
+ * (Apps Script logs the reminder row after the upload window).
+ */
+export const TASK_LOG_EMAIL_SENT_AFTER_PHOTO_SUBMIT_DAYS = 5
+/**
+ * Days between survey completion and when the Task Log records **Email sent date**
+ * for SURVEY_* rows.
+ */
+export const TASK_LOG_EMAIL_SENT_AFTER_SURVEY_SUBMIT_DAYS = 7
+
+export function emailSentOffsetDaysForTaskType(taskType: string): number {
+  const t = String(taskType ?? '')
+  if (t.startsWith('PHOTOS')) return TASK_LOG_EMAIL_SENT_AFTER_PHOTO_SUBMIT_DAYS
+  if (t.startsWith('SURVEY')) return TASK_LOG_EMAIL_SENT_AFTER_SURVEY_SUBMIT_DAYS
+  return 0
+}
+
+function formatYmdFromLocalDate(d: Date): string {
+  const y = d.getFullYear()
+  const mo = String(d.getMonth() + 1).padStart(2, '0')
+  const da = String(d.getDate()).padStart(2, '0')
+  return `${y}-${mo}-${da}`
+}
+
+/** Subtract calendar days from a sheet-style date; returns YYYY-MM-DD for display pipelines. */
+export function subtractCalendarDaysFromSheetDate(raw: string, days: number): string | undefined {
+  const ts = parseTaskSheetDateForSort(raw)
+  if (ts == null) return undefined
+  const d = new Date(ts)
+  d.setDate(d.getDate() - days)
+  return formatYmdFromLocalDate(d)
+}
+
+/**
+ * Best-effort **last foster submission** date (YYYY-MM-DD) implied by Task Log email sent date.
+ * Photo and survey rows use fixed offsets from ops; other task types return the parsed email date unchanged.
+ */
+export function inferLastFosterSubmissionYmdFromEmailSent(
+  raw: string,
+  taskType: string
+): string | undefined {
+  const trimmed = String(raw ?? '').trim()
+  if (!trimmed) return undefined
+  const offset = emailSentOffsetDaysForTaskType(taskType)
+  return subtractCalendarDaysFromSheetDate(trimmed, offset)
+}
+
 /** Parse sheet-style dates for ordering (YYYY-MM-DD… or M/D/YYYY). */
-function parseTaskSheetDateForSort(raw: string): number | null {
+export function parseTaskSheetDateForSort(raw: string): number | null {
   const s = String(raw ?? '').trim()
   if (!s) return null
   const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/)
@@ -172,8 +221,9 @@ function parseTaskSheetDateForSort(raw: string): number | null {
 }
 
 /**
- * Latest Task Log touch for rows matching `taskPrefix` (PHOTOS_* or SURVEY_*) for any dog in the household.
- * Prefers `completedDate`; if none, uses latest of follow-up sent, email sent, scheduled, or retired.
+ * Latest foster-relevant Task Log date for rows matching `taskPrefix` (PHOTOS_* or SURVEY_*) in the household.
+ * Prefers `completedDate`; if none, uses the latest of **inferred last submission** from email sent (see
+ * {@link inferLastFosterSubmissionYmdFromEmailSent}), scheduled, or retired.
  */
 export function householdLastTaskActivityDate(
   taskRows: readonly TaskRow[],
@@ -207,7 +257,12 @@ export function householdLastTaskActivityDate(
       consider(completed, 'any')
     }
 
-    for (const dateRaw of [r.emailSentDate, r.scheduledDate, r.retiredDate]) {
+    const emailRaw = String(r.emailSentDate ?? '').trim()
+    if (emailRaw) {
+      const inferred = inferLastFosterSubmissionYmdFromEmailSent(emailRaw, r.taskType)
+      consider(inferred ?? emailRaw, 'any')
+    }
+    for (const dateRaw of [r.scheduledDate, r.retiredDate]) {
       const t = String(dateRaw ?? '').trim()
       if (t) consider(t, 'any')
     }
