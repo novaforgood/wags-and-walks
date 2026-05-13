@@ -47,6 +47,13 @@ export type FostererHistory = {
   pastFosters: FosterDog[]
 }
 
+const rawTtl = Number(process.env.ASM_FOSTER_HISTORY_CACHE_TTL_SEC)
+const CACHE_TTL_MS =
+  Math.max(30, Math.min(900, Number.isFinite(rawTtl) && rawTtl > 0 ? rawTtl : 120)) * 1000
+
+let historyCache: { rows: AsmFosterRow[]; expiresAt: number } | null = null
+let historyInFlight: Promise<AsmFosterRow[]> | null = null
+
 function rowToDog(row: AsmFosterRow): FosterDog {
   return {
     animalId: String(row.ANIMALID),
@@ -100,7 +107,7 @@ export function groupFosterHistory(rows: AsmFosterRow[]): FostererHistory[] {
   return Array.from(map.values())
 }
 
-export async function fetchAsmFosterHistory(): Promise<AsmFosterRow[]> {
+async function fetchAsmFosterHistoryFromAsm(): Promise<AsmFosterRow[]> {
   const account = process.env.ASM_ACCOUNT
   const key = process.env.ASM_API_KEY
   const title = process.env.ASM_REPORT_TITLE ?? 'Foster History API'
@@ -127,7 +134,6 @@ export async function fetchAsmFosterHistory(): Promise<AsmFosterRow[]> {
     }
 
     const raw = await res.text()
-    // eslint-disable-next-line no-control-regex
     const text = raw.replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g, ' ').replace(/,(\s*[}\]])/g, '$1')
     const data: unknown = JSON.parse(text)
 
@@ -140,4 +146,21 @@ export async function fetchAsmFosterHistory(): Promise<AsmFosterRow[]> {
   } finally {
     clearTimeout(timeout)
   }
+}
+
+export async function fetchAsmFosterHistory(): Promise<AsmFosterRow[]> {
+  const now = Date.now()
+  if (historyCache && historyCache.expiresAt > now) return historyCache.rows
+  if (historyInFlight) return historyInFlight
+
+  historyInFlight = fetchAsmFosterHistoryFromAsm()
+    .then(rows => {
+      historyCache = { rows, expiresAt: Date.now() + CACHE_TTL_MS }
+      return rows
+    })
+    .finally(() => {
+      historyInFlight = null
+    })
+
+  return historyInFlight
 }

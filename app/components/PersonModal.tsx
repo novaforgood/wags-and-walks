@@ -3,6 +3,7 @@
 import { useRef, useState } from 'react'
 
 import type { Person, PersonStatus } from '@/app/lib/peopleTypes'
+import type { FostererHistory } from '@/app/lib/asmFosterHistory'
 import {
   ALL_APPLICATION_FIELD_RAW_KEYS,
   APPLICATION_FORM_SECTIONS,
@@ -19,6 +20,7 @@ import styles from './PersonModal.module.css'
 interface Props {
   person: Person | null
   onClose: () => void
+  fosterHistory?: FostererHistory | null
 }
 
 type ModalTab = 'summary' | 'application' | 'foster-history'
@@ -60,7 +62,7 @@ const META_FIELDS = new Set([
   'rowIndex',
 ])
 
-export default function PersonModal({ person, onClose }: Props) {
+export default function PersonModal({ person, onClose, fosterHistory }: Props) {
   const [activeTab, setActiveTab] = useState<ModalTab>('summary')
   const emailKey = person?.email ?? ''
   const prevEmailKeyRef = useRef(emailKey)
@@ -167,7 +169,7 @@ export default function PersonModal({ person, onClose }: Props) {
             className={styles.tabPanel}
           >
             <div className={styles.profileContent}>
-              <FosterHistoryPanel email={person.email} />
+              <FosterHistoryPanel email={person.email} initialData={fosterHistory} />
             </div>
           </div>
         )}

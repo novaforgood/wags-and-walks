@@ -109,6 +109,7 @@ export default function DirectoryPage() {
   const [quickFilter, setQuickFilter] = useState<QuickFilter>('all')
   const [sortOrder, setSortOrder] = useState<SortOrder>('az')
   const [selectedPerson, setSelectedPerson] = useState<Person | null>(null)
+  const [selectedFosterHistory, setSelectedFosterHistory] = useState<FostererHistory | null>(null)
   const [groupMembers, setGroupMembers] = useState<GroupMember[]>([])
   const [isLoadingGroup, setIsLoadingGroup] = useState(true)
   const [groupError, setGroupError] = useState<string | null>(null)
@@ -393,6 +394,10 @@ export default function DirectoryPage() {
                     {paginatedRows.map((r, index) => {
                       const key = r.asmProfile?.fostererId || r.email || `${r.displayName}-${index}`
                       const personForModal = buildPersonForModal(r)
+                      const openPerson = () => {
+                        setSelectedPerson(personForModal)
+                        setSelectedFosterHistory(r.asmProfile)
+                      }
                       return (
                         <tr
                           key={key}
@@ -403,13 +408,13 @@ export default function DirectoryPage() {
                           aria-label={`Open directory entry for ${r.displayName}`}
                           onClick={e => {
                             if ((e.target as HTMLElement).closest('button')) return
-                            setSelectedPerson(personForModal)
+                            openPerson()
                           }}
                           onKeyDown={e => {
                             if (e.key !== 'Enter' && e.key !== ' ') return
                             if ((e.target as HTMLElement).closest('button')) return
                             e.preventDefault()
-                            setSelectedPerson(personForModal)
+                            openPerson()
                           }}
                         >
                           <td className={styles.nameCell}>{r.displayName}</td>
@@ -466,7 +471,7 @@ export default function DirectoryPage() {
                                 className={`${styles.selectBtn} ${dirStyles.selectBtnCompact}`}
                                 onClick={e => {
                                   e.stopPropagation()
-                                  setSelectedPerson(personForModal)
+                                  openPerson()
                                 }}
                               >
                                 View
@@ -528,7 +533,14 @@ export default function DirectoryPage() {
             )}
           </div>
         </div>
-        <PersonModal person={selectedPerson} onClose={() => setSelectedPerson(null)} />
+        <PersonModal
+          person={selectedPerson}
+          fosterHistory={selectedFosterHistory}
+          onClose={() => {
+            setSelectedPerson(null)
+            setSelectedFosterHistory(null)
+          }}
+        />
       </DashboardShell>
     </ProtectedRoute>
   )

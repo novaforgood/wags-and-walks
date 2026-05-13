@@ -5,23 +5,34 @@ import type { FostererHistory, FosterDog } from '@/app/lib/asmFosterHistory'
 
 interface Props {
   email: string | null | undefined
+  initialData?: FostererHistory | null
   sectionClassName?: string
   sectionTitleClassName?: string
 }
 
-export default function FosterHistoryPanel({ email, sectionClassName, sectionTitleClassName }: Props) {
-  const [data, setData] = useState<FostererHistory | null>(null)
-  const [loading, setLoading] = useState(() => Boolean(email))
+export default function FosterHistoryPanel({ email, initialData, sectionClassName, sectionTitleClassName }: Props) {
+  const hasInitialData = initialData !== undefined
+  const [fetchedData, setFetchedData] = useState<FostererHistory | null>(null)
+  const [loading, setLoading] = useState(() => Boolean(email) && !hasInitialData)
   const [error, setError] = useState<string | null>(null)
+  const data = hasInitialData ? initialData : fetchedData
 
   useEffect(() => {
+    if (hasInitialData) {
+      return
+    }
+
     if (!email) {
-      queueMicrotask(() => setLoading(false))
+      queueMicrotask(() => {
+        setFetchedData(null)
+        setLoading(false)
+      })
       return
     }
     let active = true
     queueMicrotask(() => {
       if (active) {
+        setFetchedData(null)
         setLoading(true)
         setError(null)
       }
@@ -32,7 +43,7 @@ export default function FosterHistoryPanel({ email, sectionClassName, sectionTit
       .then(json => {
         if (!active) return
         if (json?.success) {
-          setData(json.fosterer)
+          setFetchedData(json.fosterer)
         } else {
           setError(json?.error ?? 'Failed to load foster history')
         }
@@ -41,7 +52,7 @@ export default function FosterHistoryPanel({ email, sectionClassName, sectionTit
       .finally(() => { if (active) setLoading(false) })
 
     return () => { active = false }
-  }, [email])
+  }, [email, hasInitialData])
 
   const sc = sectionClassName ?? defaultSectionStyle
   const stc = sectionTitleClassName ?? undefined
