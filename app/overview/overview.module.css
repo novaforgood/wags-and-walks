@@ -56,27 +56,23 @@
     color: var(--app-text-subtle);
 }
 
-.statCardValuePending {
+.statValueSkeleton {
     display: inline-block;
-    min-width: 1ch;
-    font-size: 34px;
-    font-weight: 800;
-    line-height: 1;
-    color: var(--app-text-subtle);
-    letter-spacing: 0.12em;
-    animation: overviewStatPulse 1.1s ease-in-out infinite;
+    width: 54px;
+    height: 34px;
+    border-radius: 8px;
+    background: linear-gradient(
+        90deg,
+        var(--app-filter-track) 0%,
+        #eef3f3 42%,
+        var(--app-filter-track) 78%
+    );
+    background-size: 220% 100%;
+    animation: overviewSkeletonPulse 1.2s ease-in-out infinite;
 }
 
-@keyframes overviewStatPulse {
-
-    0%,
-    100% {
-        opacity: 0.35;
-    }
-
-    50% {
-        opacity: 1;
-    }
+.fadeIn {
+    animation: overviewFadeIn 180ms ease-out both;
 }
 
 /* ── Two-column briefing ────────────────────────────────── */
@@ -449,6 +445,18 @@
 
     100% {
         background-position: -120% 0;
+    }
+}
+
+@keyframes overviewFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(2px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
     }
 }
 

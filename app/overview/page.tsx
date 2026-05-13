@@ -105,13 +105,11 @@ function StatValueFigure({
 }) {
     if (pending) {
         return (
-            <span className={styles.statCardValuePending} aria-busy="true" title="Loading">
-                …
-            </span>
+            <span className={styles.statValueSkeleton} aria-busy="true" title="Loading" />
         )
     }
     return (
-        <span className={`${styles.statCardValue} ${alert ? styles.statCardValueAlert : ''}`}>
+        <span className={`${styles.statCardValue} ${styles.fadeIn} ${alert ? styles.statCardValueAlert : ''}`}>
             {children}
         </span>
     )
@@ -488,11 +486,9 @@ export default function OverviewPage() {
                                 <span className={styles.statCardLabel}>Foster starts this month</span>
                                 <span className={styles.statCardValue}>
                                     {fosterHistoryLoading ? (
-                                        <span className={styles.statCardValuePending} aria-busy="true" title="Loading">
-                                            …
-                                        </span>
+                                        <span className={styles.statValueSkeleton} aria-busy="true" title="Loading" />
                                     ) : (
-                                        placementsThisMonth
+                                        <span className={styles.fadeIn}>{placementsThisMonth}</span>
                                     )}
                                 </span>
                             </div>
@@ -530,7 +526,7 @@ export default function OverviewPage() {
                                     ) : applicantQueue.length === 0 ? (
                                         <p className={styles.emptyState}>No applicants found.</p>
                                     ) : (
-                                        <ul className={styles.rowList}>
+                                        <ul className={`${styles.rowList} ${styles.fadeIn}`}>
                                             {applicantQueue.map(p => {
                                                 const email = p.email!.trim()
                                                 const href = `/applicants/${encodeURIComponent(email)}?from=overview`
@@ -606,7 +602,7 @@ export default function OverviewPage() {
                                     ) : taskQueue.length === 0 ? (
                                         <p className={styles.emptyState}>All caught up.</p>
                                     ) : (
-                                        <ul className={styles.rowList}>
+                                        <ul className={`${styles.rowList} ${styles.fadeIn}`}>
                                             {taskQueue.map(row => {
                                                 const href = `/fosters/${row.id}?from=overview`
                                                 const badge = badgeForTaskRow(row, styles)
