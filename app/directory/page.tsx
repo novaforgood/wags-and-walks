@@ -66,6 +66,43 @@ const QUICK_FILTERS: { id: QuickFilter; label: string; title: string }[] = [
   { id: 'available', label: 'Available', title: 'Has Shelter Manager history but is not currently fostering' },
 ]
 
+function DirectorySkeletonRows() {
+  return (
+    <>
+      <tr data-directory-metrics-skip="">
+        <td colSpan={6} className={dirStyles.srOnly} role="status" aria-live="polite">
+          Loading directory
+        </td>
+      </tr>
+      {Array.from({ length: 10 }).map((_, index) => (
+        <tr key={index} className={dirStyles.skeletonRow} aria-hidden="true">
+          <td>
+            <span className={`${dirStyles.skeletonLine} ${dirStyles.skeletonName}`} />
+          </td>
+          <td>
+            <span className={`${dirStyles.skeletonLine} ${dirStyles.skeletonEmail}`} />
+          </td>
+          <td className={dirStyles.hideOnMobile}>
+            <span className={`${dirStyles.skeletonLine} ${dirStyles.skeletonPhone}`} />
+          </td>
+          <td>
+            <span className={`${dirStyles.skeletonLine} ${dirStyles.skeletonShort}`} />
+          </td>
+          <td className={dirStyles.hideOnTablet}>
+            <span className={`${dirStyles.skeletonLine} ${dirStyles.skeletonTiny}`} />
+          </td>
+          <td>
+            <span className={dirStyles.skeletonActions}>
+              <span className={dirStyles.skeletonStar} />
+              <span className={dirStyles.skeletonButton} />
+            </span>
+          </td>
+        </tr>
+      ))}
+    </>
+  )
+}
+
 export default function DirectoryPage() {
   const { people, isLoading: peopleLoading, error: peopleError, toggleStar } = usePeople()
   const [searchQuery, setSearchQuery] = useState('')
@@ -238,6 +275,7 @@ export default function DirectoryPage() {
 
   const isLoading =
     isLoadingGroup || isLoadingFosterers || (peopleLoading && people.length === 0 && !groupError)
+  const initialDirectoryLoading = isLoading && rows.length === 0
   const error = groupError ?? fostererError ?? peopleError
   const pageList = totalPages > 1 ? buildPageList(totalPages, currentPage) : []
 
@@ -259,6 +297,7 @@ export default function DirectoryPage() {
               placeholder="Search by name, email, phone, or dog name"
               className={styles.searchInput}
               value={searchQuery}
+              disabled={initialDirectoryLoading}
               onChange={e => setSearchQuery(e.target.value)}
             />
             <div className={styles.searchIconWrap}>
@@ -277,6 +316,7 @@ export default function DirectoryPage() {
                     type="button"
                     className={`${dirStyles.chip} ${quickFilter === f.id ? dirStyles.chipActive : ''}`}
                     onClick={() => setQuickFilter(f.id)}
+                    disabled={initialDirectoryLoading}
                     title={f.title}
                     aria-pressed={quickFilter === f.id}
                   >
@@ -289,6 +329,7 @@ export default function DirectoryPage() {
                 <select
                   className={dirStyles.sortSelect}
                   value={sortOrder}
+                  disabled={initialDirectoryLoading}
                   onChange={e => setSortOrder(e.target.value as SortOrder)}
                   aria-label="Sort directory"
                 >
@@ -333,12 +374,8 @@ export default function DirectoryPage() {
                     </td>
                   </tr>
                 )}
-                {isLoading && rows.length === 0 ? (
-                  <tr data-directory-metrics-skip="">
-                    <td colSpan={6} className={dirStyles.tableStateLoading}>
-                      Loading directory…
-                    </td>
-                  </tr>
+                {initialDirectoryLoading ? (
+                  <DirectorySkeletonRows />
                 ) : error && rows.length === 0 ? (
                   <tr data-directory-metrics-skip="">
                     <td colSpan={6} className={dirStyles.tableStateError} role="alert">
@@ -359,7 +396,7 @@ export default function DirectoryPage() {
                       return (
                         <tr
                           key={key}
-                          className={[r.flagged ? dirStyles.rowFlagged : '', styles.tableRowClickable]
+                          className={[r.flagged ? dirStyles.rowFlagged : '', styles.tableRowClickable, dirStyles.fadeIn]
                             .filter(Boolean)
                             .join(' ')}
                           tabIndex={0}

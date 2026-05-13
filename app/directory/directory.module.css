@@ -46,6 +46,18 @@
     border-bottom: 1px solid #fde68a;
 }
 
+.srOnly {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
 /* ---- Directory: search row only in shared toolbar ---- */
 .directoryToolbar {
     padding-bottom: 14px;
@@ -97,6 +109,16 @@
     border-color: #aaa;
 }
 
+.chip:disabled {
+    cursor: default;
+    opacity: 0.55;
+}
+
+.chip:disabled:hover {
+    background: #fff;
+    border-color: #c4c4c4;
+}
+
 /* Solid primary fill — matches View / selectBtn (#05aaaf) */
 .chipActive {
     background: #05aaaf;
@@ -108,6 +130,13 @@
 .chipActive:hover {
     background: #05999e;
     border-color: #05999e;
+}
+
+.chipActive:disabled,
+.chipActive:disabled:hover {
+    background: #05aaaf;
+    border-color: #05aaaf;
+    color: #fff;
 }
 
 .chip:focus-visible {
@@ -148,6 +177,95 @@
 
 .sortSelect:hover {
     border-color: #9ca3af;
+}
+
+.sortSelect:disabled {
+    cursor: default;
+    opacity: 0.6;
+}
+
+.fadeIn {
+    animation: directoryFadeIn 180ms ease-out both;
+}
+
+.skeletonRow {
+    pointer-events: none;
+}
+
+.skeletonLine,
+.skeletonStar,
+.skeletonButton {
+    display: block;
+    background: linear-gradient(90deg, #f3f7f7 0%, #eef3f3 42%, #f3f7f7 78%);
+    background-size: 220% 100%;
+    animation: directorySkeletonPulse 1.2s ease-in-out infinite;
+}
+
+.skeletonLine {
+    height: 12px;
+    border-radius: 999px;
+}
+
+.skeletonName {
+    width: min(180px, 72%);
+}
+
+.skeletonEmail {
+    width: min(260px, 82%);
+}
+
+.skeletonPhone {
+    width: min(120px, 76%);
+}
+
+.skeletonShort {
+    width: 42px;
+}
+
+.skeletonTiny {
+    width: 28px;
+}
+
+.skeletonActions {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    width: 100%;
+}
+
+.skeletonStar {
+    width: 30px;
+    height: 30px;
+    border-radius: 999px;
+}
+
+.skeletonButton {
+    width: 78px;
+    height: 30px;
+    border-radius: 6px;
+}
+
+@keyframes directorySkeletonPulse {
+    0% {
+        background-position: 120% 0;
+    }
+
+    100% {
+        background-position: -120% 0;
+    }
+}
+
+@keyframes directoryFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(2px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 /* ---- Flagged row indicator ---- */
