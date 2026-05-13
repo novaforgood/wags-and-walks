@@ -2,20 +2,35 @@
 
 import { useEffect, useId, useState } from 'react'
 import { formatDateShort } from '@/app/lib/fosterDirectory'
+import {
+  getCachedFosterNotes,
+  prefetchFosterNotes,
+  setCachedFosterNotes,
+} from '@/app/lib/fosterNotesClientCache'
 import styles from './NotesCard.module.css'
 
 interface Props {
   email: string | null | undefined
+  initialNotes?: string
+  initialNotesUpdatedAt?: string
 }
 
 /** Foster notes (Sheet 2). Saves on blur. */
-export default function NotesCard({ email }: Props) {
+export default function NotesCard({ email, initialNotes, initialNotesUpdatedAt }: Props) {
   const notesHeadingId = useId()
+  const hasInitialNotes = initialNotes !== undefined || initialNotesUpdatedAt !== undefined
+  const cachedNotes = getCachedFosterNotes(email)
   const [draft, setDraft] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
-  const [notesFromSheet, setNotesFromSheet] = useState<{ notes: string; notesUpdatedAt: string } | null>(null)
-  const [isLoading, setIsLoading] = useState(() => Boolean(email))
+  const [notesFromSheet, setNotesFromSheet] = useState<{ notes: string; notesUpdatedAt: string } | null>(
+    hasInitialNotes
+      ? { notes: initialNotes ?? '', notesUpdatedAt: initialNotesUpdatedAt ?? '' }
+      : cachedNotes
+        ? cachedNotes
+      : null
+  )
+  const [isLoading, setIsLoading] = useState(() => Boolean(email) && !hasInitialNotes && !cachedNotes)
 
   useEffect(() => {
     if (!email) {
@@ -23,22 +38,23 @@ export default function NotesCard({ email }: Props) {
       return
     }
     let active = true
-    fetch(`/api/foster-notes?email=${encodeURIComponent(email)}`)
-      .then(r => r.json())
-      .then(data => {
+    queueMicrotask(() => {
+      if (active && !hasInitialNotes && !getCachedFosterNotes(email)) setIsLoading(true)
+    })
+    prefetchFosterNotes(email)
+      .then(entry => {
         if (!active) return
-        if (data?.success) {
-          setNotesFromSheet({ notes: data.notes || '', notesUpdatedAt: data.notesUpdatedAt || '' })
+        if (entry) {
+          setNotesFromSheet(entry)
         }
       })
-      .catch(() => {})
       .finally(() => {
         if (active) setIsLoading(false)
       })
     return () => {
       active = false
     }
-  }, [email])
+  }, [email, hasInitialNotes])
 
   return (
     <>
@@ -73,6 +89,14 @@ export default function NotesCard({ email }: Props) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email, content: draft }),
           })
+          setCachedFosterNotes(email, {
+            notes: draft,
+            notesUpdatedAt: new Date().toISOString(),
+          })
+          setNotesFromSheet(prev => ({
+            notes: draft,
+            notesUpdatedAt: prev?.notesUpdatedAt ?? '',
+          }))
           setSaving(false)
           setSaved(true)
         }}

@@ -7,6 +7,7 @@ import PersonModal from '@/app/components/PersonModal'
 import NotificationPanel from '@/app/components/NotificationPanel'
 import TopBarProfileMenu from '@/app/components/TopBarProfileMenu'
 import { DashboardShell } from '@/app/components/DashboardShell'
+import { prefetchFosterNotes } from '@/app/lib/fosterNotesClientCache'
 import type { Person } from '@/app/lib/peopleTypes'
 import type { FostererHistory } from '@/app/lib/asmFosterHistory'
 import {
@@ -277,6 +278,16 @@ export default function DirectoryPage() {
     ro.observe(el)
     return () => ro.disconnect()
   }, [])
+
+  useEffect(() => {
+    if (paginatedRows.length === 0) return
+    const id = window.setTimeout(() => {
+      for (const row of paginatedRows.slice(0, 12)) {
+        void prefetchFosterNotes(row.email)
+      }
+    }, 250)
+    return () => window.clearTimeout(id)
+  }, [paginatedRows])
 
   const peoplePending = peopleLoading && people.length === 0 && !peopleError
   const fosterersPending = isLoadingFosterers && fosterers.length === 0 && !fostererError

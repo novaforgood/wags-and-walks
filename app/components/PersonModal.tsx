@@ -344,7 +344,12 @@ function SummaryTab({
       </section>
 
       <section className={styles.section} aria-label="Notes">
-        <NotesCard email={person.email} />
+        <NotesCard
+          key={person.email || `${person.firstName ?? ''}-${person.lastName ?? ''}`}
+          email={person.email}
+          initialNotes={person.notes}
+          initialNotesUpdatedAt={person.notesUpdatedAt}
+        />
       </section>
 
       {person.email && (
