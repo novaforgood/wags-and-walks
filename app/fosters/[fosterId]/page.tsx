@@ -18,6 +18,7 @@ import {
 } from '@/app/lib/fosterDirectory'
 import type { TaskRow } from '@/app/lib/taskTypes'
 import NotesCard from '@/app/components/NotesCard'
+import EmailComposeTrigger from '@/app/components/EmailComposeTrigger'
 import FosterHistoryPanel from '@/app/components/FosterHistoryPanel'
 import layoutStyles from '../../candidates/candidates.module.css'
 import styles from './page.module.css'
@@ -566,6 +567,12 @@ export default function FosterDetailsPage() {
 
                 {activeTab === 'communication' && (
                   <div className={styles.tabPanel}>
+                    {emailFromSlug && (
+                      <section className={styles.card} style={{ marginBottom: 16 }}>
+                        <h3 className={styles.sectionTitle}>Email</h3>
+                        <EmailComposeTrigger email={emailFromSlug} recipientName={foster.fosterName} />
+                      </section>
+                    )}
                     <ScheduledEmailsSection
                       foster={foster}
                       tasks={Array.from(fosterTasksByDogId.values()).flat()}
@@ -578,7 +585,7 @@ export default function FosterDetailsPage() {
                 {activeTab === 'notes' && (
                   <div className={styles.tabPanel}>
                     <section className={styles.card}>
-                      <NotesCard email={emailFromSlug} name={foster.fosterName} hideSendEmail />
+                      <NotesCard email={emailFromSlug} />
                     </section>
                   </div>
                 )}

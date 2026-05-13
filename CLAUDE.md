@@ -67,7 +67,8 @@ Two layout patterns coexist:
 - `FilterDropdown` — Multi-category filter dropdown (living situation, experience, children, dog types, pet history)
 - `NotificationPanel` — Bell icon notification dropdown with unread/read filtering (currently uses mock data)
 - `FostersSubTabs` — Tab bar (Directory / Overview / Actions) rendered inside the `/fosters` layout
-- `NotesCard` — Shared notes textarea + email compose popup (draggable). Fetches/saves directly to `/api/foster-notes` on blur. Email popup (`Send Email` button) calls `/api/send-email` with `action: 'send_single_email'`
+- `NotesCard` — Foster-tracking notes textarea only. Fetches/saves to `/api/foster-notes` on blur (Sheet 2)
+- `EmailComposeTrigger` — Standalone compose control (draggable dialog) that POSTs to `/api/send-email` with `action: 'send_single_email'`. Used beside notes in `PersonModal` and on foster Communication tab
 - `FosterHistoryPanel` — Fetches from `/api/foster-history?email=` and renders current/past foster dog tables. Accepts optional `sectionClassName`/`sectionTitleClassName` for styling from the parent context.
 
 > **Sidebar duplication:** There is no shared sidebar component. Each page (`/candidates`, `/fosters/*`, `/overview`) renders its own sidebar JSX inline and imports `candidates/candidates.module.css` for the shared shell classes (`pageWrapper`, `sidebar`, `sidebarNav`, `navItem`, `navItemActive`, `mainContent`, `topBar`). The main nav width is fixed at 208px (`--app-sidebar-width`). When changing sidebar nav items, update all pages.
