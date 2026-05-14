@@ -8,6 +8,7 @@ import { useAuth } from '@/app/components/AuthProvider'
 import { SidebarGeneralSection } from '@/app/components/SidebarGeneralSection'
 import { SidebarAccountSection } from '@/app/components/SidebarAccountSection'
 import { SidebarProfile } from '@/app/components/SidebarProfile'
+import { prewarmDirectoryData } from '@/app/lib/directoryClientCache'
 import layoutStyles from '@/app/candidates/candidates.module.css'
 
 function MenuGlyph({ open }: { open: boolean }) {
@@ -33,6 +34,23 @@ type DashboardShellContentProps = {
 function DashboardShellContent({ children, pathname }: DashboardShellContentProps) {
   const { user, role, signOut } = useAuth()
   const [navOpen, setNavOpen] = useState(false)
+
+  useEffect(() => {
+    if (pathname === '/directory') return
+    const win = window as Window & {
+      requestIdleCallback?: (callback: () => void, options?: { timeout?: number }) => number
+      cancelIdleCallback?: (id: number) => void
+    }
+    const run = () => {
+      void prewarmDirectoryData()
+    }
+    if (win.requestIdleCallback && win.cancelIdleCallback) {
+      const id = win.requestIdleCallback(run, { timeout: 3000 })
+      return () => win.cancelIdleCallback?.(id)
+    }
+    const id = window.setTimeout(run, 1200)
+    return () => window.clearTimeout(id)
+  }, [pathname])
 
   useEffect(() => {
     const mq = window.matchMedia('(min-width: 901px)')

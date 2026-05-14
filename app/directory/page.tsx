@@ -7,6 +7,12 @@ import PersonModal from '@/app/components/PersonModal'
 import NotificationPanel from '@/app/components/NotificationPanel'
 import TopBarProfileMenu from '@/app/components/TopBarProfileMenu'
 import { DashboardShell } from '@/app/components/DashboardShell'
+import {
+  FOSTER_HISTORY_CACHE_KEY,
+  GROUP_MEMBERS_CACHE_KEY,
+  readCachedArray,
+  writeCachedArray,
+} from '@/app/lib/directoryClientCache'
 import { prefetchFosterNotes } from '@/app/lib/fosterNotesClientCache'
 import type { Person } from '@/app/lib/peopleTypes'
 import type { FostererHistory } from '@/app/lib/asmFosterHistory'
@@ -47,28 +53,6 @@ type DirectoryRow = DirectoryProfile & {
   totalFostered: number
   starred: boolean
   flagged: boolean
-}
-
-const GROUP_MEMBERS_CACHE_KEY = 'directory_group_members_v1'
-const FOSTER_HISTORY_CACHE_KEY = 'directory_foster_history_v1'
-
-function readCachedArray<T>(key: string): T[] {
-  try {
-    const raw = localStorage.getItem(key)
-    if (!raw) return []
-    const parsed = JSON.parse(raw) as unknown
-    return Array.isArray(parsed) ? parsed as T[] : []
-  } catch {
-    return []
-  }
-}
-
-function writeCachedArray<T>(key: string, value: T[]) {
-  try {
-    localStorage.setItem(key, JSON.stringify(value))
-  } catch {
-    // Best-effort cache only.
-  }
 }
 
 function buildPageList(totalPages: number, currentPage: number): (number | 'ellipsis')[] {
