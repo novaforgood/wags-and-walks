@@ -217,8 +217,8 @@ function earliestOverdueTrigger(
         return a
     }
 
-    let bestOverdue: Cand | null = null
-    let bestActive: Cand | null = null
+    const overdueCandidates: Cand[] = []
+    const activeCandidates: Cand[] = []
 
     function bump(list: TaskRow[] | undefined) {
         if (!list) return
@@ -238,12 +238,15 @@ function earliestOverdueTrigger(
             if (ts == null) continue
 
             const cand: Cand = { ts, display }
-            if (t.status === 'overdue') bestOverdue = pickEarlier(bestOverdue, cand)
-            else bestActive = pickEarlier(bestActive, cand)
+            if (t.status === 'overdue') overdueCandidates.push(cand)
+            else activeCandidates.push(cand)
         }
     }
 
     for (const id of animalIds) bump(rowsByAnimalId.get(id))
+
+    const bestOverdue = overdueCandidates.reduce<Cand | null>(pickEarlier, null)
+    const bestActive = activeCandidates.reduce<Cand | null>(pickEarlier, null)
 
     if (bestOverdue) return { date: bestOverdue.display, isOverdue: true }
     if (bestActive) return { date: bestActive.display, isOverdue: false }
