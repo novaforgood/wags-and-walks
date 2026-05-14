@@ -49,6 +49,28 @@ type DirectoryRow = DirectoryProfile & {
   flagged: boolean
 }
 
+const GROUP_MEMBERS_CACHE_KEY = 'directory_group_members_v1'
+const FOSTER_HISTORY_CACHE_KEY = 'directory_foster_history_v1'
+
+function readCachedArray<T>(key: string): T[] {
+  try {
+    const raw = localStorage.getItem(key)
+    if (!raw) return []
+    const parsed = JSON.parse(raw) as unknown
+    return Array.isArray(parsed) ? parsed as T[] : []
+  } catch {
+    return []
+  }
+}
+
+function writeCachedArray<T>(key: string, value: T[]) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value))
+  } catch {
+    // Best-effort cache only.
+  }
+}
+
 function buildPageList(totalPages: number, currentPage: number): (number | 'ellipsis')[] {
   return Array.from({ length: totalPages }, (_, i) => i + 1)
     .filter(p => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 1)
@@ -129,7 +151,13 @@ export default function DirectoryPage() {
   useEffect(() => {
     let active = true
     async function loadGroup() {
-      setIsLoadingGroup(true)
+      const cachedMembers = readCachedArray<GroupMember>(GROUP_MEMBERS_CACHE_KEY)
+      if (cachedMembers.length > 0) {
+        setGroupMembers(cachedMembers)
+        setIsLoadingGroup(false)
+      } else {
+        setIsLoadingGroup(true)
+      }
       setGroupError(null)
       try {
         const res = await fetch('/api/google-group-members', { cache: 'no-store' })
@@ -139,10 +167,11 @@ export default function DirectoryPage() {
         }
         if (!active) return
         setGroupMembers(data.members)
+        writeCachedArray(GROUP_MEMBERS_CACHE_KEY, data.members)
       } catch (e) {
         if (!active) return
         setGroupError(e instanceof Error ? e.message : 'Failed to load Google Group members')
-        setGroupMembers([])
+        if (cachedMembers.length === 0) setGroupMembers([])
       } finally {
         if (active) setIsLoadingGroup(false)
       }
@@ -154,7 +183,13 @@ export default function DirectoryPage() {
   useEffect(() => {
     let active = true
     async function load() {
-      setIsLoadingFosterers(true)
+      const cachedFosterers = readCachedArray<FostererHistory>(FOSTER_HISTORY_CACHE_KEY)
+      if (cachedFosterers.length > 0) {
+        setFosterers(cachedFosterers)
+        setIsLoadingFosterers(false)
+      } else {
+        setIsLoadingFosterers(true)
+      }
       setFostererError(null)
       try {
         const res = await fetch('/api/foster-history', { cache: 'no-store' })
@@ -164,9 +199,11 @@ export default function DirectoryPage() {
         }
         if (!active) return
         setFosterers(data.fosterers)
+        writeCachedArray(FOSTER_HISTORY_CACHE_KEY, data.fosterers)
       } catch (e) {
         if (!active) return
         setFostererError(e instanceof Error ? e.message : 'Failed to load fosterers')
+        if (cachedFosterers.length === 0) setFosterers([])
       } finally {
         if (active) setIsLoadingFosterers(false)
       }
