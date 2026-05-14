@@ -185,7 +185,7 @@
 }
 
 .fadeIn {
-    animation: directoryFadeIn 180ms ease-out both;
+    animation: appFadeIn var(--app-loading-fade-duration) ease-out both;
 }
 
 .skeletonRow {
@@ -196,9 +196,9 @@
 .skeletonStar,
 .skeletonButton {
     display: block;
-    background: linear-gradient(90deg, #f3f7f7 0%, #eef3f3 42%, #f3f7f7 78%);
+    background: var(--app-loading-skeleton);
     background-size: 220% 100%;
-    animation: directorySkeletonPulse 1.2s ease-in-out infinite;
+    animation: appSkeletonPulse var(--app-loading-pulse-duration) ease-in-out infinite;
 }
 
 .skeletonLine {
@@ -249,28 +249,6 @@
     width: 78px;
     height: 30px;
     border-radius: 6px;
-}
-
-@keyframes directorySkeletonPulse {
-    0% {
-        background-position: 120% 0;
-    }
-
-    100% {
-        background-position: -120% 0;
-    }
-}
-
-@keyframes directoryFadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(2px);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
 }
 
 /* ---- Flagged row indicator ---- */

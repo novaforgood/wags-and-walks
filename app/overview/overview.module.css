@@ -61,18 +61,13 @@
     width: 54px;
     height: 34px;
     border-radius: 8px;
-    background: linear-gradient(
-        90deg,
-        var(--app-filter-track) 0%,
-        #eef3f3 42%,
-        var(--app-filter-track) 78%
-    );
+    background: var(--app-loading-skeleton);
     background-size: 220% 100%;
-    animation: overviewSkeletonPulse 1.2s ease-in-out infinite;
+    animation: appSkeletonPulse var(--app-loading-pulse-duration) ease-in-out infinite;
 }
 
 .fadeIn {
-    animation: overviewFadeIn 180ms ease-out both;
+    animation: appFadeIn var(--app-loading-fade-duration) ease-out both;
 }
 
 /* ── Two-column briefing ────────────────────────────────── */
@@ -392,14 +387,9 @@
 .skeletonLine,
 .skeletonTail {
     display: block;
-    background: linear-gradient(
-        90deg,
-        var(--app-filter-track) 0%,
-        #eef3f3 42%,
-        var(--app-filter-track) 78%
-    );
+    background: var(--app-loading-skeleton);
     background-size: 220% 100%;
-    animation: overviewSkeletonPulse 1.2s ease-in-out infinite;
+    animation: appSkeletonPulse var(--app-loading-pulse-duration) ease-in-out infinite;
 }
 
 .skeletonAvatar {
@@ -436,28 +426,6 @@
     height: 12px;
     border-radius: 999px;
     flex-shrink: 0;
-}
-
-@keyframes overviewSkeletonPulse {
-    0% {
-        background-position: 120% 0;
-    }
-
-    100% {
-        background-position: -120% 0;
-    }
-}
-
-@keyframes overviewFadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(2px);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
 }
 
 .dataQualityBanner {

@@ -27,9 +27,9 @@
 
 .skeleton {
   display: block;
-  background: linear-gradient(90deg, var(--app-filter-track) 0%, #eef3f3 42%, var(--app-filter-track) 78%);
+  background: var(--app-loading-skeleton);
   background-size: 220% 100%;
-  animation: dashboardLoadingPulse 1.2s ease-in-out infinite;
+  animation: appSkeletonPulse var(--app-loading-pulse-duration) ease-in-out infinite;
 }
 
 .icon {
@@ -270,16 +270,6 @@
 .sideLine {
   width: 100%;
   margin-top: 16px;
-}
-
-@keyframes dashboardLoadingPulse {
-  0% {
-    background-position: 120% 0;
-  }
-
-  100% {
-    background-position: -120% 0;
-  }
 }
 
 @media (max-width: 900px) {

@@ -82,7 +82,7 @@
 }
 
 .fadeIn {
-    animation: fostersFadeIn 180ms ease-out both;
+    animation: appFadeIn var(--app-loading-fade-duration) ease-out both;
 }
 
 .skeletonRow {
@@ -92,9 +92,9 @@
 .skeletonLine,
 .skeletonInfoBtn {
     display: block;
-    background: linear-gradient(90deg, #f3f7f7 0%, #eef3f3 42%, #f3f7f7 78%);
+    background: var(--app-loading-skeleton);
     background-size: 220% 100%;
-    animation: fostersSkeletonPulse 1.2s ease-in-out infinite;
+    animation: appSkeletonPulse var(--app-loading-pulse-duration) ease-in-out infinite;
 }
 
 .skeletonLine {
@@ -134,26 +134,4 @@
     height: 30px;
     margin-left: auto;
     border-radius: 999px;
-}
-
-@keyframes fostersSkeletonPulse {
-    0% {
-        background-position: 120% 0;
-    }
-
-    100% {
-        background-position: -120% 0;
-    }
-}
-
-@keyframes fostersFadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(2px);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
 }
