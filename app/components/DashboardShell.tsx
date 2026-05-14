@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
@@ -25,15 +25,14 @@ function MenuGlyph({ open }: { open: boolean }) {
   )
 }
 
-export function DashboardShell({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname()
+type DashboardShellContentProps = {
+  children: React.ReactNode
+  pathname: string | null
+}
+
+function DashboardShellContent({ children, pathname }: DashboardShellContentProps) {
   const { user, role, signOut } = useAuth()
   const [navOpen, setNavOpen] = useState(false)
-  const prevPathnameRef = useRef(pathname)
-  if (pathname !== prevPathnameRef.current) {
-    prevPathnameRef.current = pathname
-    setNavOpen(false)
-  }
 
   useEffect(() => {
     const mq = window.matchMedia('(min-width: 901px)')
@@ -147,5 +146,15 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
 
       <div className={layoutStyles.mainContent}>{children}</div>
     </div>
+  )
+}
+
+export function DashboardShell({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname()
+
+  return (
+    <DashboardShellContent key={pathname ?? ''} pathname={pathname}>
+      {children}
+    </DashboardShellContent>
   )
 }
