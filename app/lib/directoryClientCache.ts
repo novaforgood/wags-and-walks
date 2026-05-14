@@ -26,6 +26,7 @@ export function writeCachedArray<T>(key: string, value: T[]) {
 }
 
 async function prewarmGroupMembers() {
+  if (readCachedArray<GroupMember>(GROUP_MEMBERS_CACHE_KEY).length > 0) return
   const res = await fetch('/api/google-group-members', { cache: 'no-store' })
   const data = (await res.json()) as { success?: boolean; members?: GroupMember[] }
   if (res.ok && data?.success && Array.isArray(data.members)) {
@@ -34,6 +35,7 @@ async function prewarmGroupMembers() {
 }
 
 async function prewarmFosterHistory() {
+  if (readCachedArray<FostererHistory>(FOSTER_HISTORY_CACHE_KEY).length > 0) return
   const res = await fetch('/api/foster-history', { cache: 'no-store' })
   const data = (await res.json()) as { success?: boolean; fosterers?: FostererHistory[] }
   if (res.ok && data?.success && Array.isArray(data.fosterers)) {
