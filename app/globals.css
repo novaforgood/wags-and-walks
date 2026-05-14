@@ -64,6 +64,9 @@
   --app-badge-flag-text: var(--app-accent-strong);
   --app-badge-neutral-bg: #f3f4f6;
   --app-badge-neutral-text: #4b5563;
+  --app-loading-skeleton: linear-gradient(90deg, var(--app-filter-track) 0%, #eef3f3 42%, var(--app-filter-track) 78%);
+  --app-loading-pulse-duration: 1.2s;
+  --app-loading-fade-duration: 180ms;
 
   /* Initials avatars: deterministic shade from email hash — all teal (brand), not rainbow */
   --app-avatar-0: #035d61;
@@ -108,4 +111,36 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+@keyframes appSkeletonPulse {
+  0% {
+    background-position: 120% 0;
+  }
+
+  100% {
+    background-position: -120% 0;
+  }
+}
+
+@keyframes appFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
 }

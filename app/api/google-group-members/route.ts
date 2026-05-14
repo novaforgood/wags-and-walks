@@ -17,8 +17,10 @@ type CachedPayload = {
   body: string
 }
 
+type CacheState = 'fresh' | 'stale' | 'miss'
+
 let memoryCache: { expires: number; payload: CachedPayload } | null = null
-let inFlight: Promise<void> | null = null
+let inFlight: Promise<CachedPayload> | null = null
 
 function buildUrl(): URL {
   if (!SCRIPT_URL) {
@@ -71,7 +73,7 @@ function parseMemberArray(arr: unknown[]): GroupMember[] {
   return out
 }
 
-async function refreshFromUpstream(): Promise<void> {
+async function refreshFromUpstream(): Promise<CachedPayload> {
   try {
     const url = buildUrl()
     const res = await fetch(url.toString(), {
@@ -92,41 +94,62 @@ async function refreshFromUpstream(): Promise<void> {
     }
 
     const ttlMs = (looksSuccessful ? CACHE_TTL_SEC : ERROR_CACHE_TTL_SEC) * 1000
+    const payload = { status: res.status, body: text }
     memoryCache = {
       expires: Date.now() + ttlMs,
-      payload: { status: res.status, body: text },
+      payload,
     }
+    return payload
   } catch (e) {
+    if (memoryCache && memoryCache.payload.status >= 200 && memoryCache.payload.status < 300) {
+      memoryCache = {
+        ...memoryCache,
+        expires: Date.now() + ERROR_CACHE_TTL_SEC * 1000,
+      }
+      return memoryCache.payload
+    }
     const msg = e instanceof Error ? e.message : 'Network error calling Google Group script'
+    const payload = {
+      status: 502,
+      body: JSON.stringify({ success: false, error: msg }),
+    }
     memoryCache = {
       expires: Date.now() + ERROR_CACHE_TTL_SEC * 1000,
-      payload: {
-        status: 502,
-        body: JSON.stringify({ success: false, error: msg }),
-      },
+      payload,
     }
+    return payload
   }
 }
 
-async function ensureCache(): Promise<CachedPayload> {
+function startRefresh() {
+  if (!inFlight) {
+    inFlight = refreshFromUpstream().finally(() => {
+      inFlight = null
+    })
+  }
+  return inFlight
+}
+
+async function ensureCache(): Promise<{ payload: CachedPayload; state: CacheState }> {
   const now = Date.now()
   if (memoryCache && memoryCache.expires > now) {
-    return memoryCache.payload
+    return { payload: memoryCache.payload, state: 'fresh' }
   }
-  if (!inFlight) {
-    inFlight = (async () => {
-      try {
-        await refreshFromUpstream()
-      } finally {
-        inFlight = null
-      }
-    })()
+
+  if (memoryCache) {
+    void startRefresh()
+    return { payload: memoryCache.payload, state: 'stale' }
   }
-  await inFlight
-  if (!memoryCache) {
-    throw new Error('Google Group members cache unavailable after refresh')
+
+  const payload = await startRefresh()
+  return { payload, state: 'miss' }
+}
+
+function cacheHeaders(state: CacheState) {
+  return {
+    'Cache-Control': `private, max-age=${state === 'fresh' ? CACHE_TTL_SEC : 0}, stale-while-revalidate=${CACHE_TTL_SEC}`,
+    'X-Directory-Cache': state,
   }
-  return memoryCache.payload
 }
 
 /**
@@ -140,7 +163,8 @@ async function ensureCache(): Promise<CachedPayload> {
  */
 export async function GET() {
   try {
-    const { status, body: text } = await ensureCache()
+    const { payload, state } = await ensureCache()
+    const { status, body: text } = payload
 
     let json: unknown
     try {
@@ -177,9 +201,7 @@ export async function GET() {
     return Response.json(
       { success: true, members },
       {
-        headers: {
-          'Cache-Control': `private, max-age=${CACHE_TTL_SEC}`,
-        },
+        headers: cacheHeaders(state),
       }
     )
   } catch (error) {

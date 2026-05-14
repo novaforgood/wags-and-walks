@@ -9,6 +9,30 @@ import type {
 export type { TaskRow, TaskRowSheetStatus, TasksDataQuality, TasksGetMetrics }
 
 const TASK_SCRIPT_URL = process.env.TASK_SCRIPT_URL
+const rawTaskCacheTtl = Number(process.env.TASK_LOG_CACHE_TTL_SEC)
+const TASK_CACHE_TTL_MS =
+  Math.max(10, Math.min(300, Number.isFinite(rawTaskCacheTtl) && rawTaskCacheTtl > 0 ? rawTaskCacheTtl : 45)) * 1000
+
+type TasksGetResponse = {
+  success: true
+  rows: TaskRow[]
+  taskStatusByAnimalId: Record<string, FosterStatus>
+  metrics: TasksGetMetrics
+  dataQuality: TasksDataQuality
+}
+
+let taskCache: { data: TasksGetResponse; expiresAt: number } | null = null
+let taskInFlight: Promise<TasksGetResponse> | null = null
+
+function taskCacheHeaders() {
+  return {
+    'Cache-Control': `private, max-age=0, s-maxage=${Math.floor(TASK_CACHE_TTL_MS / 1000)}`,
+  }
+}
+
+function invalidateTaskCache() {
+  taskCache = null
+}
 
 /** Parse Sheet Status text only — do not infer from dates. */
 export function normalizeSheetStatus(sheetStatus: string): TaskRowSheetStatus {
@@ -75,7 +99,9 @@ export async function POST(request: Request) {
     })
     const text = await res.text()
     try {
-      return Response.json(JSON.parse(text))
+      const parsed = JSON.parse(text)
+      invalidateTaskCache()
+      return Response.json(parsed)
     } catch {
       return Response.json({ success: false, error: text }, { status: 502 })
     }
@@ -95,97 +121,117 @@ const EMPTY_QUALITY: TasksDataQuality = {
   hasUnknownTaskStatuses: false,
 }
 
-export async function GET() {
+const EMPTY_TASKS_RESPONSE: TasksGetResponse = {
+  success: true,
+  rows: [],
+  taskStatusByAnimalId: {},
+  metrics: EMPTY_METRICS,
+  dataQuality: EMPTY_QUALITY,
+}
+
+async function loadTaskLog(): Promise<TasksGetResponse> {
   if (!TASK_SCRIPT_URL) {
-    return Response.json({
-      success: true,
-      rows: [],
-      taskStatusByAnimalId: {},
-      metrics: EMPTY_METRICS,
-      dataQuality: EMPTY_QUALITY,
-    })
+    return EMPTY_TASKS_RESPONSE
+  }
+
+  const url = new URL(TASK_SCRIPT_URL)
+  url.searchParams.set('action', 'taskLog')
+
+  const res = await fetch(url.toString(), { cache: 'no-store' })
+  const data = (await res.json()) as {
+    success?: boolean
+    rows?: Record<string, unknown>[]
+    error?: string
+  }
+
+  if (!data.success || !Array.isArray(data.rows)) {
+    throw new Error(data.error || 'Failed to fetch task log')
+  }
+
+  let activeOverdueTaskRows = 0
+  let unknownStatusRowCount = 0
+
+  const rows: TaskRow[] = data.rows.map(r => {
+    const rawStatus = String(r.status ?? '')
+    const normalized = normalizeSheetStatus(rawStatus)
+    if (normalized === 'overdue') activeOverdueTaskRows += 1
+    if (normalized === 'unknown') unknownStatusRowCount += 1
+
+    const completedDate = String(r.completedDate ?? r.taskCompletedDate ?? '').trim()
+    const retiredDate = String(r.retiredDate ?? r.taskRetiredDate ?? '').trim()
+
+    return {
+      animalId: String(r.animalId ?? '').trim(),
+      dogName: String(r.dogName ?? '').trim(),
+      taskType: String(r.taskType ?? '').trim(),
+      triggerDay: Number(r.triggerDay) || 0,
+      emailSentDate: String(
+        r.emailSentDate ?? r.emailSentToSendDate ?? r.emailSent ?? ''
+      ).trim(),
+      followUpSent: String(r.followUpSent ?? r.followUpSentDate ?? '').trim(),
+      completedDate,
+      retiredDate,
+      fosterName: String(r.fosterName ?? '').trim(),
+      fosterEmail: String(r.fosterEmail ?? '').trim(),
+      status: normalized,
+      statusRaw: normalized === 'unknown' ? rawStatus.trim() : undefined,
+      driveLink: String(r.driveLink ?? r.driveFolder ?? r.folderUrl ?? r.photoFolder ?? '').trim(),
+      scheduledEmail: String(r.scheduledEmail ?? ''),
+      scheduledDate: String(r.scheduledDate ?? '').trim(),
+      snoozeUntil: String(r.snoozeUntil ?? '').trim(),
+    }
+  })
+
+  const taskStatusByAnimalId: Record<string, FosterStatus> = {}
+  for (const row of rows) {
+    if (!row.animalId) continue
+    const contrib = rollupContribution(row.status)
+    if (contrib === null) continue
+    const existing = taskStatusByAnimalId[row.animalId]
+    if (!existing || ROLLUP_WEIGHT[contrib] > ROLLUP_WEIGHT[existing]) {
+      taskStatusByAnimalId[row.animalId] = contrib
+    }
+  }
+
+  const dataQuality: TasksDataQuality = {
+    unknownStatusRowCount,
+    hasUnknownTaskStatuses: unknownStatusRowCount > 0,
+  }
+
+  const metrics: TasksGetMetrics = {
+    activeOverdueTaskRows,
+    unknownStatusRowCount,
+  }
+
+  return {
+    success: true,
+    rows,
+    taskStatusByAnimalId,
+    metrics,
+    dataQuality,
+  }
+}
+
+export async function GET() {
+  const now = Date.now()
+  if (taskCache && taskCache.expiresAt > now) {
+    return Response.json(taskCache.data, { headers: taskCacheHeaders() })
   }
 
   try {
-    const url = new URL(TASK_SCRIPT_URL)
-    url.searchParams.set('action', 'taskLog')
-
-    const res = await fetch(url.toString(), { cache: 'no-store' })
-    const data = (await res.json()) as {
-      success?: boolean
-      rows?: Record<string, unknown>[]
-      error?: string
+    if (!taskInFlight) {
+      taskInFlight = loadTaskLog()
+        .then(data => {
+          taskCache = { data, expiresAt: Date.now() + TASK_CACHE_TTL_MS }
+          return data
+        })
+        .finally(() => {
+          taskInFlight = null
+        })
     }
 
-    if (!data.success || !Array.isArray(data.rows)) {
-      return Response.json(
-        { success: false, error: data.error || 'Failed to fetch task log' },
-        { status: 502 }
-      )
-    }
-
-    let activeOverdueTaskRows = 0
-    let unknownStatusRowCount = 0
-
-    const rows: TaskRow[] = data.rows.map(r => {
-      const rawStatus = String(r.status ?? '')
-      const normalized = normalizeSheetStatus(rawStatus)
-      if (normalized === 'overdue') activeOverdueTaskRows += 1
-      if (normalized === 'unknown') unknownStatusRowCount += 1
-
-      const completedDate = String(r.completedDate ?? r.taskCompletedDate ?? '').trim()
-      const retiredDate = String(r.retiredDate ?? r.taskRetiredDate ?? '').trim()
-
-      return {
-        animalId: String(r.animalId ?? '').trim(),
-        dogName: String(r.dogName ?? '').trim(),
-        taskType: String(r.taskType ?? '').trim(),
-        triggerDay: Number(r.triggerDay) || 0,
-        emailSentDate: String(
-          r.emailSentDate ?? r.emailSentToSendDate ?? r.emailSent ?? ''
-        ).trim(),
-        followUpSent: String(r.followUpSent ?? r.followUpSentDate ?? '').trim(),
-        completedDate,
-        retiredDate,
-        fosterName: String(r.fosterName ?? '').trim(),
-        fosterEmail: String(r.fosterEmail ?? '').trim(),
-        status: normalized,
-        statusRaw: normalized === 'unknown' ? rawStatus.trim() : undefined,
-        driveLink: String(r.driveLink ?? r.driveFolder ?? r.folderUrl ?? r.photoFolder ?? '').trim(),
-        scheduledEmail: String(r.scheduledEmail ?? ''),
-        scheduledDate: String(r.scheduledDate ?? '').trim(),
-        snoozeUntil: String(r.snoozeUntil ?? '').trim(),
-      }
-    })
-
-    const taskStatusByAnimalId: Record<string, FosterStatus> = {}
-    for (const row of rows) {
-      if (!row.animalId) continue
-      const contrib = rollupContribution(row.status)
-      if (contrib === null) continue
-      const existing = taskStatusByAnimalId[row.animalId]
-      if (!existing || ROLLUP_WEIGHT[contrib] > ROLLUP_WEIGHT[existing]) {
-        taskStatusByAnimalId[row.animalId] = contrib
-      }
-    }
-
-    const dataQuality: TasksDataQuality = {
-      unknownStatusRowCount,
-      hasUnknownTaskStatuses: unknownStatusRowCount > 0,
-    }
-
-    const metrics: TasksGetMetrics = {
-      activeOverdueTaskRows,
-      unknownStatusRowCount,
-    }
-
-    return Response.json({
-      success: true,
-      rows,
-      taskStatusByAnimalId,
-      metrics,
-      dataQuality,
-    })
+    const data = await taskInFlight
+    return Response.json(data, { headers: taskCacheHeaders() })
   } catch (error) {
     console.error('Tasks API error:', error)
     return Response.json({ success: false, error: 'Failed to load tasks' }, { status: 500 })

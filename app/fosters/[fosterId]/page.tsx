@@ -62,6 +62,52 @@ function StatusBadge({ status }: { status: string }) {
   return <span className={cls}>{status || 'Good'}</span>
 }
 
+function FosterDetailsSkeleton() {
+  return (
+    <div className={styles.skeletonWrap} role="status" aria-live="polite" aria-label="Loading foster details">
+      <section className={styles.hero}>
+        <span className={`${styles.skeletonBlock} ${styles.skeletonAvatar}`} aria-hidden />
+        <div className={styles.heroBody} aria-hidden>
+          <div className={styles.heroNameRow}>
+            <span className={`${styles.skeletonBlock} ${styles.skeletonHeroName}`} />
+            <span className={`${styles.skeletonBlock} ${styles.skeletonBadge}`} />
+          </div>
+          <div className={styles.chipRow}>
+            <span className={`${styles.skeletonBlock} ${styles.skeletonChipWide}`} />
+            <span className={`${styles.skeletonBlock} ${styles.skeletonChip}`} />
+            <span className={`${styles.skeletonBlock} ${styles.skeletonChipWide}`} />
+          </div>
+        </div>
+      </section>
+
+      <div className={styles.tabBar} aria-hidden>
+        {Array.from({ length: 5 }).map((_, index) => (
+          <span key={index} className={`${styles.skeletonBlock} ${styles.skeletonTab}`} />
+        ))}
+      </div>
+
+      <div className={styles.tabPanel} aria-hidden>
+        {Array.from({ length: 2 }).map((_, index) => (
+          <section key={index} className={styles.card}>
+            <div className={styles.dogHeader}>
+              <span className={`${styles.skeletonBlock} ${styles.skeletonSectionTitle}`} />
+              <span className={`${styles.skeletonBlock} ${styles.skeletonBadge}`} />
+            </div>
+            <div className={styles.statGrid}>
+              {Array.from({ length: 5 }).map((__, statIndex) => (
+                <div key={statIndex} className={styles.stat}>
+                  <span className={`${styles.skeletonBlock} ${styles.skeletonStatLabel}`} />
+                  <span className={`${styles.skeletonBlock} ${styles.skeletonStatValue}`} />
+                </div>
+              ))}
+            </div>
+          </section>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function sheetTaskBadgeLabel(status: TaskRow['status']): string {
   switch (status) {
     case 'good':
@@ -413,14 +459,14 @@ export default function FosterDetailsPage() {
           <div className={styles.wrap}>
             <Link href={backHref} className={styles.backLink}>{backLabel}</Link>
 
-            {isLoadingDogs && <div className={layoutStyles.loadingContainer}>Loading foster details...</div>}
+            {isLoadingDogs && <FosterDetailsSkeleton />}
             {dogsError && <div className={layoutStyles.errorText}>{dogsError}</div>}
             {!isLoadingDogs && !dogsError && !foster && (
               <div className={styles.card}>No foster record found for this profile.</div>
             )}
 
             {!isLoadingDogs && foster && (
-              <>
+              <div className={styles.fadeIn}>
                 <section className={styles.hero}>
                   <div className={styles.avatar}>
                     {(foster.fosterName || '?').charAt(0).toUpperCase()}
@@ -649,7 +695,7 @@ export default function FosterDetailsPage() {
                     />
                   </div>
                 )}
-              </>
+              </div>
             )}
           </div>
       </DashboardShell>

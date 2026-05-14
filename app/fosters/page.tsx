@@ -75,6 +75,38 @@ function isInteractiveTableCellTarget(target: EventTarget | null): boolean {
   return !!(target as HTMLElement | null)?.closest?.('a, button, input, select, textarea, label')
 }
 
+function FosterTableSkeletonRows() {
+  return (
+    <>
+      <tr data-fosters-metrics-skip="">
+        <td colSpan={6} className={inboxStyles.visuallyHidden} role="status" aria-live="polite">
+          Loading foster directory
+        </td>
+      </tr>
+      {Array.from({ length: 8 }).map((_, index) => (
+        <tr key={index} className={inboxStyles.skeletonRow} aria-hidden="true">
+          <td><span className={`${inboxStyles.skeletonLine} ${inboxStyles.skeletonName}`} /></td>
+          <td><span className={`${inboxStyles.skeletonLine} ${inboxStyles.skeletonDogs}`} /></td>
+          <td>
+            <span className={inboxStyles.skeletonStack}>
+              <span className={`${inboxStyles.skeletonLine} ${inboxStyles.skeletonLane}`} />
+              <span className={`${inboxStyles.skeletonLine} ${inboxStyles.skeletonDate}`} />
+            </span>
+          </td>
+          <td>
+            <span className={inboxStyles.skeletonStack}>
+              <span className={`${inboxStyles.skeletonLine} ${inboxStyles.skeletonLane}`} />
+              <span className={`${inboxStyles.skeletonLine} ${inboxStyles.skeletonDate}`} />
+            </span>
+          </td>
+          <td><span className={`${inboxStyles.skeletonLine} ${inboxStyles.skeletonHousehold}`} /></td>
+          <td><span className={inboxStyles.skeletonInfoBtn} /></td>
+        </tr>
+      ))}
+    </>
+  )
+}
+
 export default function FostersPage() {
   const router = useRouter()
   const [searchQuery, setSearchQuery] = useState('')
@@ -129,6 +161,7 @@ export default function FostersPage() {
   }, [directoryRows, currentPage, itemsPerPage])
 
   const totalPages = Math.ceil(directoryRows.length / Math.max(itemsPerPage, 1))
+  const initialFostersLoading = isLoadingDogs && dogs.length === 0
 
   useEffect(() => {
     let active = true
@@ -180,7 +213,7 @@ export default function FostersPage() {
     const el = tableWrapperRef.current
     if (!el) return
     function calc() {
-      const firstRow = el!.querySelector('tbody tr') as HTMLElement | null
+      const firstRow = el!.querySelector('tbody tr:not([data-fosters-metrics-skip])') as HTMLElement | null
       const rowH = firstRow ? firstRow.getBoundingClientRect().height : 40
       const thead = el!.querySelector('thead') as HTMLElement | null
       const theadH = thead ? thead.getBoundingClientRect().height : 50
@@ -211,6 +244,7 @@ export default function FostersPage() {
               placeholder="Search foster, dog, email, task status…"
               className={styles.searchInput}
               value={searchQuery}
+              disabled={initialFostersLoading}
               onChange={e => setSearchQuery(e.target.value)}
               aria-label="Search foster directory"
             />
@@ -226,6 +260,7 @@ export default function FostersPage() {
               id="dir-queue-filter"
               className={`${styles.toolbarBtn} ${styles.statusFilterSelect} ${inboxStyles.fostersToolbarSelect}`}
               value={queueFilter}
+              disabled={initialFostersLoading}
               onChange={e => setQueueFilter(e.target.value as TaskInboxFilter)}
               title="Filter by Task Log lanes (photos / survey)"
             >
@@ -242,6 +277,7 @@ export default function FostersPage() {
               id="dir-household-status-filter"
               className={`${styles.toolbarBtn} ${styles.statusFilterSelect} ${inboxStyles.fostersToolbarSelect}`}
               value={statusFilter}
+              disabled={initialFostersLoading}
               onChange={e => setStatusFilter(e.target.value as 'all' | FosterStatus)}
               title="Worst status among open Task Log rows (Completed/Retired ignored). Cleared homes show as No open tasks."
             >
@@ -254,12 +290,9 @@ export default function FostersPage() {
           </div>
         </div>
 
-        {isLoadingDogs && (
-          <div className={styles.loadingContainer}>Loading current directory...</div>
-        )}
         {dogsError && <div className={styles.errorText}>{dogsError}</div>}
 
-        {!isLoadingDogs && !dogsError && (
+        {!dogsError && (
           <div className={styles.tableWrapper} ref={tableWrapperRef}>
             <div className={styles.tableContainer}>
               <div className={styles.tableScroll}>
@@ -281,10 +314,12 @@ export default function FostersPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {paginatedRows.map(row => (
+                    {initialFostersLoading ? (
+                      <FosterTableSkeletonRows />
+                    ) : paginatedRows.map(row => (
                       <tr
                         key={row.id}
-                        className={styles.tableRowClickable}
+                        className={`${styles.tableRowClickable} ${inboxStyles.fadeIn}`}
                         tabIndex={0}
                         aria-label={`Open foster home: ${row.fosterName}`}
                         onClick={e => {
@@ -343,7 +378,7 @@ export default function FostersPage() {
                         </td>
                       </tr>
                     ))}
-                    {paginatedRows.length === 0 && (
+                    {!initialFostersLoading && paginatedRows.length === 0 && (
                       <tr>
                         <td colSpan={6} className={styles.emptyState}>
                           No directory rows found.

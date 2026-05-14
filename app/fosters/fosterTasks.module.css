@@ -75,3 +75,63 @@
 .fostersToolbarSelect {
     min-width: 200px;
 }
+
+.fostersToolbarSelect:disabled {
+    cursor: default;
+    opacity: 0.6;
+}
+
+.fadeIn {
+    animation: appFadeIn var(--app-loading-fade-duration) ease-out both;
+}
+
+.skeletonRow {
+    pointer-events: none;
+}
+
+.skeletonLine,
+.skeletonInfoBtn {
+    display: block;
+    background: var(--app-loading-skeleton);
+    background-size: 220% 100%;
+    animation: appSkeletonPulse var(--app-loading-pulse-duration) ease-in-out infinite;
+}
+
+.skeletonLine {
+    height: 12px;
+    border-radius: 999px;
+}
+
+.skeletonName {
+    width: min(190px, 72%);
+}
+
+.skeletonDogs {
+    width: min(240px, 82%);
+}
+
+.skeletonStack {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+}
+
+.skeletonLane {
+    width: 88px;
+}
+
+.skeletonDate {
+    width: 64px;
+    height: 10px;
+}
+
+.skeletonHousehold {
+    width: 112px;
+}
+
+.skeletonInfoBtn {
+    width: 30px;
+    height: 30px;
+    margin-left: auto;
+    border-radius: 999px;
+}

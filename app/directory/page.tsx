@@ -7,6 +7,13 @@ import PersonModal from '@/app/components/PersonModal'
 import NotificationPanel from '@/app/components/NotificationPanel'
 import TopBarProfileMenu from '@/app/components/TopBarProfileMenu'
 import { DashboardShell } from '@/app/components/DashboardShell'
+import {
+  FOSTER_HISTORY_CACHE_KEY,
+  GROUP_MEMBERS_CACHE_KEY,
+  readCachedArray,
+  writeCachedArray,
+} from '@/app/lib/directoryClientCache'
+import { prefetchFosterNotes } from '@/app/lib/fosterNotesClientCache'
 import type { Person } from '@/app/lib/peopleTypes'
 import type { FostererHistory } from '@/app/lib/asmFosterHistory'
 import {
@@ -66,12 +73,54 @@ const QUICK_FILTERS: { id: QuickFilter; label: string; title: string }[] = [
   { id: 'available', label: 'Available', title: 'Has Shelter Manager history but is not currently fostering' },
 ]
 
+function DirectorySkeletonRows() {
+  return (
+    <>
+      <tr data-directory-metrics-skip="">
+        <td colSpan={6} className={dirStyles.srOnly} role="status" aria-live="polite">
+          Loading directory
+        </td>
+      </tr>
+      {Array.from({ length: 10 }).map((_, index) => (
+        <tr key={index} className={dirStyles.skeletonRow} aria-hidden="true">
+          <td>
+            <span className={`${dirStyles.skeletonLine} ${dirStyles.skeletonName}`} />
+          </td>
+          <td>
+            <span className={`${dirStyles.skeletonLine} ${dirStyles.skeletonEmail}`} />
+          </td>
+          <td className={dirStyles.hideOnMobile}>
+            <span className={`${dirStyles.skeletonLine} ${dirStyles.skeletonPhone}`} />
+          </td>
+          <td>
+            <span className={`${dirStyles.skeletonLine} ${dirStyles.skeletonShort}`} />
+          </td>
+          <td className={dirStyles.hideOnTablet}>
+            <span className={`${dirStyles.skeletonLine} ${dirStyles.skeletonTiny}`} />
+          </td>
+          <td>
+            <span className={dirStyles.skeletonActions}>
+              <span className={dirStyles.skeletonStar} />
+              <span className={dirStyles.skeletonButton} />
+            </span>
+          </td>
+        </tr>
+      ))}
+    </>
+  )
+}
+
+function InlineSkeleton({ className = dirStyles.skeletonShort }: { className?: string }) {
+  return <span className={`${dirStyles.skeletonLine} ${dirStyles.inlineSkeleton} ${className}`} aria-hidden="true" />
+}
+
 export default function DirectoryPage() {
   const { people, isLoading: peopleLoading, error: peopleError, toggleStar } = usePeople()
   const [searchQuery, setSearchQuery] = useState('')
   const [quickFilter, setQuickFilter] = useState<QuickFilter>('all')
   const [sortOrder, setSortOrder] = useState<SortOrder>('az')
   const [selectedPerson, setSelectedPerson] = useState<Person | null>(null)
+  const [selectedFosterHistory, setSelectedFosterHistory] = useState<FostererHistory | null>(null)
   const [groupMembers, setGroupMembers] = useState<GroupMember[]>([])
   const [isLoadingGroup, setIsLoadingGroup] = useState(true)
   const [groupError, setGroupError] = useState<string | null>(null)
@@ -86,7 +135,13 @@ export default function DirectoryPage() {
   useEffect(() => {
     let active = true
     async function loadGroup() {
-      setIsLoadingGroup(true)
+      const cachedMembers = readCachedArray<GroupMember>(GROUP_MEMBERS_CACHE_KEY)
+      if (cachedMembers.length > 0) {
+        setGroupMembers(cachedMembers)
+        setIsLoadingGroup(false)
+      } else {
+        setIsLoadingGroup(true)
+      }
       setGroupError(null)
       try {
         const res = await fetch('/api/google-group-members', { cache: 'no-store' })
@@ -96,10 +151,11 @@ export default function DirectoryPage() {
         }
         if (!active) return
         setGroupMembers(data.members)
+        writeCachedArray(GROUP_MEMBERS_CACHE_KEY, data.members)
       } catch (e) {
         if (!active) return
         setGroupError(e instanceof Error ? e.message : 'Failed to load Google Group members')
-        setGroupMembers([])
+        if (cachedMembers.length === 0) setGroupMembers([])
       } finally {
         if (active) setIsLoadingGroup(false)
       }
@@ -111,7 +167,13 @@ export default function DirectoryPage() {
   useEffect(() => {
     let active = true
     async function load() {
-      setIsLoadingFosterers(true)
+      const cachedFosterers = readCachedArray<FostererHistory>(FOSTER_HISTORY_CACHE_KEY)
+      if (cachedFosterers.length > 0) {
+        setFosterers(cachedFosterers)
+        setIsLoadingFosterers(false)
+      } else {
+        setIsLoadingFosterers(true)
+      }
       setFostererError(null)
       try {
         const res = await fetch('/api/foster-history', { cache: 'no-store' })
@@ -121,9 +183,11 @@ export default function DirectoryPage() {
         }
         if (!active) return
         setFosterers(data.fosterers)
+        writeCachedArray(FOSTER_HISTORY_CACHE_KEY, data.fosterers)
       } catch (e) {
         if (!active) return
         setFostererError(e instanceof Error ? e.message : 'Failed to load fosterers')
+        if (cachedFosterers.length === 0) setFosterers([])
       } finally {
         if (active) setIsLoadingFosterers(false)
       }
@@ -236,8 +300,19 @@ export default function DirectoryPage() {
     return () => ro.disconnect()
   }, [])
 
-  const isLoading =
-    isLoadingGroup || isLoadingFosterers || (peopleLoading && people.length === 0 && !groupError)
+  useEffect(() => {
+    if (paginatedRows.length === 0) return
+    const id = window.setTimeout(() => {
+      for (const row of paginatedRows.slice(0, 12)) {
+        void prefetchFosterNotes(row.email)
+      }
+    }, 250)
+    return () => window.clearTimeout(id)
+  }, [paginatedRows])
+
+  const peoplePending = peopleLoading && people.length === 0 && !peopleError
+  const fosterersPending = isLoadingFosterers && fosterers.length === 0 && !fostererError
+  const initialDirectoryLoading = isLoadingGroup && rows.length === 0
   const error = groupError ?? fostererError ?? peopleError
   const pageList = totalPages > 1 ? buildPageList(totalPages, currentPage) : []
 
@@ -259,6 +334,7 @@ export default function DirectoryPage() {
               placeholder="Search by name, email, phone, or dog name"
               className={styles.searchInput}
               value={searchQuery}
+              disabled={initialDirectoryLoading}
               onChange={e => setSearchQuery(e.target.value)}
             />
             <div className={styles.searchIconWrap}>
@@ -277,6 +353,11 @@ export default function DirectoryPage() {
                     type="button"
                     className={`${dirStyles.chip} ${quickFilter === f.id ? dirStyles.chipActive : ''}`}
                     onClick={() => setQuickFilter(f.id)}
+                    disabled={
+                      initialDirectoryLoading ||
+                      ((f.id === 'starred' || f.id === 'flagged') && peoplePending) ||
+                      ((f.id === 'current_foster' || f.id === 'available') && fosterersPending)
+                    }
                     title={f.title}
                     aria-pressed={quickFilter === f.id}
                   >
@@ -289,11 +370,12 @@ export default function DirectoryPage() {
                 <select
                   className={dirStyles.sortSelect}
                   value={sortOrder}
+                  disabled={initialDirectoryLoading}
                   onChange={e => setSortOrder(e.target.value as SortOrder)}
                   aria-label="Sort directory"
                 >
                   <option value="az">A – Z</option>
-                  <option value="most_fostered">Most fostered</option>
+                  <option value="most_fostered" disabled={fosterersPending}>Most fostered</option>
                 </select>
               </label>
             </div>
@@ -333,12 +415,8 @@ export default function DirectoryPage() {
                     </td>
                   </tr>
                 )}
-                {isLoading && rows.length === 0 ? (
-                  <tr data-directory-metrics-skip="">
-                    <td colSpan={6} className={dirStyles.tableStateLoading}>
-                      Loading directory…
-                    </td>
-                  </tr>
+                {initialDirectoryLoading ? (
+                  <DirectorySkeletonRows />
                 ) : error && rows.length === 0 ? (
                   <tr data-directory-metrics-skip="">
                     <td colSpan={6} className={dirStyles.tableStateError} role="alert">
@@ -356,37 +434,63 @@ export default function DirectoryPage() {
                     {paginatedRows.map((r, index) => {
                       const key = r.asmProfile?.fostererId || r.email || `${r.displayName}-${index}`
                       const personForModal = buildPersonForModal(r)
+                      const openPerson = () => {
+                        setSelectedPerson(personForModal)
+                        setSelectedFosterHistory(r.asmProfile)
+                      }
                       return (
                         <tr
                           key={key}
-                          className={[r.flagged ? dirStyles.rowFlagged : '', styles.tableRowClickable]
+                          className={[r.flagged ? dirStyles.rowFlagged : '', styles.tableRowClickable, dirStyles.fadeIn]
                             .filter(Boolean)
                             .join(' ')}
                           tabIndex={0}
                           aria-label={`Open directory entry for ${r.displayName}`}
                           onClick={e => {
                             if ((e.target as HTMLElement).closest('button')) return
-                            setSelectedPerson(personForModal)
+                            openPerson()
                           }}
                           onKeyDown={e => {
                             if (e.key !== 'Enter' && e.key !== ' ') return
                             if ((e.target as HTMLElement).closest('button')) return
                             e.preventDefault()
-                            setSelectedPerson(personForModal)
+                            openPerson()
                           }}
                         >
                           <td className={styles.nameCell}>{r.displayName}</td>
                           <td>{r.email || '—'}</td>
                           <td className={`${dirStyles.hideOnMobile} ${dirStyles.phoneCell}`}>
-                            {r.phone || '—'}
+                            {r.phone ? (
+                              <span className={dirStyles.fadeIn}>{r.phone}</span>
+                            ) : peoplePending || fosterersPending ? (
+                              <InlineSkeleton className={dirStyles.skeletonPhone} />
+                            ) : (
+                              '—'
+                            )}
                           </td>
-                          <td>{r.hasASMProfile ? (r.currentlyFostering ? 'Yes' : 'No') : '—'}</td>
+                          <td>
+                            {fosterersPending ? (
+                              <InlineSkeleton />
+                            ) : r.hasASMProfile ? (
+                              <span className={dirStyles.fadeIn}>{r.currentlyFostering ? 'Yes' : 'No'}</span>
+                            ) : (
+                              '—'
+                            )}
+                          </td>
                           <td className={dirStyles.hideOnTablet}>
-                            {r.hasASMProfile ? r.totalFostered : '—'}
+                            {fosterersPending ? (
+                              <InlineSkeleton className={dirStyles.skeletonTiny} />
+                            ) : r.hasASMProfile ? (
+                              <span className={dirStyles.fadeIn}>{r.totalFostered}</span>
+                            ) : (
+                              '—'
+                            )}
                           </td>
                           <td>
                             <div className={styles.rowActions}>
-                              {r.hasApplication ? (
+                              {peoplePending ? (
+                                <span className={`${dirStyles.skeletonStar} ${dirStyles.starSlot}`} aria-hidden="true" />
+                              ) : r.hasApplication ? (
                                 <button
                                   className={`${styles.actionIconBtn} ${r.starred ? styles.actionIconStarActive : styles.actionIconStar} ${dirStyles.starSlot}`}
                                   onClick={e => {
@@ -429,7 +533,7 @@ export default function DirectoryPage() {
                                 className={`${styles.selectBtn} ${dirStyles.selectBtnCompact}`}
                                 onClick={e => {
                                   e.stopPropagation()
-                                  setSelectedPerson(personForModal)
+                                  openPerson()
                                 }}
                               >
                                 View
@@ -491,7 +595,14 @@ export default function DirectoryPage() {
             )}
           </div>
         </div>
-        <PersonModal person={selectedPerson} onClose={() => setSelectedPerson(null)} />
+        <PersonModal
+          person={selectedPerson}
+          fosterHistory={selectedFosterHistory}
+          onClose={() => {
+            setSelectedPerson(null)
+            setSelectedFosterHistory(null)
+          }}
+        />
       </DashboardShell>
     </ProtectedRoute>
   )
