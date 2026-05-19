@@ -29,9 +29,7 @@ No test framework is configured.
 6. `app/api/fosters/route.ts` — Returns `{ count }` of active foster dogs from ASM (used by overview stats). Uses the same `json_shelter_animals` method as `/api/dogs` but returns only the count.
 7. `app/api/tasks/route.ts` — GET proxy to `TASK_SCRIPT_URL`; fetches the task log from Sheet 2 (`action=taskLog`). Returns `{ rows: TaskRow[], taskStatusByAnimalId }` where `taskStatusByAnimalId` maps animal IDs to their worst active `FosterStatus` (used by the fosters directory and overview to show task health badges).
 8. `app/api/photo-status/route.ts` — GET proxy to `TASK_SCRIPT_URL` (`action=photoStatus`); returns `{ dogs: PhotoDog[], unassigned: PhotoUnassignedFolder[] }` — per-dog Google Drive folder info and unassigned upload folders. Falls back to empty arrays if `TASK_SCRIPT_URL` is unset.
-9. `app/api/scheduled-emails/route.ts` — Full CRUD for scheduled emails backed by Sheet 1 Apps Script (`list_scheduled`, `schedule_email`, `update_scheduled`, `delete_scheduled` actions). GET accepts optional `?fosterId=` filter.
-10. `app/api/cron/send-scheduled/route.ts` — Vercel Cron handler (runs hourly, see `vercel.json`). Calls Apps Script `due_scheduled` to fetch emails past their send time, sends each via `send_single_email`, then marks them `sent`. Requires `Authorization: Bearer <CRON_SECRET>` header.
-11. `app/components/PeopleProvider.tsx` — Client-side React context (`usePeople()` hook) that:
+9. `app/components/PeopleProvider.tsx` — Client-side React context (`usePeople()` hook) that:
    - Fetches from `/api/people` on mount, caches in `localStorage`
    - Provides optimistic status updates with a debounced flush queue (persisted to `localStorage` for resilience)
    - Fires a Google Apps Script webhook when a person is moved to `approved`
@@ -154,7 +152,6 @@ Defined in `.env.local`:
 - `ASM_BASE_URL`, `ASM_ACCOUNT`, `ASM_USERNAME`, `ASM_PASSWORD` — ShelterManager API credentials used by `/api/dogs` (server-side only)
 - `ASM_API_KEY`, `ASM_REPORT_TITLE` — Used by `/api/foster-history` to call the ASM `json_report` method (different auth scheme from dogs route; `ASM_REPORT_TITLE` defaults to `'Foster History API'`)
 - `TASK_SCRIPT_URL` — Sheet 2 Apps Script URL used by `/api/tasks` and `/api/photo-status`. If unset, both routes return empty results rather than erroring.
-- `CRON_SECRET` — Bearer token checked by `/api/cron/send-scheduled`; Vercel injects this automatically in production (set in Vercel project env vars). The cron runs hourly per `vercel.json`.
 - `GOOGLE_GROUPS_SCRIPT_URL` / optional `GOOGLE_GROUPS_SCRIPT_KEY` — Web app that returns foster Google Group members (`?action=group_members`); proxied by `/api/google-group-members` for the Directory page.
 - `GOOGLE_GROUP_MEMBERS_CACHE_TTL_SEC` (optional, default `300`) — Server-side cache for successful group member fetches to avoid hitting Google’s “premium groups read” quota on every page load.
 - `GOOGLE_GROUP_MEMBERS_ERROR_CACHE_SEC` (optional, default `45`) — Short cache after upstream errors so a failing script is not hammered.
