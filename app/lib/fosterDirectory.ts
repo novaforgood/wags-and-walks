@@ -77,6 +77,15 @@ export function shouldHideDog(name?: string): boolean {
   )
 }
 
+/** ASM foster dogs counted on the overview and `/api/fosters` (same rules as the directory). */
+export function countTrackableFosterDogs(dogs: readonly DogRecord[]): number {
+  let n = 0
+  for (const dog of dogs) {
+    if (!shouldHideDog(dog.name)) n += 1
+  }
+  return n
+}
+
 /** Animal IDs with at least one Task Log row (any type/status). Used to avoid calling “Good” when we have no sheet data at all. */
 export function animalIdsFromTaskLogRows(
   rows: readonly { animalId?: string }[]

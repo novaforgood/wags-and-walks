@@ -1,10 +1,11 @@
 import { getAsmFosterDogs } from '@/app/lib/asmDogs'
+import { countTrackableFosterDogs } from '@/app/lib/fosterDirectory'
 
 export async function GET() {
   try {
     const dogs = await getAsmFosterDogs()
     return Response.json(
-      { count: dogs.length },
+      { count: countTrackableFosterDogs(dogs) },
       { headers: { 'Cache-Control': 's-maxage=300, stale-while-revalidate=60' } }
     )
   } catch (error) {
