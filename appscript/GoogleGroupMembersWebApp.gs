@@ -115,12 +115,51 @@ function listWorkspaceGroupMembersPaged_(groupEmail) {
  * when nobody opens the app (recommended).
  */
 function handleGroupOnboarding_(e) {
-  var groupEmail = getGroupEmailForDirectory_();
-  var members = listWorkspaceGroupMembersPaged_(groupEmail);
+  var members = loadGroupMembersForOnboarding_();
   var map = recordGroupMemberFirstSeen_(members);
   var monthParam = e && e.parameter && e.parameter.month ? String(e.parameter.month).trim() : '';
   var onboarding = buildOnboardingStats_(map, monthParam);
   return jsonOut_({ success: true, onboarding: onboarding, memberCount: members.length });
+}
+
+/** Uses the same 5-minute member cache as group_members when available (much faster). */
+function loadGroupMembersForOnboarding_() {
+  var cache = CacheService.getScriptCache();
+  var cached = cache.get(GROUP_MEMBERS_CACHE_KEY);
+  if (cached) {
+    try {
+      var payload = JSON.parse(cached);
+      if (payload && payload.members && payload.members.length) {
+        return payload.members;
+      }
+    } catch (err) {
+      // fall through to live fetch
+    }
+  }
+
+  var lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    cached = cache.get(GROUP_MEMBERS_CACHE_KEY);
+    if (cached) {
+      try {
+        var payload2 = JSON.parse(cached);
+        if (payload2 && payload2.members && payload2.members.length) {
+          return payload2.members;
+        }
+      } catch (err2) {}
+    }
+
+    var groupEmail = getGroupEmailForDirectory_();
+    var members = listWorkspaceGroupMembersPaged_(groupEmail);
+    var json = JSON.stringify({ success: true, members: members });
+    if (json.length <= 95000) {
+      cache.put(GROUP_MEMBERS_CACHE_KEY, json, GROUP_MEMBERS_CACHE_SEC);
+    }
+    return members;
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 /** Run daily (Apps Script → Triggers) to record new group members without a dashboard visit. */

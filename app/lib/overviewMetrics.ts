@@ -1,3 +1,4 @@
+import { shouldHideDog, type DogRecord } from '@/app/lib/fosterDirectory'
 import type { Person, PersonStatus } from '@/app/lib/peopleTypes'
 
 function isRejectedStatus(s?: PersonStatus): boolean {
@@ -68,6 +69,33 @@ export function countApplicantsAppliedThisWeek(people: Person[], now: Date = new
     let n = 0
     for (const p of people) {
         if (applicantAppliedThisWeek(p, t)) n += 1
+    }
+    return n
+}
+
+/**
+ * Active foster dogs (same exclusions as the directory) whose current foster movement
+ * started in the current calendar month (month-to-date, local).
+ */
+export function countTrackableFosterStartsThisMonth(
+    dogs: readonly DogRecord[],
+    now: Date = new Date()
+): number {
+    const t = now instanceof Date && !Number.isNaN(now.getTime()) ? now : new Date()
+    const y = t.getFullYear()
+    const m = t.getMonth()
+    const monthStart = new Date(y, m, 1, 0, 0, 0, 0)
+    const end = new Date(t)
+    end.setHours(23, 59, 59, 999)
+
+    let n = 0
+    for (const dog of dogs) {
+        if (shouldHideDog(dog.name)) continue
+        const start = parseCalendarDateLocal(dog.movement?.date)
+        if (!start) continue
+        if (start < monthStart || start > end) continue
+        if (start.getFullYear() !== y || start.getMonth() !== m) continue
+        n += 1
     }
     return n
 }

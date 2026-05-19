@@ -118,6 +118,13 @@ export function countOnboardedInMonth(
   return n
 }
 
+/** Seeded / legacy first-seen timestamps are not counted toward any month. */
+export function isTrackableFirstSeenIso(iso: string): boolean {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return false
+  return d.getFullYear() >= 2000
+}
+
 export function buildGroupOnboardingStats(
   firstSeenByEmail: Record<string, string>,
   timeZone: string,
@@ -126,8 +133,8 @@ export function buildGroupOnboardingStats(
 ): GroupOnboardingStats {
   const countsByMonth: Record<string, number> = {}
   for (const iso of Object.values(firstSeenByEmail)) {
+    if (!isTrackableFirstSeenIso(iso)) continue
     const d = new Date(iso)
-    if (Number.isNaN(d.getTime())) continue
     const key = monthKeyInTimeZone(d, timeZone)
     if (!key) continue
     countsByMonth[key] = (countsByMonth[key] || 0) + 1

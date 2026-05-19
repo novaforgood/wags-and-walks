@@ -52,6 +52,7 @@
     left: 0;
     top: 0;
     opacity: 0;
+    visibility: hidden;
     pointer-events: none;
 }
 
@@ -63,6 +64,7 @@
 .onboardingValueFlip:hover .onboardingFlipPrior,
 .onboardingValueFlip:focus-within .onboardingFlipPrior {
     opacity: 1;
+    visibility: visible;
 }
 
 .visuallyHidden {

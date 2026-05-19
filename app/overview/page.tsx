@@ -9,14 +9,10 @@ import TopBarProfileMenu from '@/app/components/TopBarProfileMenu'
 import { DashboardShell } from '@/app/components/DashboardShell'
 import type { Person, PersonStatus } from '@/app/lib/peopleTypes'
 import StatMetricHelp from '@/app/components/StatMetricHelp'
-import { countApplicantsAppliedThisWeek } from '@/app/lib/overviewMetrics'
 import {
-    buildGroupOnboardingStats,
-    monthLabelFromKey,
-    previousMonthKey,
-    syncLocalGroupOnboarding,
-    type GroupOnboardingStats,
-} from '@/app/lib/groupOnboarding'
+    countApplicantsAppliedThisWeek,
+    countTrackableFosterStartsThisMonth,
+} from '@/app/lib/overviewMetrics'
 import { formatRelativeTime } from '@/app/lib/formatRelativeTime'
 import type { TasksGetMetrics, TaskRow } from '@/app/api/tasks/route'
 import {
@@ -274,11 +270,6 @@ export default function OverviewPage() {
     const [dogsRequestDone, setDogsRequestDone] = useState(false)
     const [taskRows, setTaskRows] = useState<TaskRow[]>([])
     const [taskStatusByAnimalId, setTaskStatusByAnimalId] = useState<Record<string, FosterStatus>>({})
-    const [groupOnboarding, setGroupOnboarding] = useState<GroupOnboardingStats | null>(null)
-    const [groupOnboardingLoading, setGroupOnboardingLoading] = useState(true)
-    const [groupOnboardingError, setGroupOnboardingError] = useState<string | null>(null)
-    const [groupOnboardingLocalOnly, setGroupOnboardingLocalOnly] = useState(false)
-
     useEffect(() => {
         let active = true
         async function loadTaskMetrics() {
@@ -316,62 +307,6 @@ export default function OverviewPage() {
             }
         }
         void loadDogs()
-        return () => { active = false }
-    }, [])
-
-    useEffect(() => {
-        let active = true
-        async function loadGroupOnboarding() {
-            setGroupOnboardingLoading(true)
-            setGroupOnboardingError(null)
-            setGroupOnboardingLocalOnly(false)
-            try {
-                const res = await fetch('/api/google-group-onboarding', { cache: 'no-store' })
-                const data = await res.json()
-                if (!active) return
-                if (res.ok && data?.success && data.onboarding) {
-                    setGroupOnboarding(data.onboarding as GroupOnboardingStats)
-                    return
-                }
-
-                const membersRes = await fetch('/api/google-group-members', { cache: 'no-store' })
-                const membersData = await membersRes.json()
-                if (
-                    membersRes.ok &&
-                    membersData?.success &&
-                    Array.isArray(membersData.members)
-                ) {
-                    const emails = (membersData.members as { email?: string }[])
-                        .map(m => m.email?.trim())
-                        .filter((e): e is string => !!e)
-                    const map = syncLocalGroupOnboarding(emails)
-                    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
-                    setGroupOnboarding(buildGroupOnboardingStats(map, timeZone))
-                    setGroupOnboardingLocalOnly(true)
-                    setGroupOnboardingError(
-                        typeof data?.error === 'string'
-                            ? `${data.error} Showing counts tracked in this browser only.`
-                            : 'Server tracking unavailable. Showing counts tracked in this browser only.'
-                    )
-                    return
-                }
-
-                setGroupOnboarding(null)
-                setGroupOnboardingError(
-                    typeof data?.error === 'string'
-                        ? data.error
-                        : 'Could not load Google Group onboarding'
-                )
-            } catch {
-                if (active) {
-                    setGroupOnboarding(null)
-                    setGroupOnboardingError('Could not load Google Group onboarding')
-                }
-            } finally {
-                if (active) setGroupOnboardingLoading(false)
-            }
-        }
-        void loadGroupOnboarding()
         return () => { active = false }
     }, [])
 
@@ -418,17 +353,10 @@ export default function OverviewPage() {
     const overdueFollowUpRows = taskMetrics?.activeOverdueTaskRows ?? 0
     const peoplePending = isLoading && people.length === 0
     const applicantsThisWeek = useMemo(() => countApplicantsAppliedThisWeek(people), [people])
-    const onboardingCurrentCount = groupOnboarding?.currentMonth.count ?? 0
-    const onboardingPriorKey = groupOnboarding
-        ? previousMonthKey(groupOnboarding.currentMonth.key)
-        : ''
-    const onboardingPriorCount =
-        onboardingPriorKey && groupOnboarding
-            ? groupOnboarding.countsByMonth[onboardingPriorKey] ?? 0
-            : 0
-    const onboardingPriorLabel = onboardingPriorKey
-        ? monthLabelFromKey(onboardingPriorKey)
-        : ''
+    const fosterStartsThisMonth = useMemo(
+        () => countTrackableFosterStartsThisMonth(dogs),
+        [dogs]
+    )
     const enrichedFosters = useMemo(
         () => enrichFosterDirectoryWithLanes(dogs, taskRows, taskStatusByAnimalId),
         [dogs, taskRows, taskStatusByAnimalId]
@@ -545,71 +473,18 @@ export default function OverviewPage() {
 
                             <div className={styles.statCard}>
                                 <StatMetricHelp
-                                    label="Newly onboarded fosters"
-                                    helpAriaLabel="How newly onboarded fosters is calculated"
+                                    label="Foster starts this month"
+                                    helpAriaLabel="How foster starts this month is calculated"
                                 >
                                     <p>
-                                        Counts newly onboarded fosters each month based on new
-                                        emails added to the Foster Google Group.
+                                        Dogs in active foster placements that started this
+                                        calendar month (through today). Applies the same
+                                        exclusions as Active Fosters. Data from ShelterManager.
                                     </p>
-                                    {groupOnboardingLocalOnly ? (
-                                        <p>
-                                            Counts on this browser only until server tracking
-                                            is set up.
-                                        </p>
-                                    ) : null}
                                 </StatMetricHelp>
-                                {groupOnboardingLoading ? (
-                                    <StatValueFigure pending>{0}</StatValueFigure>
-                                ) : groupOnboarding ? (
-                                    <div
-                                        className={
-                                            onboardingPriorKey
-                                                ? styles.onboardingValueFlip
-                                                : undefined
-                                        }
-                                        title={
-                                            onboardingPriorKey
-                                                ? `Hover for ${onboardingPriorLabel}: ${onboardingPriorCount}`
-                                                : undefined
-                                        }
-                                    >
-                                        <span
-                                            className={`${styles.statCardValue} ${styles.fadeIn} ${styles.onboardingFlipCurrent}`}
-                                        >
-                                            {onboardingCurrentCount}
-                                        </span>
-                                        {onboardingPriorKey ? (
-                                            <span
-                                                className={`${styles.statCardValue} ${styles.onboardingFlipPrior}`}
-                                                aria-hidden
-                                            >
-                                                {onboardingPriorCount}
-                                            </span>
-                                        ) : null}
-                                    </div>
-                                ) : (
-                                    <span
-                                        className={`${styles.statCardValue} ${styles.statCardValueMuted}`}
-                                    >
-                                        —
-                                    </span>
-                                )}
-                                {groupOnboardingError && !groupOnboarding ? (
-                                    <span
-                                        className={styles.statCardHint}
-                                        title={groupOnboardingError}
-                                    >
-                                        {groupOnboardingError.length > 80
-                                            ? `${groupOnboardingError.slice(0, 80)}…`
-                                            : groupOnboardingError}
-                                    </span>
-                                ) : null}
-                                {groupOnboardingError && groupOnboarding && groupOnboardingLocalOnly ? (
-                                    <span className={styles.statCardHint} title={groupOnboardingError}>
-                                        This browser only — not shared across the team.
-                                    </span>
-                                ) : null}
+                                <StatValueFigure pending={!dogsRequestDone}>
+                                    {fosterStartsThisMonth}
+                                </StatValueFigure>
                             </div>
                         </div>
 

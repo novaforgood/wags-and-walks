@@ -1,6 +1,9 @@
 import type { GroupOnboardingStats } from '@/app/lib/groupOnboarding'
 import { loadGroupOnboardingStats } from '@/app/lib/groupOnboardingServer'
 
+/** group_onboarding can paginate the full group roster on a cold cache. */
+export const maxDuration = 60
+
 const rawTtl = Number(process.env.GOOGLE_GROUP_ONBOARDING_CACHE_TTL_SEC)
 const CACHE_TTL_SEC = Math.max(30, Math.min(600, Number.isFinite(rawTtl) && rawTtl > 0 ? rawTtl : 120))
 
@@ -28,7 +31,7 @@ export async function GET(request: Request) {
         )
       }
       if (!inFlight) {
-        inFlight = loadGroupOnboardingStats()
+        inFlight = loadGroupOnboardingStats(undefined, { syncMembers: true })
           .then(result => {
             memoryCache = {
               expires: Date.now() + CACHE_TTL_SEC * 1000,
