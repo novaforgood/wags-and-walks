@@ -1,306 +1,365 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 
-import type { Person } from '@/app/lib/peopleTypes'
+import type { Person, PersonStatus } from '@/app/lib/peopleTypes'
+import type { FostererHistory } from '@/app/lib/asmFosterHistory'
+import {
+  ALL_APPLICATION_FIELD_RAW_KEYS,
+  APPLICATION_FORM_SECTIONS,
+  applicationFieldDisplayValue,
+} from '@/app/lib/applicantApplicationFields'
 import NotificationPanel from './NotificationPanel'
+import TopBarProfileMenu from './TopBarProfileMenu'
+import layoutStyles from '@/app/candidates/candidates.module.css'
 import NotesCard from './NotesCard'
+import EmailComposeTrigger from './EmailComposeTrigger'
 import FosterHistoryPanel from './FosterHistoryPanel'
 import styles from './PersonModal.module.css'
 
 interface Props {
-    person: Person | null
-    onClose: () => void
+  person: Person | null
+  onClose: () => void
+  fosterHistory?: FostererHistory | null
 }
 
-type ModalTab = 'profile' | 'application' | 'foster-history'
+type ModalTab = 'summary' | 'application' | 'foster-history'
 
-const SHOWN_RAW_KEYS = new Set([
-    'First Name', 'Last Name', 'Email', 'Phone', 'How old are you?',
-    'Timestamp', 'Applicant Status', 'Flags', 'Review Status',
-    'When would you like to take your foster dog home?',
-    'Are there any dogs with special needs that you would be comfortable fostering?'
-])
+const TAB_IDS: Record<ModalTab, string> = {
+  summary: 'person-modal-tab-summary',
+  application: 'person-modal-tab-application',
+  'foster-history': 'person-modal-tab-history',
+}
 
-const APPLICATION_SECTIONS = [
-    {
-        title: 'Personal Information',
-        fields: [
-            'Submitted On',
-            'Name',
-            'Email',
-            'Phone',
-            'Address',
-            'How old are you',
-            'What do you do for a living',
-        ],
-    },
-    {
-        title: 'Household',
-        fields: [
-            'What is your living arrangement',
-            'How many children are in your home',
-            'How old are they Check all that apply',
-            'Other than yourself how many additional adults do you share your home with',
-            'How old are they',
-            'What is their relationship to you',
-        ],
-    },
-    {
-        title: 'Pet Experience',
-        fields: [
-            'Have you ever owned a pet before',
-            'What kind of pets have you owned check all that apply',
-            'Do you currently have any pets at home',
-            'Please list ALL pets that you CURRENTLY own Include type dogcat breed age gender length of time in your care etc',
-            'Are your current pets spayedneutered',
-        ],
-    },
-    {
-        title: 'Foster Preferences',
-        fields: [
-            'How would you rate your experience with dogs',
-            'Where will your foster dog be when you are not home',
-            'Where will your foster dog sleep during the night',
-            'When would you like to take your foster dog home',
-            'Please share your preferences in terms of size breed energy level etc Fosters for large dogs 45 lbs are always our biggest need Please note that you do not need a house or yard to foster a large dog Many bigger dogs are just fine in apartments and our team will pair you with a dog that will be a great match',
-            'Are you willing to foster dogs with special needs If so please check all that apply below',
-            'Are you willing to foster dogs with medical needs',
-            'Are you willing to foster pregnant mamas andor mamas and their litters',
-            'Are you willing to foster dogs that need training upkeepbehavior rehabilitation',
-        ],
-    },
-    {
-        title: 'How They Found Us',
-        fields: [
-            'How did you hear about us',
-            'If someone referred you please list their name here so we may thank them',
-        ],
-    },
-    {
-        title: 'Agreements',
-        fields: [
-            'Wags and Walks dogs will often have a transition period of 12 weeks after leaving the shelter and may exhibit signs of separation anxiety andor may have accidents in their new foster homes until they feel safe Please check that you agree to understanding that there could be a transition period',
-            'Aside from emergencies we require 48 hours notice if you need to return your foster dog Is that something you feel you can accommodate',
-            'I understand that any misrepresentation of the above information authorizes Wags  Walks to deny application andor reclaim the pet that is in my home I acknowledge that Wags  Walks cannot guarantee any animals against parasites diseases or destructive behavior If I foster a dog from Wags  Walks I will not hold Wags  Walks responsible nor seek any compensation for damages medical fees or other liabilities incurred by the pet I foster',
-            'I understand that I must follow all Wags and Walks protocols for fostering a dog which includes always having a collar on keeping a leash on my foster dog at all times when in public and using a crate for my foster dog when heshe is alone',
-        ],
-    },
+const PANEL_IDS: Record<ModalTab, string> = {
+  summary: 'person-modal-panel-summary',
+  application: 'person-modal-panel-application',
+  'foster-history': 'person-modal-panel-history',
+}
+
+const TABS: { id: ModalTab; label: string }[] = [
+  { id: 'summary', label: 'Summary' },
+  { id: 'application', label: 'Application' },
+  { id: 'foster-history', label: 'Foster History' },
 ]
 
-const ALL_SECTION_FIELDS = new Set(APPLICATION_SECTIONS.flatMap(s => s.fields))
+function pipelineStatusLabel(status?: PersonStatus): string {
+  if (!status || status === 'new') return 'New'
+  if (status === 'in-progress') return 'In Progress'
+  if (status === 'approved') return 'Approved'
+  if (status === 'current') return 'Current foster'
+  if (status === 'rejected') return 'Rejected'
+  if (status.startsWith('rejected_')) return 'Rejected'
+  return 'New'
+}
 
 // Fields that count as "real" application data (exclude meta fields)
 const META_FIELDS = new Set([
-    'Submitted On', 'Name', 'Email', 'Phone', 'Address', 'Source',
-    'Flag: Under 21', 'Flag: No Pet Experience', 'Flags', 'Review Status',
-    'Applicant Status', 'Status Updated At', 'Status Updated By',
-    'Email Sent', 'Email Sent At', 'Starred', 'Notes', 'Notes Updated At',
-    'rowIndex'
+  'Submitted On', 'Name', 'Email', 'Phone', 'Address', 'Source',
+  'Flag: Under 21', 'Flag: No Pet Experience', 'Flags', 'Review Status',
+  'Applicant Status', 'Status Updated At', 'Status Updated By',
+  'Email Sent', 'Email Sent At', 'Starred', 'Notes', 'Notes Updated At',
+  'rowIndex',
 ])
 
-export default function PersonModal({ person, onClose }: Props) {
-    const [activeTab, setActiveTab] = useState<ModalTab>('profile')
+export default function PersonModal({ person, onClose, fosterHistory }: Props) {
+  const [activeTab, setActiveTab] = useState<ModalTab>('summary')
+  const emailKey = person?.email ?? ''
+  const prevEmailKeyRef = useRef(emailKey)
+  if (emailKey !== prevEmailKeyRef.current) {
+    prevEmailKeyRef.current = emailKey
+    if (emailKey) {
+      setActiveTab('summary')
+    }
+  }
 
-    if (!person) return null
+  if (!person) return null
 
-    const name = `${person.firstName ?? ''} ${person.lastName ?? ''}`.trim() || 'Unknown'
-    const statusLabel = person.status === 'in-progress' ? 'In Progress' : 'New'
+  const name = `${person.firstName ?? ''} ${person.lastName ?? ''}`.trim() || 'Unknown'
+  const statusLabel = pipelineStatusLabel(person.status)
 
-    const otherEntries = Object.entries(person.raw ?? {}).filter(
-        ([key, value]) => !SHOWN_RAW_KEYS.has(key) && value && value.trim() !== ''
-    )
+  function onTabListKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
+    const ids = TABS.map(t => t.id)
+    const i = ids.indexOf(activeTab)
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+      e.preventDefault()
+      setActiveTab(TABS[(i + 1) % TABS.length].id)
+    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+      e.preventDefault()
+      setActiveTab(TABS[(i - 1 + TABS.length) % TABS.length].id)
+    } else if (e.key === 'Home') {
+      e.preventDefault()
+      setActiveTab(TABS[0].id)
+    } else if (e.key === 'End') {
+      e.preventDefault()
+      setActiveTab(TABS[TABS.length - 1].id)
+    }
+  }
 
-    return (
-        <div className={styles.overlay}>
-            <div className={styles.topBar}>
-                <div className={styles.topBarLeft}>
-                    <h2 className={styles.personName}>{name}</h2>
-                    <div className={styles.statusDots}>
-                        <span className={styles.dot} style={{ background: '#aaa' }} />
-                        <span className={styles.statusLabel}>{statusLabel}</span>
-                    </div>
-                </div>
-                <div className={styles.topBarIcon}>
-                    <NotificationPanel />
-                </div>
-            </div>
-
-            <div className={styles.tabRow}>
-                <div className={styles.tabs}>
-                    <button
-                        className={`${styles.tab} ${activeTab === 'profile' ? styles.tabActive : styles.tabInactive}`}
-                        type="button"
-                        onClick={() => setActiveTab('profile')}
-                    >
-                        Profile
-                    </button>
-                    <button
-                        className={`${styles.tab} ${activeTab === 'application' ? styles.tabActive : styles.tabInactive}`}
-                        type="button"
-                        onClick={() => setActiveTab('application')}
-                    >
-                        Application
-                    </button>
-                    <button
-                        className={`${styles.tab} ${activeTab === 'foster-history' ? styles.tabActive : styles.tabInactive}`}
-                        type="button"
-                        onClick={() => setActiveTab('foster-history')}
-                    >
-                        Foster History
-                    </button>
-                </div>
-                <button className={styles.closeBtn} onClick={onClose} aria-label="Close">✕</button>
-            </div>
-
-            <div className={styles.content}>
-                {activeTab === 'profile' && (
-                    <ProfileTab person={person} otherEntries={otherEntries} />
-                )}
-                {activeTab === 'application' && (
-                    <ApplicationTab person={person} />
-                )}
-                {activeTab === 'foster-history' && (
-                    <div className={styles.profileContent}>
-                        <FosterHistoryPanel email={person.email} />
-                    </div>
-                )}
-            </div>
+  return (
+    <div className={styles.overlay} role="presentation">
+      <div className={styles.topBar}>
+        <div className={styles.topBarLeft}>
+          <h2 className={styles.personName}>{name}</h2>
+          <div className={styles.statusDots}>
+            <span className={styles.dot} style={{ background: '#aaa' }} aria-hidden />
+            <span className={styles.statusLabel}>{statusLabel}</span>
+          </div>
         </div>
-    )
+        <div className={layoutStyles.topBarActions}>
+          <NotificationPanel />
+          <TopBarProfileMenu />
+        </div>
+      </div>
+
+      <div className={styles.tabRow}>
+        <div
+          className={styles.tabs}
+          role="tablist"
+          aria-label="Member detail sections"
+          onKeyDown={onTabListKeyDown}
+        >
+          {TABS.map(t => (
+            <button
+              key={t.id}
+              id={TAB_IDS[t.id]}
+              type="button"
+              role="tab"
+              aria-selected={activeTab === t.id}
+              aria-controls={PANEL_IDS[t.id]}
+              tabIndex={activeTab === t.id ? 0 : -1}
+              className={`${styles.tab} ${activeTab === t.id ? styles.tabActive : styles.tabInactive}`}
+              onClick={() => setActiveTab(t.id)}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+        <button type="button" className={styles.closeBtn} onClick={onClose} aria-label="Close profile">
+          ✕
+        </button>
+      </div>
+
+      <div className={styles.content}>
+        {activeTab === 'summary' && (
+          <div
+            id={PANEL_IDS.summary}
+            role="tabpanel"
+            aria-labelledby={TAB_IDS.summary}
+            className={styles.tabPanel}
+          >
+            <SummaryTab person={person} onOpenApplication={() => setActiveTab('application')} />
+          </div>
+        )}
+        {activeTab === 'application' && (
+          <div
+            id={PANEL_IDS.application}
+            role="tabpanel"
+            aria-labelledby={TAB_IDS.application}
+            className={styles.tabPanel}
+          >
+            <ApplicationTab person={person} />
+          </div>
+        )}
+        {activeTab === 'foster-history' && (
+          <div
+            id={PANEL_IDS['foster-history']}
+            role="tabpanel"
+            aria-labelledby={TAB_IDS['foster-history']}
+            className={styles.tabPanel}
+          >
+            <div className={styles.profileContent}>
+              <FosterHistoryPanel email={person.email} initialData={fosterHistory} />
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
 }
 
 // ---- Application tab ----
 function ApplicationTab({ person }: { person: Person }) {
-    const raw = person.raw ?? {}
+  const raw = person.raw ?? {}
 
-    // Check if this person has any real application data
-    const hasApplicationData = Object.entries(raw).some(
-        ([k, v]) => !META_FIELDS.has(k) && v && v.trim() !== ''
+  const hasApplicationData =
+    APPLICATION_FORM_SECTIONS.some(section =>
+      section.fields.some(f => applicationFieldDisplayValue(person, f).trim() !== '')
+    ) ||
+    Object.entries(raw).some(
+      ([k, v]) =>
+        !META_FIELDS.has(k) &&
+        !ALL_APPLICATION_FIELD_RAW_KEYS.has(k) &&
+        v &&
+        v.trim() !== ''
     )
 
-    if (!hasApplicationData) {
+  if (!hasApplicationData) {
+    return (
+      <div className={styles.profileContent}>
+        <div className={styles.emptyApplication}>
+          <p className={styles.emptyApplicationTitle}>No application on file</p>
+          <p className={styles.emptyApplicationBody}>
+            There is no foster application data for this email in the pipeline sheet.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className={styles.profileContent}>
+      {APPLICATION_FORM_SECTIONS.map(section => {
         return (
-            <div className={styles.profileContent}>
-                <div className={styles.section} style={{ textAlign: 'center', padding: '60px 20px', color: '#888' }}>
-                    <div style={{ fontSize: 40, marginBottom: 16 }}>📋</div>
-                    <div style={{ fontSize: 16, fontWeight: 500, color: '#555', marginBottom: 8 }}>
-                        No Application on File
+          <div key={section.sectionTitle} className={styles.section}>
+            <h3 className={styles.sectionTitle}>{section.sectionTitle}</h3>
+            <div className={styles.threeColGrid}>
+              {section.fields.map(field => {
+                const value = applicationFieldDisplayValue(person, field)
+                const empty = value.trim() === ''
+                const title = field.fullQuestionTitle ?? field.label
+                return (
+                  <div key={[...field.rawKeys].join('|')} className={styles.field}>
+                    <div className={styles.fieldLabel} title={title}>
+                      {field.label}
                     </div>
-                    <div style={{ fontSize: 14 }}>
-                        This applicant has not filled out the required application information.
+                    <div className={empty ? styles.fieldValueEmpty : styles.fieldValue}>
+                      {empty ? '—' : value}
                     </div>
-                </div>
+                  </div>
+                )
+              })}
             </div>
+          </div>
         )
-    }
+      })}
 
-    return (
-        <div className={styles.profileContent}>
-            {APPLICATION_SECTIONS.map(section => {
-                const rows = section.fields
-                    .map(field => ({ label: field, value: raw[field] ?? '' }))
-                    .filter(row => row.value.trim() !== '')
-
-                if (rows.length === 0) return null
-
-                return (
-                    <div key={section.title} className={styles.section}>
-                        <div className={styles.sectionTitle}>{section.title}</div>
-                        <div className={styles.threeColGrid}>
-                            {rows.map(({ label, value }) => (
-                                <div key={label} className={styles.field}>
-                                    <div className={styles.fieldLabel}>{label}:</div>
-                                    <div className={styles.fieldValue}>{value}</div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )
-            })}
-
-            {(() => {
-                const remaining = Object.entries(raw).filter(
-                    ([k, v]) => !ALL_SECTION_FIELDS.has(k) && !META_FIELDS.has(k) && v && v.trim() !== ''
-                )
-                if (remaining.length === 0) return null
-                return (
-                    <div className={styles.section}>
-                        <div className={styles.sectionTitle}>Additional Information</div>
-                        <div className={styles.threeColGrid}>
-                            {remaining.map(([key, value]) => (
-                                <div key={key} className={styles.field}>
-                                    <div className={styles.fieldLabel}>{key}:</div>
-                                    <div className={styles.fieldValue}>{value}</div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )
-            })()}
-        </div>
-    )
-}
-
-// ---- Profile tab ----
-function ProfileTab({ person, otherEntries }: { person: Person; otherEntries: [string, string][] }) {
-    return (
-        <div className={styles.profileContent}>
-            <Section title="Personal information">
-                <ThreeColGrid>
-                    {person.email && <Field label="Email" value={person.email} />}
-                    {person.phone && <Field label="Phone number" value={person.phone} />}
-                    {person.age && <Field label="Age" value={person.age} />}
-                    {person.appliedAt && (
-                        <Field
-                            label="Applied"
-                            value={new Date(person.appliedAt).toLocaleDateString('en-US', {
-                                year: 'numeric', month: 'short', day: 'numeric'
-                            })}
-                        />
-                    )}
-                    {person.availability && <Field label="Availability" value={person.availability} />}
-                    {person.specialNeeds && person.specialNeeds.length > 0 && (
-                        <Field label="Special needs" value={person.specialNeeds.join(', ')} />
-                    )}
-                </ThreeColGrid>
-            </Section>
-
-            {otherEntries.length > 0 && (
-                <Section title="Application answers">
-                    <ThreeColGrid>
-                        {otherEntries.map(([key, value]) => (
-                            <Field key={key} label={key} value={value} />
-                        ))}
-                    </ThreeColGrid>
-                </Section>
-            )}
-
-            <div className={styles.section}>
-                <NotesCard email={person.email} name={person.firstName} />
+      {(() => {
+        const remaining = Object.entries(raw).filter(
+          ([k, v]) =>
+            !ALL_APPLICATION_FIELD_RAW_KEYS.has(k) &&
+            !META_FIELDS.has(k) &&
+            v &&
+            v.trim() !== ''
+        )
+        if (remaining.length === 0) return null
+        return (
+          <div className={styles.section}>
+            <h3 className={styles.sectionTitle}>Additional information</h3>
+            <div className={styles.threeColGrid}>
+              {remaining.map(([key, value]) => (
+                <div key={key} className={styles.field}>
+                  <div className={styles.fieldLabel}>{key}</div>
+                  <div className={styles.fieldValue}>{value}</div>
+                </div>
+              ))}
             </div>
-        </div>
-    )
+          </div>
+        )
+      })()}
+    </div>
+  )
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-    return (
-        <div className={styles.section}>
-            <div className={styles.sectionTitle}>{title}</div>
-            {children}
-        </div>
+// ---- Summary tab (contact + link to application + notes only; no duplicate form answers) ----
+function SummaryTab({
+  person,
+  onOpenApplication,
+}: {
+  person: Person
+  onOpenApplication: () => void
+}) {
+  const raw = person.raw ?? {}
+  const hasApplicationData =
+    APPLICATION_FORM_SECTIONS.some(section =>
+      section.fields.some(f => applicationFieldDisplayValue(person, f).trim() !== '')
+    ) ||
+    Object.entries(raw).some(
+      ([k, v]) =>
+        !META_FIELDS.has(k) &&
+        !ALL_APPLICATION_FIELD_RAW_KEYS.has(k) &&
+        v &&
+        v.trim() !== ''
     )
-}
 
-function ThreeColGrid({ children }: { children: React.ReactNode }) {
-    return <div className={styles.threeColGrid}>{children}</div>
-}
-
-function Field({ label, value }: { label: string; value: string }) {
-    return (
-        <div className={styles.field}>
-            <div className={styles.fieldLabel}>{label}:</div>
-            <div className={styles.fieldValue}>{value}</div>
+  return (
+    <div className={styles.profileContent}>
+      <section className={styles.section} aria-labelledby="summary-contact-heading">
+        <div className={styles.sectionHeaderRow}>
+          <h3 id="summary-contact-heading" className={styles.sectionTitle}>
+            Contact
+          </h3>
+          {hasApplicationData && (
+            <button type="button" className={styles.sectionHeaderAction} onClick={onOpenApplication}>
+              Application
+            </button>
+          )}
         </div>
-    )
+        <div className={styles.threeColGrid}>
+          {person.email && (
+            <div className={styles.field}>
+              <div className={styles.fieldLabel}>Email</div>
+              <div className={styles.fieldValue}>
+                <a href={`mailto:${person.email}`}>{person.email}</a>
+              </div>
+            </div>
+          )}
+          {person.phone && (
+            <div className={styles.field}>
+              <div className={styles.fieldLabel}>Phone</div>
+              <div className={styles.fieldValue}>{person.phone}</div>
+            </div>
+          )}
+          {person.age && (
+            <div className={styles.field}>
+              <div className={styles.fieldLabel}>Age</div>
+              <div className={styles.fieldValue}>{person.age}</div>
+            </div>
+          )}
+          {person.appliedAt && (
+            <div className={styles.field}>
+              <div className={styles.fieldLabel}>Applied</div>
+              <div className={styles.fieldValue}>
+                {new Date(person.appliedAt).toLocaleDateString('en-US', {
+                  year: 'numeric',
+                  month: 'short',
+                  day: 'numeric',
+                })}
+              </div>
+            </div>
+          )}
+          {person.availability && (
+            <div className={styles.field}>
+              <div className={styles.fieldLabel}>Availability</div>
+              <div className={styles.fieldValue}>{person.availability}</div>
+            </div>
+          )}
+          {person.specialNeeds && person.specialNeeds.length > 0 && (
+            <div className={styles.field}>
+              <div className={styles.fieldLabel}>Special needs</div>
+              <div className={styles.fieldValue}>{person.specialNeeds.join(', ')}</div>
+            </div>
+          )}
+        </div>
+      </section>
+
+      <section className={styles.section} aria-label="Notes">
+        <NotesCard
+          key={person.email || `${person.firstName ?? ''}-${person.lastName ?? ''}`}
+          email={person.email}
+          initialNotes={person.notes}
+          initialNotesUpdatedAt={person.notesUpdatedAt}
+        />
+      </section>
+
+      {person.email && (
+        <section className={styles.section} aria-labelledby="summary-email-heading">
+          <h3 id="summary-email-heading" className={styles.sectionTitle}>
+            Email
+          </h3>
+          <EmailComposeTrigger email={person.email} recipientName={person.firstName} />
+        </section>
+      )}
+    </div>
+  )
 }

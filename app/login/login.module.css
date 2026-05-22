@@ -1,6 +1,6 @@
-/* Design tokens are defined in app/globals.css */
+/* Design tokens: app shell vars + brand in app/globals.css */
 
-/* Container - Full viewport with solid background */
+/* Full-viewport shell — soft mint page bg (same as dashboard); white card reads clearly on top */
 .container {
     min-height: 100vh;
     width: 100%;
@@ -8,188 +8,125 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 24px;
-    background-color: #E5E7EB;
-    position: relative;
-    overflow: hidden;
+    padding: 24px 16px;
+    background-color: var(--app-page-bg);
 }
 
-/* Background Decorations - Dogs (bottom corners only) */
-.container::before {
-    content: '';
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    width: 160px;
-    height: 180px;
-    background-image: url("data:image/svg+xml,%3Csvg width='160' height='180' viewBox='0 0 160 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' stroke='%23A0A0A0' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M50 120c0-10 8-18 18-18 3 0 6 1 8 2 2-7 8-12 15-12s13 5 15 12c2-1 5-2 8-2 10 0 18 8 18 18v6l-9 25c-1 4-5 7-9 7H68c-4 0-8-3-9-7l-9-25v-6z'/%3E%3Ccircle cx='72' cy='95' r='7'/%3E%3Ccircle cx='102' cy='95' r='7'/%3E%3Cpath d='M55 158h64v8c0 4-3 7-7 7H62c-4 0-7-3-7-7v-8z'/%3E%3Cpath d='M70 158v10'/%3E%3Cpath d='M104 158v10'/%3E%3C/g%3E%3C/svg%3E");
-    background-size: contain;
-    background-repeat: no-repeat;
-    background-position: bottom left;
-    pointer-events: none;
-    opacity: 0.15;
-    z-index: 0;
-}
-
-.container::after {
-    content: '';
-    position: absolute;
-    bottom: 0;
-    right: 0;
-    width: 150px;
-    height: 170px;
-    background-image: url("data:image/svg+xml,%3Csvg width='150' height='170' viewBox='0 0 150 170' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' stroke='%23A0A0A0' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M35 90c0-10 7-17 17-17 3 0 6 1 8 3 3-6 9-11 16-11s13 5 16 11c2-2 5-3 8-3 10 0 17 7 17 17l-7 40c-1 5-5 8-10 8H52c-5 0-9-3-10-8l-7-40z'/%3E%3Ccircle cx='57' cy='65' r='7'/%3E%3Ccircle cx='87' cy='65' r='7'/%3E%3Cpath d='M40 138h64v24c0 5-4 9-9 9H49c-5 0-9-4-9-9v-24z'/%3E%3Cpath d='M55 138v26'/%3E%3Cpath d='M89 138v26'/%3E%3C/g%3E%3C/svg%3E");
-    background-size: contain;
-    background-repeat: no-repeat;
-    background-position: bottom right;
-    pointer-events: none;
-    opacity: 0.15;
-    z-index: 0;
-}
-
-/* Additional dog decorations */
-.dogLeft {
-    position: absolute;
-    bottom: 30%;
-    left: 15px;
-    width: 140px;
-    height: 160px;
-    background-image: url("data:image/svg+xml,%3Csvg width='140' height='160' viewBox='0 0 140 160' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' stroke='%23A0A0A0' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M40 110c0-9 7-16 16-16 3 0 5 1 7 2 2-6 8-11 14-11s12 5 14 11c2-1 4-2 7-2 9 0 16 7 16 16v5l-8 22c-1 4-4 6-8 6H56c-4 0-7-2-8-6l-8-22v-5z'/%3E%3Ccircle cx='60' cy='85' r='6'/%3E%3Ccircle cx='84' cy='85' r='6'/%3E%3Cpath d='M45 143h54v7c0 3-3 6-6 6H51c-3 0-6-3-6-6v-7z'/%3E%3Cpath d='M60 143v9'/%3E%3Cpath d='M84 143v9'/%3E%3C/g%3E%3C/svg%3E");
-    background-size: contain;
-    background-repeat: no-repeat;
-    pointer-events: none;
-    opacity: 0.15;
-    z-index: 0;
-}
-
-.dogRight {
-    position: absolute;
-    bottom: 25%;
-    right: 15px;
-    width: 135px;
-    height: 155px;
-    background-image: url("data:image/svg+xml,%3Csvg width='135' height='155' viewBox='0 0 135 155' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' stroke='%23A0A0A0' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M30 85c0-9 6-15 15-15 3 0 5 1 7 3 2-5 7-10 13-10s11 5 13 10c2-2 4-3 7-3 9 0 15 6 15 15l-6 35c-1 4-4 7-8 7H44c-4 0-7-3-8-7l-6-35z'/%3E%3Ccircle cx='48' cy='62' r='6'/%3E%3Ccircle cx='72' cy='62' r='6'/%3E%3Cpath d='M35 127h50v21c0 4-3 7-7 7H42c-4 0-7-3-7-7v-21z'/%3E%3Cpath d='M47 127v23'/%3E%3Cpath d='M73 127v23'/%3E%3C/g%3E%3C/svg%3E");
-    background-size: contain;
-    background-repeat: no-repeat;
-    pointer-events: none;
-    opacity: 0.15;
-    z-index: 0;
-}
-
-/* Paw print clusters */
-.pawBottomLeft {
-    position: absolute;
-    bottom: 15px;
-    left: 180px;
-    width: 80px;
-    height: 60px;
-    background-image: url("data:image/svg+xml,%3Csvg width='80' height='60' viewBox='0 0 80 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23A0A0A0' opacity='0.3'%3E%3Cellipse cx='18' cy='28' rx='4' ry='6'/%3E%3Cellipse cx='12' cy='22' rx='3' ry='4.5' transform='rotate(-15 12 22)'/%3E%3Cellipse cx='18' cy='18' rx='3' ry='4.5'/%3E%3Cellipse cx='24' cy='22' rx='3' ry='4.5' transform='rotate(15 24 22)'/%3E%3Cellipse cx='18' cy='34' rx='5' ry='4'/%3E%3Cellipse cx='58' cy='38' rx='4' ry='6'/%3E%3Cellipse cx='52' cy='32' rx='3' ry='4.5' transform='rotate(-15 52 32)'/%3E%3Cellipse cx='58' cy='28' rx='3' ry='4.5'/%3E%3Cellipse cx='64' cy='32' rx='3' ry='4.5' transform='rotate(15 64 32)'/%3E%3Cellipse cx='58' cy='44' rx='5' ry='4'/%3E%3C/g%3E%3C/svg%3E");
-    background-size: contain;
-    background-repeat: no-repeat;
-    pointer-events: none;
-    z-index: 0;
-}
-
-.pawMidLeft {
-    position: absolute;
-    bottom: 45%;
-    left: 160px;
-    width: 70px;
-    height: 55px;
-    background-image: url("data:image/svg+xml,%3Csvg width='70' height='55' viewBox='0 0 70 55' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23A0A0A0' opacity='0.3'%3E%3Cellipse cx='16' cy='25' rx='4' ry='6'/%3E%3Cellipse cx='10' cy='19' rx='3' ry='4.5' transform='rotate(-15 10 19)'/%3E%3Cellipse cx='16' cy='15' rx='3' ry='4.5'/%3E%3Cellipse cx='22' cy='19' rx='3' ry='4.5' transform='rotate(15 22 19)'/%3E%3Cellipse cx='16' cy='31' rx='5' ry='4'/%3E%3Cellipse cx='50' cy='30' rx='4' ry='6'/%3E%3Cellipse cx='44' cy='24' rx='3' ry='4.5' transform='rotate(-15 44 24)'/%3E%3Cellipse cx='50' cy='20' rx='3' ry='4.5'/%3E%3Cellipse cx='56' cy='24' rx='3' ry='4.5' transform='rotate(15 56 24)'/%3E%3Cellipse cx='50' cy='36' rx='5' ry='4'/%3E%3C/g%3E%3C/svg%3E");
-    background-size: contain;
-    background-repeat: no-repeat;
-    pointer-events: none;
-    z-index: 0;
-}
-
-.pawBottomRight {
-    position: absolute;
-    bottom: 15px;
-    right: 160px;
-    width: 40px;
-    height: 35px;
-    background-image: url("data:image/svg+xml,%3Csvg width='40' height='35' viewBox='0 0 40 35' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23A0A0A0' opacity='0.3'%3E%3Cellipse cx='20' cy='18' rx='4' ry='6'/%3E%3Cellipse cx='14' cy='12' rx='3' ry='4.5' transform='rotate(-15 14 12)'/%3E%3Cellipse cx='20' cy='8' rx='3' ry='4.5'/%3E%3Cellipse cx='26' cy='12' rx='3' ry='4.5' transform='rotate(15 26 12)'/%3E%3Cellipse cx='20' cy='24' rx='5' ry='4'/%3E%3C/g%3E%3C/svg%3E");
-    background-size: contain;
-    background-repeat: no-repeat;
-    pointer-events: none;
-    z-index: 0;
-}
-
-.pawMidRight {
-    position: absolute;
-    bottom: 40%;
-    right: 140px;
-    width: 70px;
-    height: 55px;
-    background-image: url("data:image/svg+xml,%3Csvg width='70' height='55' viewBox='0 0 70 55' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23A0A0A0' opacity='0.3'%3E%3Cellipse cx='18' cy='25' rx='4' ry='6'/%3E%3Cellipse cx='12' cy='19' rx='3' ry='4.5' transform='rotate(-15 12 19)'/%3E%3Cellipse cx='18' cy='15' rx='3' ry='4.5'/%3E%3Cellipse cx='24' cy='19' rx='3' ry='4.5' transform='rotate(15 24 19)'/%3E%3Cellipse cx='18' cy='31' rx='5' ry='4'/%3E%3Cellipse cx='52' cy='30' rx='4' ry='6'/%3E%3Cellipse cx='46' cy='24' rx='3' ry='4.5' transform='rotate(-15 46 24)'/%3E%3Cellipse cx='52' cy='20' rx='3' ry='4.5'/%3E%3Cellipse cx='58' cy='24' rx='3' ry='4.5' transform='rotate(15 58 24)'/%3E%3Cellipse cx='52' cy='36' rx='5' ry='4'/%3E%3C/g%3E%3C/svg%3E");
-    background-size: contain;
-    background-repeat: no-repeat;
-    pointer-events: none;
-    z-index: 0;
-}
-
-/* Centered Card */
+/* Card — same language as dashboard cards: light ring + shadow, compact padding */
 .card {
     width: 100%;
-    max-width: 440px;
-    background-color: var(--color-surface);
-    border-radius: 16px;
-    box-shadow:
-        0 10px 25px -5px rgba(0, 0, 0, 0.1),
-        0 8px 10px -6px rgba(0, 0, 0, 0.1);
-    padding: 40px 44px;
+    max-width: 400px;
+    background-color: var(--app-card-bg);
+    color: var(--app-text);
+    border-radius: var(--radius-card);
+    box-shadow: var(--app-card-shadow);
+    border: 1px solid var(--app-border);
+    padding: 22px 26px 20px;
     display: flex;
     flex-direction: column;
-    position: relative;
-    z-index: 1;
-}
-
-/* Form Container */
-.form {
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
+    align-items: stretch;
+    gap: 14px;
 }
 
 /* Logo */
 .logoContainer {
     text-align: center;
-    margin-bottom: 24px;
-    z-index: 1;
+    margin-bottom: 0;
+    flex-shrink: 0;
+}
+
+.logoContainer img {
+    display: inline-block;
+    vertical-align: middle;
+}
+
+/* Form — tighter vertical rhythm so the card doesn’t feel stretched */
+.form {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
 }
 
 /* Header */
 .header {
     text-align: center;
-    margin-bottom: 4px;
+    margin: 0;
 }
 
 .title {
-    font-size: 26px;
+    font-size: 22px;
     font-weight: 700;
-    color: var(--color-text-main);
+    color: var(--app-text);
     margin: 0 0 6px 0;
-    letter-spacing: -0.3px;
+    letter-spacing: -0.02em;
 }
 
 .subtitle {
     font-size: 13px;
-    color: var(--color-text-muted);
+    color: var(--app-text-muted);
     margin: 0;
-    line-height: 1.4;
+    line-height: 1.45;
+}
+
+.inviteHint {
+    font-size: 13px;
+    color: var(--app-text-muted);
+    margin: 10px 0 0 0;
+    line-height: 1.45;
+}
+
+/* Email + password + forgot */
+.fieldStack {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+/* Success / info alerts (password reset instructions, post-registration, etc.) */
+.successNotice {
+    background: var(--color-alert-success-bg);
+    border: 1px solid var(--app-border);
+    border-left: 4px solid var(--app-accent);
+    color: var(--app-text);
+    padding: 10px 12px;
+    border-radius: var(--radius-alert);
+    font-size: 13px;
+    line-height: 1.5;
+    text-align: left;
+}
+
+.infoNotice {
+    background: var(--color-alert-info-bg);
+    border: 1px solid var(--app-border);
+    border-left: 4px solid var(--app-accent);
+    color: var(--app-text);
+    padding: 10px 12px;
+    border-radius: var(--radius-alert);
+    font-size: 13px;
+    line-height: 1.5;
+    text-align: left;
+}
+
+.inlineCode {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 12px;
+    background: rgba(0, 0, 0, 0.06);
+    padding: 2px 6px;
+    border-radius: 4px;
 }
 
 /* Error Message */
 .error {
-    background: #FEE;
-    border: 1px solid #FCC;
-    color: #C33;
-    padding: 10px 14px;
-    border-radius: 8px;
+    background: var(--color-alert-error-bg);
+    border: 1px solid var(--app-border);
+    border-left: 4px solid var(--app-text-muted);
+    color: var(--app-text);
+    padding: 10px 12px;
+    border-radius: var(--radius-alert);
     font-size: 13px;
-    text-align: center;
+    line-height: 1.5;
+    text-align: left;
 }
 
 /* Input Groups */
@@ -203,8 +140,8 @@
     display: block;
     font-size: 13px;
     font-weight: 600;
-    color: var(--color-text-main);
-    letter-spacing: -0.1px;
+    color: var(--app-text);
+    letter-spacing: -0.01em;
 }
 
 /* Input Wrapper (for icon positioning) */
@@ -218,120 +155,124 @@
     left: 14px;
     top: 50%;
     transform: translateY(-50%);
-    color: #9CA3AF;
+    color: var(--app-text-subtle);
     pointer-events: none;
     width: 18px;
     height: 18px;
 }
 
+/* Room for the password visibility control on the right */
+.inputWrapper:has(.togglePassword) .input {
+    padding-right: 48px;
+}
+
 .input {
     width: 100%;
-    height: 44px;
+    height: 42px;
     padding: 0 18px 0 42px;
-    background-color: var(--color-surface);
-    border: 1.5px solid #D1D5DB;
+    background-color: var(--app-filter-track);
+    border: 1px solid var(--app-border);
     border-radius: var(--radius-pill);
     font-size: 14px;
-    color: var(--color-text-main);
-    transition: all 0.2s ease;
+    color: var(--app-text);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
     outline: none;
 }
 
 .input::placeholder {
-    color: #9CA3AF;
+    color: var(--app-text-subtle);
 }
 
 .input:focus {
-    border-color: var(--color-primary);
+    border-color: var(--app-accent);
     box-shadow: 0 0 0 3px var(--color-focus-ring);
+    background-color: var(--app-card-bg);
 }
 
 /* Toggle Password Button */
 .togglePassword {
     position: absolute;
-    right: 14px;
+    right: 6px;
     top: 50%;
     transform: translateY(-50%);
-    background: none;
+    box-sizing: border-box;
+    width: 36px;
+    height: 36px;
+    padding: 0;
     border: none;
-    color: #9CA3AF;
+    border-radius: 9999px;
+    background: transparent;
+    color: var(--app-text-subtle);
     cursor: pointer;
-    padding: 4px;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: color 0.2s ease;
+    line-height: 0;
+    outline: none;
+    -webkit-tap-highlight-color: transparent;
+    appearance: none;
+    transition: color 0.2s ease, background-color 0.15s ease;
 }
 
 .togglePassword:hover {
-    color: var(--color-primary);
+    color: var(--app-accent);
+    background-color: var(--app-row-hover);
+}
+
+.togglePassword:focus-visible {
+    outline: 2px solid var(--app-accent);
+    outline-offset: 2px;
 }
 
 .togglePassword svg {
-    width: 18px;
-    height: 18px;
+    display: block;
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
 }
 
-/* Utility Row (Remember Me + Forgot Password) */
-.utilityRow {
+.forgotRow {
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-end;
     align-items: center;
-    margin-top: -6px;
-}
-
-.checkboxLabel {
-    display: flex;
-    align-items: center;
-    gap: 7px;
-    font-size: 13px;
-    color: var(--color-text-main);
-    cursor: pointer;
-}
-
-.checkbox {
-    width: 15px;
-    height: 15px;
-    accent-color: var(--color-primary);
-    cursor: pointer;
+    margin-top: -4px;
 }
 
 .forgotLink {
     font-size: 13px;
-    color: var(--color-text-muted);
+    color: var(--app-text-muted);
     text-decoration: underline;
     transition: color 0.2s ease;
 }
 
 .forgotLink:hover {
-    color: var(--color-primary);
+    color: var(--app-accent);
 }
 
 /* Submit Button */
 .button {
     width: 100%;
-    height: 44px;
-    background-color: var(--color-primary);
-    color: var(--color-surface);
+    height: 42px;
+    background-color: var(--app-accent);
+    color: var(--app-card-bg);
     border: none;
     border-radius: var(--radius-pill);
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.3px;
+    letter-spacing: 0.04em;
     cursor: pointer;
-    transition: all 0.2s ease;
-    margin-top: 4px;
+    transition: background-color 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease;
 }
 
 .button:hover:not(:disabled) {
-    background-color: var(--color-primary-dark);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(75, 161, 157, 0.3);
+    background-color: var(--app-accent-strong);
+    box-shadow: 0 2px 8px rgba(5, 170, 175, 0.25);
 }
 
 .button:active:not(:disabled) {
-    transform: translateY(0);
+    transform: translateY(1px);
+    background-color: var(--app-accent-strong);
 }
 
 .button:disabled {
@@ -339,66 +280,70 @@
     cursor: not-allowed;
 }
 
-/* Footer Links */
+/* Footer links — grouped with even spacing */
+.footerGroup {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding-top: 0;
+}
+
 .footer {
     font-size: 13px;
-    color: var(--color-text-muted);
+    color: var(--app-text-muted);
     text-align: center;
     margin: 0;
-    line-height: 1.6;
+    line-height: 1.5;
 }
 
 .signUpLink {
-    color: var(--color-primary);
+    color: var(--app-accent);
     text-decoration: underline;
     transition: color 0.2s ease;
     font-weight: 500;
 }
 
 .signUpLink:hover {
-    color: var(--color-primary-dark);
+    color: var(--app-accent-strong);
 }
 
-/* Copyright */
+/* Copyright — subtle divider, minimal vertical cost */
 .copyright {
-    position: absolute;
-    bottom: 24px;
-    left: 0;
-    right: 0;
     font-size: 11px;
-    color: #9CA3AF;
+    color: var(--app-text-subtle);
     text-align: center;
-    margin-top: 0;
-    padding-top: 4px;
-    z-index: 1;
+    margin: 0;
+    padding-top: 12px;
+    margin-top: 2px;
+    border-top: 1px solid var(--app-border);
+    line-height: 1.4;
 }
 
 /* Responsive: Mobile */
 @media (max-width: 480px) {
     .container {
-        padding: 16px;
+        padding: 20px 14px;
     }
 
     .card {
-        padding: 32px 28px;
+        padding: 20px 20px 18px;
         max-width: 100%;
     }
 
+    .logoContainer {
+        margin-bottom: 0;
+    }
+
     .title {
-        font-size: 24px;
+        font-size: 21px;
     }
 
     .form {
-        gap: 18px;
+        gap: 13px;
     }
 
-    /* Hide decorations on mobile */
-    .dogLeft,
-    .dogRight,
-    .pawBottomLeft,
-    .pawMidLeft,
-    .pawBottomRight,
-    .pawMidRight {
-        display: none;
+    .fieldStack {
+        gap: 11px;
     }
 }

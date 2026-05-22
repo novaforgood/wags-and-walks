@@ -2,7 +2,6 @@
 .overlay {
     position: fixed;
     top: 0;
-    /* Keep the sidebar resize handle exposed while modal is open */
     left: calc(var(--app-sidebar-width, 208px) + 8px);
     right: 0;
     bottom: 0;
@@ -166,6 +165,7 @@
     color: #3b4b4b;
     border-bottom: 1px solid #e5eeee;
     padding-bottom: 10px;
+    margin: 0;
 }
 
 /* ---- 3-column grid ---- */
@@ -195,6 +195,13 @@
     font-weight: 600;
     color: #222;
     word-break: break-word;
+}
+
+.fieldValueEmpty {
+    font-size: 14px;
+    font-weight: 500;
+    color: #94a3b8;
+    font-style: italic;
 }
 
 @media (max-width: 1000px) {
@@ -230,6 +237,75 @@
         grid-template-columns: 1fr;
         gap: 16px;
     }
+}
+
+/* ---- Tab panel wrapper ---- */
+.tabPanel {
+    flex: 1;
+    min-height: 0;
+}
+
+.sectionHeaderRow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    border-bottom: 1px solid #e5eeee;
+    padding-bottom: 10px;
+    margin-bottom: 4px;
+}
+
+.sectionHeaderRow .sectionTitle {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.sectionHeaderAction {
+    flex-shrink: 0;
+    background: #fff;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 6px 14px;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #0f766e;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+}
+
+.sectionHeaderAction:hover {
+    background: #f0fdfa;
+    border-color: #5eead4;
+}
+
+.sectionHeaderAction:focus-visible {
+    outline: 2px solid #0d9488;
+    outline-offset: 2px;
+}
+
+.emptyApplication {
+    text-align: center;
+    padding: 48px 24px;
+    max-width: 28rem;
+    margin: 0 auto;
+}
+
+.emptyApplicationTitle {
+    margin: 0 0 10px;
+    font-size: 17px;
+    font-weight: 600;
+    color: #334155;
+}
+
+.emptyApplicationBody {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.5;
+    color: #64748b;
 }
 
 /* (placeholder styles removed; only Profile tab remains) */

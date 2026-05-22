@@ -1,4 +1,4 @@
-export type FosterStatus = 'Good' | 'Needs Review' | 'Overdue'
+export type FosterStatus = 'Good' | 'Needs Review' | 'Overdue' | 'Unknown'
 
 export type DogRecord = {
   id?: number
@@ -34,14 +34,8 @@ export type FosterDirectoryItem = {
   fosterPhone?: string
 }
 
-export function toStatus(days?: number): FosterStatus {
-  if (typeof days !== 'number') return 'Needs Review'
-  if (days > 30) return 'Overdue'
-  if (days > 14) return 'Needs Review'
-  return 'Good'
-}
-
 function statusRank(status: FosterStatus): number {
+  if (status === 'Unknown') return 4
   if (status === 'Overdue') return 3
   if (status === 'Needs Review') return 2
   return 1
@@ -83,9 +77,53 @@ export function shouldHideDog(name?: string): boolean {
   )
 }
 
+/** ASM foster dogs counted on the overview and `/api/fosters` (same rules as the directory). */
+export function countTrackableFosterDogs(dogs: readonly DogRecord[]): number {
+  let n = 0
+  for (const dog of dogs) {
+    if (!shouldHideDog(dog.name)) n += 1
+  }
+  return n
+}
+
+/** Animal IDs with at least one Task Log row (any type/status). Used to avoid calling “Good” when we have no sheet data at all. */
+export function animalIdsFromTaskLogRows(
+  rows: readonly { animalId?: string }[]
+): Set<string> {
+  const s = new Set<string>()
+  for (const r of rows) {
+    const id = String(r.animalId ?? '').trim()
+    if (id) s.add(id)
+  }
+  return s
+}
+
+/**
+ * When Task Log integration is inactive (empty rows + empty rollup cache), callers omit `animalIdsWithAnyTaskRow`
+ * so dogs default to Good and the UI stays calm. When callers pass `taskStatusByAnimalId`, animals missing from that
+ * map are still treated as Good (see `buildFosterDirectory`); lane-level follow-ups use Task Log rows separately.
+ */
+export function strictTaskPresenceForRollup(
+  taskRowCount: number,
+  taskStatusByAnimalId?: Record<string, FosterStatus>
+): boolean {
+  if (taskRowCount > 0) return true
+  return Object.keys(taskStatusByAnimalId ?? {}).length > 0
+}
+
+/** Fallback when Task Log rollup is not in use — same thresholds as household “days in foster” health. */
+function statusFromDaysInFoster(days?: number): FosterStatus {
+  if (days === undefined || Number.isNaN(Number(days))) return 'Good'
+  const d = Number(days)
+  if (d > 30) return 'Overdue'
+  if (d >= 14) return 'Needs Review'
+  return 'Good'
+}
+
 export function buildFosterDirectory(
   dogs: DogRecord[],
-  taskStatusByAnimalId?: Record<string, FosterStatus>
+  taskStatusByAnimalId?: Record<string, FosterStatus>,
+  animalIdsWithAnyTaskRow?: Set<string>
 ): FosterDirectoryItem[] {
   const grouped = new Map<string, FosterDirectoryItem>()
 
@@ -99,9 +137,22 @@ export function buildFosterDirectory(
     const fosterEmail = normalizeText(dog.foster?.email) || undefined
     const id = fosterSlug(fosterName, fosterEmail)
 
-    const dogStatus =
-      taskStatusByAnimalId?.[String(dog.id)] ??
-      toStatus(dog.movement?.daysInFoster)
+    const asmAnimalId =
+      dog.id !== undefined && dog.id !== null ? String(dog.id).trim() : ''
+
+    // When task data is loaded, a dog with no active task entry means tasks
+    // haven't started yet (or all are completed) - treat as Good rather than
+    // flagging based on days in foster alone.
+    let dogStatus: FosterStatus
+    if (taskStatusByAnimalId != null) {
+      if (!asmAnimalId) {
+        dogStatus = animalIdsWithAnyTaskRow === undefined ? 'Good' : 'Unknown'
+      } else {
+        dogStatus = taskStatusByAnimalId[asmAnimalId] ?? 'Good'
+      }
+    } else {
+      dogStatus = statusFromDaysInFoster(dog.movement?.daysInFoster)
+    }
 
     const dogLastUpdate = dog.movement?.date
 
@@ -157,6 +208,14 @@ export function formatDateShort(value?: string) {
     const year = Number(m[1])
     const month = Number(m[2])
     const day = Number(m[3])
+    return `${month}/${day}/${year.toString().slice(-2)}`
+  }
+  // Task Log / Sheets often use M/D/YYYY with an optional time (e.g. "4/29/2026 0:00:00").
+  const mdy = value.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})\b/)
+  if (mdy) {
+    const month = Number(mdy[1])
+    const day = Number(mdy[2])
+    const year = Number(mdy[3])
     return `${month}/${day}/${year.toString().slice(-2)}`
   }
   const d = new Date(value)

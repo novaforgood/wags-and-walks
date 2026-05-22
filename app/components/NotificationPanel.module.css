@@ -1,4 +1,4 @@
-/* ---- Bell Wrapper (positioning anchor) ---- */
+/* ---- Bell ---- */
 .bellWrapper {
     position: relative;
     display: flex;
@@ -8,24 +8,52 @@
 
 .bellButton {
     background: none;
-    border: none;
+    border: 2px solid transparent;
+    box-sizing: border-box;
     cursor: pointer;
-    padding: 4px;
+    padding: 6px;
     display: flex;
     align-items: center;
     justify-content: center;
+    border-radius: 999px;
+    transition:
+        background-color 0.18s ease,
+        border-color 0.18s ease;
 }
 
-/* ---- Panel Container ---- */
+.bellButton:hover:not(.bellButtonActive) {
+    background: rgba(5, 170, 175, 0.08);
+}
+
+.bellButton:focus-visible {
+    outline: 2px solid #048289;
+    outline-offset: 2px;
+}
+
+/* Selected: outlined chip — reads as “panel open”, not a second avatar */
+.bellButtonActive {
+    background: #ffffff;
+    border-color: #05aaaf;
+}
+
+.bellButtonActive:hover {
+    background: #f0fafb;
+    border-color: #049799;
+}
+
+/* ---- Panel ---- */
 .panel {
     position: absolute;
-    top: calc(100% + 8px);
+    top: calc(100% + 10px);
     right: 0;
-    width: 380px;
-    max-height: 520px;
-    background: #e8e8e8;
-    border-radius: 12px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+    width: min(380px, calc(100vw - 24px));
+    max-height: min(520px, 70vh);
+    background: #ffffff;
+    border-radius: 14px;
+    border: 1px solid #dce3e8;
+    box-shadow:
+        0 4px 6px rgba(15, 23, 42, 0.04),
+        0 12px 28px rgba(15, 23, 42, 0.08);
     z-index: 500;
     display: flex;
     flex-direction: column;
@@ -33,242 +61,134 @@
     font-family: 'Inter', sans-serif;
 }
 
-/* ---- Header ---- */
-.header {
-    display: flex;
-    flex-direction: column;
-    padding: 16px 20px 0;
+.panelHeader {
+    padding: 16px 18px 14px;
+    background: #fafcfc;
+    border-bottom: 1px solid #e4eaee;
+    flex-shrink: 0;
 }
 
-.closeRow {
-    display: flex;
-    justify-content: flex-start;
-    margin-bottom: 4px;
-}
-
-.closeButton {
-    background: none;
-    border: none;
-    cursor: pointer;
-    font-size: 14px;
-    color: #888;
-    padding: 0;
-    line-height: 1;
-}
-
-.closeButton:hover {
-    color: #333;
-}
-
-.titleRow {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-}
-
-.title {
-    font-size: 24px;
-    font-weight: 700;
-    color: #000;
-    margin: 0;
-}
-
-.markAllRead {
-    background: none;
-    border: none;
-    cursor: pointer;
-    font-size: 13px;
-    color: #000;
-    text-decoration: underline;
-    font-family: 'Inter', sans-serif;
-    padding: 0;
-    white-space: nowrap;
-}
-
-.markAllRead:hover {
-    color: #05aaaf;
-}
-
-/* ---- Tabs ---- */
-.tabs {
-    display: flex;
-    gap: 0;
-    padding: 8px 20px 0;
-}
-
-.tab {
-    padding: 8px 14px;
+.panelTitle {
     font-size: 15px;
-    font-weight: 500;
-    color: #888;
-    background: none;
-    border: none;
-    cursor: pointer;
-    font-family: 'Inter', sans-serif;
-    border-bottom: 2px solid transparent;
-    transition: color 0.15s;
-}
-
-.tab:first-child {
-    padding-left: 0;
-}
-
-.tab:hover {
-    color: #333;
-}
-
-.tabActive {
-    color: #000;
     font-weight: 700;
-    border-bottom-color: #000;
+    color: #0f172a;
+    margin: 0;
+    letter-spacing: -0.01em;
 }
 
-/* ---- Notification List ---- */
+.panelTitle::after {
+    content: '';
+    display: block;
+    width: 36px;
+    height: 3px;
+    margin-top: 10px;
+    background: #05aaaf;
+    border-radius: 2px;
+}
+
+/* ---- List ---- */
 .list {
     flex: 1;
     overflow-y: auto;
-    padding: 10px 0 0;
+    overflow-x: hidden;
+    padding: 14px;
     display: flex;
     flex-direction: column;
-    gap: 0;
+    gap: 12px;
+    background: #eef4f5;
+    scrollbar-gutter: stable;
 }
 
-/* ---- Notification Card ---- */
+.list::-webkit-scrollbar {
+    width: 8px;
+}
+
+.list::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.list::-webkit-scrollbar-thumb {
+    background: #c5d0d6;
+    border-radius: 8px;
+}
+
+.list::-webkit-scrollbar-thumb:hover {
+    background: #a8b8c2;
+}
+
 .card {
     display: flex;
     flex-direction: row;
     align-items: flex-start;
-    gap: 0;
-    padding: 20px 20px 20px 16px;
-    background: #fff;
-    border-bottom: 1px solid #d9d9d9;
-    transition: background 0.15s;
+    padding: 15px 16px 15px 14px;
+    background: #ffffff;
+    border: 1px solid #dce3e8;
+    border-radius: 10px;
+    border-left: 3px solid #05aaaf;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    transition:
+        border-color 0.15s ease,
+        box-shadow 0.15s ease,
+        transform 0.15s ease;
 }
 
-.card:last-child {
-    border-bottom: none;
+.card:hover {
+    border-color: #c5cdd4;
+    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.07);
+    transform: translateY(-1px);
 }
 
-.cardUnread {
-    background: #c8e6e7;
-}
-
-/* ---- Read/Unread Dot (left column) ---- */
-.cardSide {
-    display: flex;
-    align-items: flex-start;
-    padding-top: 4px;
-    padding-right: 14px;
-    flex-shrink: 0;
-}
-
-.readDot {
-    position: relative;
-    width: 16px;
-    height: 16px;
-    border-radius: 50%;
-    padding: 0;
-    cursor: pointer;
-    flex-shrink: 0;
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
-}
-
-.readDot:hover {
-    transform: scale(1.2);
-    box-shadow: 0 0 0 3px rgba(5, 170, 175, 0.2);
-}
-
-/* Unread → filled teal circle */
-.readDotUnread {
-    background-color: #05aaaf;
-    border: none;
-}
-
-/* Read → clearly visible grey ring */
-.readDotRead {
-    background-color: transparent;
-    border: 2px solid #999;
-}
-
-/* Tooltip */
-.readDotTooltip {
-    display: none;
-    position: absolute;
-    left: 18px;
-    top: 50%;
-    transform: translateY(-50%);
-    background: #037c80;
-    color: #fff;
-    font-size: 11px;
-    font-family: 'Inter', sans-serif;
-    white-space: nowrap;
-    padding: 4px 8px;
-    border-radius: 5px;
-    pointer-events: none;
-    z-index: 10;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
-}
-
-.readDotTooltip::before {
-    content: '';
-    position: absolute;
-    right: 100%;
-    top: 50%;
-    transform: translateY(-50%);
-    border: 4px solid transparent;
-    border-right-color: #037c80;
-}
-
-.readDot:hover .readDotTooltip {
-    display: block;
-}
-
-/* ---- Card Body (right column) ---- */
 .cardBody {
     flex: 1;
     min-width: 0;
 }
 
 .cardText {
-    font-size: 15px;
-    color: #000;
-    line-height: 1.5;
+    font-size: 14px;
+    color: #475569;
+    line-height: 1.55;
     margin: 0;
 }
 
 .cardText strong {
     font-weight: 700;
+    color: #0f172a;
 }
 
 .cardTimestamp {
-    font-size: 13px;
-    color: #777;
-    margin-top: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #64748b;
+    margin-top: 10px;
 }
 
 .cardAction {
     display: inline-block;
     margin-top: 12px;
-    padding: 10px 24px;
+    padding: 9px 16px;
     background: #05aaaf;
     color: #fff;
     border: none;
-    border-radius: 10px;
-    font-size: 14px;
-    font-weight: 500;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
     cursor: pointer;
     font-family: 'Inter', sans-serif;
-    transition: background 0.15s;
+    text-decoration: none;
+    transition: background 0.15s ease;
 }
 
 .cardAction:hover {
-    background: #049397;
+    background: #049799;
 }
 
-/* ---- Empty State ---- */
 .empty {
-    padding: 32px 20px;
+    padding: 36px 20px;
     text-align: center;
-    color: #888;
+    color: #64748b;
     font-size: 14px;
+    line-height: 1.5;
+    background: #eef4f5;
 }

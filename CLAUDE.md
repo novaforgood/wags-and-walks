@@ -28,7 +28,8 @@ No test framework is configured.
 5. `app/api/foster-history/route.ts` — GET proxy to ASM `json_report` method; returns full foster history for all fosterers or a single one (`?email=`). Uses `ASM_API_KEY` (not username/password)
 6. `app/api/fosters/route.ts` — Returns `{ count }` of active foster dogs from ASM (used by overview stats). Uses the same `json_shelter_animals` method as `/api/dogs` but returns only the count.
 7. `app/api/tasks/route.ts` — GET proxy to `TASK_SCRIPT_URL`; fetches the task log from Sheet 2 (`action=taskLog`). Returns `{ rows: TaskRow[], taskStatusByAnimalId }` where `taskStatusByAnimalId` maps animal IDs to their worst active `FosterStatus` (used by the fosters directory and overview to show task health badges).
-8. `app/components/PeopleProvider.tsx` — Client-side React context (`usePeople()` hook) that:
+8. `app/api/photo-status/route.ts` — GET proxy to `TASK_SCRIPT_URL` (`action=photoStatus`); returns `{ dogs: PhotoDog[], unassigned: PhotoUnassignedFolder[] }` — per-dog Google Drive folder info and unassigned upload folders. Falls back to empty arrays if `TASK_SCRIPT_URL` is unset.
+9. `app/components/PeopleProvider.tsx` — Client-side React context (`usePeople()` hook) that:
    - Fetches from `/api/people` on mount, caches in `localStorage`
    - Provides optimistic status updates with a debounced flush queue (persisted to `localStorage` for resilience)
    - Fires a Google Apps Script webhook when a person is moved to `approved`
@@ -48,7 +49,7 @@ Two layout patterns coexist:
 - **`/candidates` and `/fosters`** — New sidebar layout (these pages render their own sidebar; `Navigation` component hides itself)
 - `/candidates` — Applicants in pipeline (new, in-progress, approved)
 - `/fosters` — Default route; renders the **ShelterManager directory** (dog records), NOT the people list
-- `/fosters/overview` — Foster overview dashboard (people with `status = 'current'`)
+- `/fosters/overview` — Foster overview dashboard; loads from `/api/dogs` (ASM data), shows task-health stats and a priority follow-up queue ranked by `FosterStatus`. **Not** driven by Google Sheets people data.
 - `/fosters/actions` — Foster action tracking (also driven by `current` people)
 - `/fosters/[fosterId]` — Individual foster detail (slug from `fosterSlug()` in `fosterDirectory.ts`)
 - `/overview` — Top-level overview dashboard
@@ -64,8 +65,11 @@ Two layout patterns coexist:
 - `FilterDropdown` — Multi-category filter dropdown (living situation, experience, children, dog types, pet history)
 - `NotificationPanel` — Bell icon notification dropdown with unread/read filtering (currently uses mock data)
 - `FostersSubTabs` — Tab bar (Directory / Overview / Actions) rendered inside the `/fosters` layout
-- `NotesCard` — Shared notes textarea + email compose popup (draggable). Fetches/saves directly to `/api/foster-notes` on blur. Email popup (`Send Email` button) calls `/api/send-email` with `action: 'send_single_email'`
+- `NotesCard` — Foster-tracking notes textarea only. Fetches/saves to `/api/foster-notes` on blur (Sheet 2)
+- `EmailComposeTrigger` — Standalone compose control (draggable dialog) that POSTs to `/api/send-email` with `action: 'send_single_email'`. Used beside notes in `PersonModal` and on foster Communication tab
 - `FosterHistoryPanel` — Fetches from `/api/foster-history?email=` and renders current/past foster dog tables. Accepts optional `sectionClassName`/`sectionTitleClassName` for styling from the parent context.
+
+> **Sidebar duplication:** There is no shared sidebar component. Each page (`/candidates`, `/fosters/*`, `/overview`) renders its own sidebar JSX inline and imports `candidates/candidates.module.css` for the shared shell classes (`pageWrapper`, `sidebar`, `sidebarNav`, `navItem`, `navItemActive`, `mainContent`, `topBar`). The main nav width is fixed at 208px (`--app-sidebar-width`). When changing sidebar nav items, update all pages.
 
 > **Layout coupling:** `/fosters`, `/fosters/overview`, `/fosters/actions`, and `/fosters/[fosterId]` all import from `candidates/candidates.module.css` for the shared sidebar shell. This is intentional — there is no separate fosters layout file.
 
@@ -92,7 +96,9 @@ Protected pages (wrapped with `<ProtectedRoute>`):
 
 ### Dogs / ShelterManager
 
-`app/api/dogs/route.ts` — Fetches dog records from ShelterManager (ASM) via the `json_shelter_animals` method at `ASM_BASE_URL`. Returns JSON consumed by `/fosters` (directory tab) and `/directory`. Only animals with a foster-type active movement are flagged `inFoster: true`; `daysInFoster` is computed from `ACTIVEMOVEMENTDATE`.
+`app/lib/asmDogs.ts` — Shared server-side module used by both `/api/dogs` and `/api/fosters`. Fetches from ASM via `json_shelter_animals`, sanitizes the JSON response (ASM sometimes returns control characters and trailing commas), and filters to foster-movement animals only. Has a **60-second module-level in-memory cache** and in-flight deduplication so concurrent requests on the same server instance share one ASM call. `DogRecord` type is defined here — do not redefine it locally in pages or routes.
+
+`app/api/dogs/route.ts` — Calls `getAsmFosterDogs()` from `asmDogs.ts` and returns the full list as `{ success, dogs }`. Consumed by `/fosters` (directory tab), `/fosters/overview`, and `/directory`.
 
 `app/api/dogs/photo/route.ts` — Server-side proxy for dog images from ASM. Accepts `?animalId=<id>&variant=thumbnail|full`. Uses `animal_thumbnail` or `animal_image` (seq 1) ASM methods. Proxies the binary response directly — avoids exposing ASM credentials to the client.
 
@@ -107,7 +113,6 @@ Key lib files:
 
 - `people_v2` — Cached array of `Person` objects from last successful fetch
 - `pending_status_updates_v1` — Queued status changes not yet flushed to Sheets (survives page refresh)
-- `app_nav_sidebar_width_v1` — Persisted sidebar width (px) for the resizable nav
 
 ### Dev Utilities
 
@@ -136,7 +141,8 @@ There are **two independent Google Sheets / Apps Script projects**. Changes to e
 - `Code.gs` — `autoOrganizeFormFiles()`: form submit trigger that moves uploaded foster photos into per-dog Google Drive folders
 - `ResetStatuses.gs` — `resetAllStatusesToNew()`: bulk-resets all applicant statuses to `new` directly in the sheet (Apps Script side equivalent of `scripts/reset_status.js`)
 
-### Environment Variables
+**Optional — Google Group directory** (`appscript/GoogleGroupMembersWebApp.gs`)
+- Reference web app for `GOOGLE_GROUPS_SCRIPT_URL`: lists Workspace group members with `CacheService`, `LockService`, and `Utilities.sleep(1000)` between paginated Admin Directory reads (mitigates “premium groups read” rate limits). Set script property `GROUP_DIRECTORY_EMAIL` to the group address. Merge `handleGroupMembers_` into your deployed project if you already have a `doGet` entrypoint.
 
 Defined in `.env.local`:
 - `APPS_SCRIPT_URL` — Sheet 1 web app URL (applicant data API)
@@ -145,4 +151,7 @@ Defined in `.env.local`:
 - `NEXT_PUBLIC_FIREBASE_*` — Firebase configuration (API key, auth domain, project ID, etc.)
 - `ASM_BASE_URL`, `ASM_ACCOUNT`, `ASM_USERNAME`, `ASM_PASSWORD` — ShelterManager API credentials used by `/api/dogs` (server-side only)
 - `ASM_API_KEY`, `ASM_REPORT_TITLE` — Used by `/api/foster-history` to call the ASM `json_report` method (different auth scheme from dogs route; `ASM_REPORT_TITLE` defaults to `'Foster History API'`)
-- `TASK_SCRIPT_URL` — Sheet 2 Apps Script URL used by `/api/tasks` to fetch the task log. If unset, the route returns an empty result rather than erroring.
+- `TASK_SCRIPT_URL` — Sheet 2 Apps Script URL used by `/api/tasks` and `/api/photo-status`. If unset, both routes return empty results rather than erroring.
+- `GOOGLE_GROUPS_SCRIPT_URL` / optional `GOOGLE_GROUPS_SCRIPT_KEY` — Web app that returns foster Google Group members (`?action=group_members`); proxied by `/api/google-group-members` for the Directory page.
+- `GOOGLE_GROUP_MEMBERS_CACHE_TTL_SEC` (optional, default `300`) — Server-side cache for successful group member fetches to avoid hitting Google’s “premium groups read” quota on every page load.
+- `GOOGLE_GROUP_MEMBERS_ERROR_CACHE_SEC` (optional, default `45`) — Short cache after upstream errors so a failing script is not hammered.

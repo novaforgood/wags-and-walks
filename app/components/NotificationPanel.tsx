@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import styles from './NotificationPanel.module.css'
-import type { TaskRow } from '@/app/api/tasks/route'
+import type { TaskRow } from '@/app/lib/taskTypes'
 
 type Notification = {
   id: string
@@ -12,27 +12,6 @@ type Notification = {
   timestamp: Date
   actionLabel: string
   actionHref?: string
-  isRead: boolean
-}
-
-type Tab = 'all' | 'unread' | 'read'
-
-const READ_KEY = 'ww-notif-read-ids'
-
-function getReadIds(): Set<string> {
-  if (typeof window === 'undefined') return new Set()
-  try {
-    const stored = localStorage.getItem(READ_KEY)
-    return stored ? new Set(JSON.parse(stored) as string[]) : new Set()
-  } catch {
-    return new Set()
-  }
-}
-
-function saveReadIds(ids: Set<string>): void {
-  try {
-    localStorage.setItem(READ_KEY, JSON.stringify([...ids]))
-  } catch { /* ignore */ }
 }
 
 function taskLabel(taskType: string): string {
@@ -41,12 +20,10 @@ function taskLabel(taskType: string): string {
   return taskType.toLowerCase().replace(/_\d+$/, '').replace('_', ' ')
 }
 
-function rowToNotification(row: TaskRow, readIds: Set<string>): Notification | null {
-  if (row.status !== 'needs_review' && row.status !== 'overdue' && row.status !== 'completed') return null
-  const label = taskLabel(row.taskType)
-  const name = row.fosterName || `Animal ${row.animalId}`
-
+function rowToNotification(row: TaskRow): Notification | null {
   if (row.status === 'completed') {
+    const label = taskLabel(row.taskType)
+    const name = row.fosterName || `Animal ${row.animalId}`
     const id = `${row.animalId}-${row.taskType}-completed-${row.completedDate}`
     const isPhotoTask = row.taskType.startsWith('PHOTOS')
     const hasDriveLink = isPhotoTask && !!row.driveLink
@@ -58,21 +35,37 @@ function rowToNotification(row: TaskRow, readIds: Set<string>): Notification | n
       timestamp: new Date(row.completedDate),
       actionLabel: hasDriveLink ? 'See Photos' : 'Mark as read',
       actionHref: hasDriveLink ? row.driveLink : undefined,
-      isRead: readIds.has(id),
     }
   }
 
+  if (row.status === 'good' || row.status === 'retired') return null
+
+  if (row.status === 'unknown') {
+    const label = taskLabel(row.taskType)
+    const name = row.fosterName || `Animal ${row.animalId}`
+    const id = `${row.animalId}-${row.taskType}-unknown`
+    return {
+      id,
+      personName: name,
+      action: `has unrecognized Status on task (${label}) for`,
+      entityName: row.dogName || undefined,
+      timestamp: new Date(row.emailSentDate || row.followUpSent || Date.now()),
+      actionLabel: 'Review task log',
+    }
+  }
+
+  if (row.status !== 'overdue') return null
+
+  const label = taskLabel(row.taskType)
+  const name = row.fosterName || `Animal ${row.animalId}`
   const id = `${row.animalId}-${row.taskType}-${row.emailSentDate}`
   return {
     id,
     personName: name,
-    action: row.status === 'overdue'
-      ? `has an overdue ${label} for`
-      : `needs a follow-up ${label} for`,
+    action: `has an overdue ${label} for`,
     entityName: row.dogName || undefined,
     timestamp: new Date(row.followUpSent || row.emailSentDate),
     actionLabel: 'Send follow-up',
-    isRead: readIds.has(id),
   }
 }
 
@@ -90,26 +83,26 @@ function formatTimestamp(date: Date): string {
 
 export default function NotificationPanel() {
   const [isOpen, setIsOpen] = useState(false)
-  const [activeTab, setActiveTab] = useState<Tab>('all')
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [loading, setLoading] = useState(true)
   const panelRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    setLoading(true)
+    queueMicrotask(() => setLoading(true))
     fetch('/api/tasks', { cache: 'no-store' })
       .then(r => r.json())
       .then((data: { success?: boolean; rows?: TaskRow[] }) => {
         if (!data.success || !Array.isArray(data.rows)) return
-        const readIds = getReadIds()
         const notifs = data.rows
-          .map(row => rowToNotification(row, readIds))
+          .map(row => rowToNotification(row))
           .filter((n): n is Notification => n !== null)
           .sort((a, b) => {
-            const rank = (n: Notification) =>
-              n.action.includes('overdue') ? 2 : n.action.startsWith('completed') ? 0 : 1
-            if (rank(b) !== rank(a)) return rank(b) - rank(a)
-            return b.timestamp.getTime() - a.timestamp.getTime()
+            const ta = a.timestamp.getTime()
+            const tb = b.timestamp.getTime()
+            if (Number.isNaN(ta) && Number.isNaN(tb)) return 0
+            if (Number.isNaN(ta)) return 1
+            if (Number.isNaN(tb)) return -1
+            return tb - ta
           })
         setNotifications(notifs)
       })
@@ -117,147 +110,47 @@ export default function NotificationPanel() {
       .finally(() => setLoading(false))
   }, [])
 
-  useEffect(() => {
-    if (!isOpen) return
-    function handleMouseDown(e: MouseEvent) {
-      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
-        setIsOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', handleMouseDown)
-    return () => document.removeEventListener('mousedown', handleMouseDown)
-  }, [isOpen])
-
-  const markAsRead = (id: string) => {
-    setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n))
-    const readIds = getReadIds()
-    readIds.add(id)
-    saveReadIds(readIds)
-  }
-
-  const toggleRead = (id: string) => {
-    setNotifications(prev =>
-      prev.map(n => {
-        if (n.id !== id) return n
-        const nowRead = !n.isRead
-        const readIds = getReadIds()
-        if (nowRead) {
-          readIds.add(id)
-        } else {
-          readIds.delete(id)
-        }
-        saveReadIds(readIds)
-        return { ...n, isRead: nowRead }
-      })
-    )
-  }
-
-  const markAllAsRead = () => {
-    setNotifications(prev => prev.map(n => ({ ...n, isRead: true })))
-    const readIds = getReadIds()
-    notifications.forEach(n => readIds.add(n.id))
-    saveReadIds(readIds)
-  }
-
-  const filtered = notifications.filter(n => {
-    if (activeTab === 'unread') return !n.isRead
-    if (activeTab === 'read') return n.isRead
-    return true
-  })
-
-  const unreadCount = notifications.filter(n => !n.isRead).length
-
   return (
     <div className={styles.bellWrapper} ref={panelRef}>
       <button
-        className={styles.bellButton}
+        type="button"
+        className={`${styles.bellButton} ${isOpen ? styles.bellButtonActive : ''}`}
         onClick={() => setIsOpen(prev => !prev)}
-        aria-label="Notifications"
+        aria-label={isOpen ? 'Close notifications' : 'Open notifications'}
+        aria-expanded={isOpen}
+        aria-pressed={isOpen}
       >
-        <img src="/assets/Notif.svg" alt="Notifications" width={24} height={24} />
+        <img src="/assets/Notif.svg" alt="" width={24} height={24} />
       </button>
 
       {isOpen && (
-        <div className={styles.panel}>
-          <div className={styles.header}>
-            <div className={styles.closeRow}>
-              <button
-                className={styles.closeButton}
-                onClick={() => setIsOpen(false)}
-                aria-label="Close notifications"
-              >
-                ✕
-              </button>
-            </div>
-            <div className={styles.titleRow}>
-              <h2 className={styles.title}>Notifications</h2>
-              <button className={styles.markAllRead} onClick={markAllAsRead}>
-                Mark all as read
-              </button>
-            </div>
-          </div>
-
-          <div className={styles.tabs}>
-            {(['all', 'unread', 'read'] as Tab[]).map(tab => (
-              <button
-                key={tab}
-                className={`${styles.tab} ${activeTab === tab ? styles.tabActive : ''}`}
-                onClick={() => setActiveTab(tab)}
-              >
-                {tab === 'all' ? 'All' : tab === 'unread' ? `Unread${unreadCount > 0 ? ` (${unreadCount})` : ''}` : 'Read'}
-              </button>
-            ))}
+        <div className={styles.panel} role="dialog" aria-label="Notifications">
+          <div className={styles.panelHeader}>
+            <h2 className={styles.panelTitle}>Notifications</h2>
           </div>
 
           <div className={styles.list}>
             {loading ? (
-              <div className={styles.empty}>Loading...</div>
-            ) : filtered.length === 0 ? (
+              <div className={styles.empty}>Loading…</div>
+            ) : notifications.length === 0 ? (
               <div className={styles.empty}>No notifications</div>
             ) : (
-              filtered.map(n => (
-                <div
-                  key={n.id}
-                  className={`${styles.card} ${!n.isRead ? styles.cardUnread : ''}`}
-                >
-                  {/* Gmail-style dot indicator on the left */}
-                  <div className={styles.cardSide}>
-                    <button
-                      className={`${styles.readDot} ${!n.isRead ? styles.readDotUnread : styles.readDotRead}`}
-                      onClick={() => toggleRead(n.id)}
-                      aria-label={n.isRead ? 'Mark as unread' : 'Mark as read'}
-                    >
-                      <span className={styles.readDotTooltip}>
-                        {n.isRead ? 'Mark as unread' : 'Mark as read'}
-                      </span>
-                    </button>
-                  </div>
-
+              notifications.map(n => (
+                <div key={n.id} className={styles.card}>
                   <div className={styles.cardBody}>
                     <p className={styles.cardText}>
                       <strong>{n.personName}</strong> {n.action}
                       {n.entityName && <> <strong>{n.entityName}</strong></>}
                     </p>
-                    <div className={styles.cardTimestamp}>
-                      {formatTimestamp(n.timestamp)}
-                    </div>
+                    <p className={styles.cardTimestamp}>{formatTimestamp(n.timestamp)}</p>
                     {n.actionHref ? (
-                      <a
-                        className={styles.cardAction}
-                        href={n.actionHref}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={() => markAsRead(n.id)}
-                      >
+                      <a href={n.actionHref} className={styles.cardAction} target="_blank" rel="noopener noreferrer">
                         {n.actionLabel}
                       </a>
                     ) : (
-                      <button
-                        className={styles.cardAction}
-                        onClick={() => markAsRead(n.id)}
-                      >
+                      <span style={{ display: 'block', marginTop: 10, fontSize: 12, color: '#94a3b8' }}>
                         {n.actionLabel}
-                      </button>
+                      </span>
                     )}
                   </div>
                 </div>

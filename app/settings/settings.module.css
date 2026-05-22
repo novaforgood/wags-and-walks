@@ -1,0 +1,383 @@
+/* ─────────────────────────────────────────────
+   Settings page
+   Matches the app's design language:
+   - Overview-style stat cards (top row)
+   - Admin Users-style filter pills + panel card
+   ───────────────────────────────────────────── */
+
+.page {
+  padding: 32px 40px 48px;
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+/* ── Toolbar (tab pills) ────────────────────── */
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.tabPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  min-height: 34px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--color-gray-normal);
+  background: var(--color-surface);
+  color: var(--color-gray-black);
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.tabPill:hover {
+  border-color: var(--color-gray-normal-hover);
+  background: var(--color-gray-light-hover);
+}
+
+.tabPillActive,
+.tabPillActive:hover {
+  background: #fff;
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.tabPill:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* ── Main panel ─────────────────────────────── */
+
+.panel {
+  background: var(--color-surface);
+  border-radius: var(--radius-card);
+  border: 1px solid rgba(81, 81, 81, 0.07);
+  box-shadow:
+    0 1px 3px rgba(81, 81, 81, 0.05),
+    0 8px 32px rgba(81, 81, 81, 0.06);
+  overflow: hidden;
+}
+
+.panelHeader {
+  padding: 20px 28px 18px;
+  border-bottom: 1px solid var(--app-border);
+}
+
+.panelTitle {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--app-text);
+  letter-spacing: -0.02em;
+}
+
+.panelSubtitle {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--app-text-muted);
+  line-height: 1.4;
+}
+
+.panelBody {
+  padding: 4px 28px 8px;
+}
+
+/* ── Row inside the panel ───────────────────── */
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 18px 0;
+  border-bottom: 1px solid #eef2f4;
+}
+
+.row:last-child {
+  border-bottom: none;
+}
+
+.rowMain {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.rowLabel {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--app-text);
+  letter-spacing: -0.005em;
+}
+
+.rowValue {
+  font-size: 14px;
+  color: var(--app-text-muted);
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+.rowAction {
+  flex-shrink: 0;
+}
+
+/* ── Action link on the right of each row ───── */
+
+.editLink {
+  background: none;
+  border: none;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--app-accent);
+  cursor: pointer;
+  text-decoration: none;
+  font-family: inherit;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.editLink:hover:not(:disabled) {
+  background: rgba(5, 170, 175, 0.08);
+}
+
+.editLink:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.editLinkDanger {
+  color: #dc2626;
+}
+
+.editLinkDanger:hover:not(:disabled) {
+  background: rgba(220, 38, 38, 0.08);
+  color: #b91c1c;
+}
+
+/* ── Role badge ─────────────────────────────── */
+
+.roleBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.roleBadgeAdmin {
+  background: rgba(5, 170, 175, 0.12);
+  color: var(--app-accent-strong);
+  border: 1px solid rgba(5, 170, 175, 0.3);
+}
+
+.roleBadgeUser {
+  background: var(--app-badge-neutral-bg);
+  color: var(--app-badge-neutral-text);
+  border: 1px solid var(--app-border);
+}
+
+/* ── Inline notice ──────────────────────────── */
+
+.notice {
+  margin: 0 0 12px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.noticeSuccess {
+  background: var(--color-alert-success-bg);
+  color: var(--color-alert-success-text);
+  border: 1px solid var(--color-alert-success-border);
+}
+
+.noticeError {
+  background: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+
+/* ── Modal ──────────────────────────────────── */
+
+.modalBackdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+  animation: fadeIn 0.15s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.modal {
+  background: #fff;
+  border-radius: 14px;
+  padding: 28px;
+  max-width: 460px;
+  width: 100%;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.25);
+}
+
+.modalTitle {
+  margin: 0 0 12px;
+  font-size: 20px;
+  font-weight: 700;
+  color: #b91c1c;
+}
+
+.modalTitleNeutral {
+  margin: 0 0 16px;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--app-text);
+}
+
+.modalBody {
+  margin: 0 0 20px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: #4b5563;
+}
+
+.modalForm {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.modalLabel {
+  font-size: 13px;
+  font-weight: 500;
+  color: #374151;
+}
+
+.modalInput {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.modalInput:focus {
+  border-color: var(--app-accent);
+  box-shadow: 0 0 0 3px rgba(5, 170, 175, 0.15);
+}
+
+.modalInput:disabled {
+  background: #f9fafb;
+  color: #6b7280;
+}
+
+.modalFooter {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.btnPrimary,
+.btnSecondary,
+.btnDanger {
+  padding: 9px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid transparent;
+  font-family: inherit;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.btnPrimary {
+  background: var(--app-accent);
+  color: #fff;
+}
+
+.btnPrimary:hover:not(:disabled) {
+  background: var(--color-primary-hover);
+}
+
+.btnSecondary {
+  background: #fff;
+  border-color: #d1d5db;
+  color: #374151;
+}
+
+.btnSecondary:hover:not(:disabled) {
+  background: #f9fafb;
+}
+
+.btnDanger {
+  background: #dc2626;
+  color: #fff;
+}
+
+.btnDanger:hover:not(:disabled) {
+  background: #b91c1c;
+}
+
+.btnPrimary:disabled,
+.btnSecondary:disabled,
+.btnDanger:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* ── Responsive ─────────────────────────────── */
+
+@media (max-width: 640px) {
+  .page {
+    padding: 20px 20px 40px;
+  }
+
+  .panelHeader,
+  .panelBody {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+
+  .toolbar {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    scrollbar-width: none;
+  }
+
+  .toolbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .tabPill {
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+}

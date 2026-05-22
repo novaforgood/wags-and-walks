@@ -1,5 +1,5 @@
 .wrap {
-  padding: 20px 40px 48px;
+  padding: 32px 40px 48px;
   display: flex;
   flex-direction: column;
   gap: 20px;
@@ -31,9 +31,13 @@
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
 }
 
+.fadeIn {
+  animation: detailFadeIn 180ms ease-out both;
+}
+
 /* Hero header */
 .hero {
-  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  background: #f8fafc;
   border: 1px solid #e5e7eb;
   border-radius: 14px;
   padding: 24px 28px;
@@ -47,7 +51,7 @@
   width: 64px;
   height: 64px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #4a9d8f 0%, #05aaaf 100%);
+  background: #0d9488;
   color: #fff;
   display: flex;
   align-items: center;
@@ -55,7 +59,7 @@
   font-size: 26px;
   font-weight: 600;
   flex-shrink: 0;
-  box-shadow: 0 2px 6px rgba(5, 170, 175, 0.25);
+  box-shadow: none;
 }
 
 .heroBody {
@@ -91,16 +95,11 @@
   gap: 6px;
   padding: 5px 12px;
   border-radius: 999px;
-  background: #f1f5f9;
-  color: #334155;
+  background: #e2e8f0;
+  color: #0f172a;
   font-size: 13px;
   font-weight: 500;
-  border: 1px solid #e2e8f0;
-}
-
-.chipIcon {
-  font-size: 13px;
-  opacity: 0.7;
+  border: 1px solid #cbd5e1;
 }
 
 /* Tabs */
@@ -196,14 +195,31 @@
 .table th,
 .table td {
   text-align: left;
-  padding: 10px 8px;
   border-bottom: 1px solid #edf2f7;
+}
+
+.table thead th {
+  padding: 14px 10px;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: #0f172a;
+}
+
+.table td {
+  padding: 10px 8px;
   font-size: 14px;
 }
 
 .hint {
   margin: 0;
   color: #4b5563;
+}
+
+.pendingEmail {
+  color: #a16207;
+  font-size: 12px;
+  font-style: italic;
 }
 
 .titleRow {
@@ -232,52 +248,74 @@
 
 .badgeGood {
   display: inline-block;
-  padding: 2px 10px;
-  border-radius: 12px;
+  padding: 3px 10px;
+  border-radius: 6px;
   font-size: 12px;
   font-weight: 600;
-  background: #dcfce7;
-  color: #166534;
+  background-color: #166534;
+  color: #ecfdf5;
+  background-image: none;
+  border: none;
 }
 
 .badgeNeedsReview {
   display: inline-block;
-  padding: 2px 10px;
-  border-radius: 12px;
+  padding: 3px 10px;
+  border-radius: 6px;
   font-size: 12px;
   font-weight: 600;
-  background: #fef9c3;
-  color: #854d0e;
+  background-color: #a16207;
+  color: #fefce8;
+  background-image: none;
+  border: none;
 }
 
 .badgeOverdue {
   display: inline-block;
-  padding: 2px 10px;
-  border-radius: 12px;
+  padding: 3px 10px;
+  border-radius: 6px;
   font-size: 12px;
   font-weight: 600;
-  background: #fee2e2;
-  color: #991b1b;
+  background-color: #b91c1c;
+  color: #fef2f2;
+  background-image: none;
+  border: none;
 }
 
 .badgeCompleted {
   display: inline-block;
-  padding: 2px 10px;
-  border-radius: 12px;
+  padding: 3px 10px;
+  border-radius: 6px;
   font-size: 12px;
   font-weight: 600;
-  background: #e0f2fe;
-  color: #075985;
+  background-color: #0369a1;
+  color: #f0f9ff;
+  background-image: none;
+  border: none;
 }
 
 .badgeRetired {
   display: inline-block;
-  padding: 2px 10px;
-  border-radius: 12px;
+  padding: 3px 10px;
+  border-radius: 6px;
   font-size: 12px;
   font-weight: 600;
-  background: #f1f5f9;
-  color: #64748b;
+  background-color: #475569;
+  color: #f8fafc;
+  background-image: none;
+  border: none;
+}
+
+.badgeUnknown {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  background-color: #6d28d9;
+  color: #f5f3ff;
+  background-image: none;
+  border: none;
 }
 
 .driveLink {
@@ -334,3 +372,96 @@
   resize: none;
 }
 
+.skeletonWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.skeletonBlock {
+  display: block;
+  background: linear-gradient(90deg, #f3f7f7 0%, #eef3f3 42%, #f3f7f7 78%);
+  background-size: 220% 100%;
+  animation: detailSkeletonPulse 1.2s ease-in-out infinite;
+}
+
+.skeletonAvatar {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.skeletonHeroName {
+  width: min(260px, 56vw);
+  height: 28px;
+  border-radius: 8px;
+}
+
+.skeletonBadge {
+  width: 86px;
+  height: 24px;
+  border-radius: 6px;
+}
+
+.skeletonChip,
+.skeletonChipWide {
+  height: 28px;
+  border-radius: 999px;
+}
+
+.skeletonChip {
+  width: 118px;
+}
+
+.skeletonChipWide {
+  width: 210px;
+}
+
+.skeletonTab {
+  width: 92px;
+  height: 38px;
+  border-radius: 8px 8px 0 0;
+  margin-bottom: 2px;
+}
+
+.skeletonSectionTitle {
+  width: 150px;
+  height: 20px;
+  border-radius: 6px;
+}
+
+.skeletonStatLabel {
+  width: 92px;
+  height: 11px;
+  border-radius: 999px;
+  margin-bottom: 8px;
+}
+
+.skeletonStatValue {
+  width: 62px;
+  height: 18px;
+  border-radius: 6px;
+}
+
+@keyframes detailSkeletonPulse {
+  0% {
+    background-position: 120% 0;
+  }
+
+  100% {
+    background-position: -120% 0;
+  }
+}
+
+@keyframes detailFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
