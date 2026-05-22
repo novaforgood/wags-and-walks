@@ -18,11 +18,12 @@ interface Props {
     people: Person[]
     filters: FilterState
     setFilters: React.Dispatch<React.SetStateAction<FilterState>>
+    buttonClassName?: string
 }
 
 type CategoryKey = keyof FilterState
 
-export default function FilterDropdown({ people, filters, setFilters }: Props) {
+export default function FilterDropdown({ people, filters, setFilters, buttonClassName }: Props) {
     const [isOpen, setIsOpen] = useState(false)
     const [expandedCategory, setExpandedCategory] = useState<CategoryKey | null>(null)
     const dropdownRef = useRef<HTMLDivElement>(null)
@@ -84,7 +85,10 @@ export default function FilterDropdown({ people, filters, setFilters }: Props) {
     return (
         <div className={styles.dropdownContainer} ref={dropdownRef}>
             <button
-                className={`${styles.filterBtn} ${activeCount > 0 ? styles.filterBtnActive : ''} ${isOpen ? styles.filterBtnOpen : ''}`}
+                className={buttonClassName
+                    ? `${buttonClassName} ${activeCount > 0 ? styles.filterBtnActive : ''}`
+                    : `${styles.filterBtn} ${activeCount > 0 ? styles.filterBtnActive : ''} ${isOpen ? styles.filterBtnOpen : ''}`
+                }
                 onClick={() => setIsOpen(!isOpen)}
             >
                 Filter by
