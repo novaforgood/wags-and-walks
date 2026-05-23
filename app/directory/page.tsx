@@ -116,6 +116,21 @@ function InlineSkeleton({ className = dirStyles.skeletonShort }: { className?: s
   return <span className={`${dirStyles.skeletonLine} ${dirStyles.inlineSkeleton} ${className}`} aria-hidden="true" />
 }
 
+function scheduleAfterPaint(callback: () => void): () => void {
+  const win = window as Window & {
+    requestIdleCallback?: (callback: () => void, options?: { timeout?: number }) => number
+    cancelIdleCallback?: (id: number) => void
+  }
+
+  if (win.requestIdleCallback && win.cancelIdleCallback) {
+    const id = win.requestIdleCallback(callback, { timeout: 500 })
+    return () => win.cancelIdleCallback?.(id)
+  }
+
+  const id = window.setTimeout(callback, 0)
+  return () => window.clearTimeout(id)
+}
+
 export default function DirectoryPage() {
   const { people, isLoading: peopleLoading, error: peopleError, toggleStar } = usePeople()
   const [searchQuery, setSearchQuery] = useState('')
@@ -174,6 +189,7 @@ export default function DirectoryPage() {
 
   useEffect(() => {
     let active = true
+    let cancelScheduledLoad: (() => void) | null = null
     async function load() {
       const cachedFosterers = readCachedArray<FostererHistory>(FOSTER_HISTORY_CACHE_KEY)
       if (cachedFosterers.length > 0) {
@@ -204,8 +220,15 @@ export default function DirectoryPage() {
         if (active) setIsLoadingFosterers(false)
       }
     }
-    load()
-    return () => { active = false }
+
+    cancelScheduledLoad = scheduleAfterPaint(() => {
+      void load()
+    })
+
+    return () => {
+      active = false
+      cancelScheduledLoad?.()
+    }
   }, [fetchKey])
 
   const asmByEmail = useMemo(() => buildAsmPeopleByEmail(fosterers), [fosterers])

@@ -6,19 +6,47 @@ export const GROUP_MEMBERS_CACHE_KEY = 'directory_group_members_v1'
 export const FOSTER_HISTORY_CACHE_KEY = 'directory_foster_history_v1'
 
 let prewarmInFlight: Promise<void> | null = null
+const memoryCache = new Map<string, unknown[]>()
+
+function shouldPersistToLocalStorage(key: string): boolean {
+  return key === GROUP_MEMBERS_CACHE_KEY
+}
+
+function removeLegacyLocalStorageEntry(key: string) {
+  if (typeof window === 'undefined') return
+  window.setTimeout(() => {
+    try {
+      localStorage.removeItem(key)
+    } catch {
+      // Best-effort cleanup only.
+    }
+  }, 0)
+}
 
 export function readCachedArray<T>(key: string): T[] {
+  const cached = memoryCache.get(key)
+  if (cached) return cached as T[]
+  if (!shouldPersistToLocalStorage(key)) {
+    removeLegacyLocalStorageEntry(key)
+    return []
+  }
+
   try {
     const raw = localStorage.getItem(key)
     if (!raw) return []
     const parsed = JSON.parse(raw) as unknown
-    return Array.isArray(parsed) ? (parsed as T[]) : []
+    if (!Array.isArray(parsed)) return []
+    memoryCache.set(key, parsed)
+    return parsed as T[]
   } catch {
     return []
   }
 }
 
 export function writeCachedArray<T>(key: string, value: T[]) {
+  memoryCache.set(key, value)
+  if (!shouldPersistToLocalStorage(key)) return
+
   try {
     localStorage.setItem(key, JSON.stringify(value))
   } catch {
