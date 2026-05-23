@@ -1,6 +1,7 @@
 'use client'
 
 import { useId, useRef, useState } from 'react'
+import { auth } from '@/firebase'
 import styles from './emailCompose.module.css'
 
 type Props = {
@@ -54,9 +55,14 @@ export default function EmailComposeTrigger({
     if (!to || !subject.trim() || !body.trim()) return
     setSendStatus('sending')
     try {
+      const token = await auth.currentUser?.getIdToken()
+      if (!token) throw new Error('Not signed in')
       const res = await fetch('/api/send-email', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({
           action: 'send_single_email',
           to,

@@ -90,15 +90,20 @@ export function PeopleProvider({ children }: { children: React.ReactNode }) {
       })
 
       if (status === 'approved') {
-        fetch(
-          'https://script.google.com/macros/s/AKfycbyCk2eN4T6TTtaNF04U7nyM9TDKQOb_2Yw2UDTFbOFv6bmWxqk49sh-ndm7xzVxxskT/exec',
-          {
+        void (async () => {
+          const token = await auth.currentUser?.getIdToken()
+          if (!token) throw new Error('Not signed in')
+          const res = await fetch('/api/google-group/approve', {
             method: 'POST',
-            mode: 'no-cors',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
             body: JSON.stringify({ email }),
-          },
-        ).catch(err => console.error('Failed to add to Google Group:', err))
+          })
+          if (!res.ok) throw new Error(`Approval failed (${res.status})`)
+        })()
+          .catch(err => console.error('Failed to add to Google Group:', err))
       }
     },
     [],
