@@ -29,7 +29,9 @@ function readCredentialJsonString(): ReadCredentials {
     return { ok: false, reason: 'missing' }
   }
 
-  const resolved = path.isAbsolute(filePath) ? filePath : path.join(process.cwd(), filePath)
+  const resolved = path.isAbsolute(filePath)
+    ? filePath
+    : path.join(/* turbopackIgnore: true */ process.cwd(), filePath)
   if (!fs.existsSync(resolved)) {
     return { ok: false, reason: 'path_not_found', detail: resolved }
   }

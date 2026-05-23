@@ -51,7 +51,6 @@ let _inflight: Promise<DogRecord[]> | null = null
 const CACHE_TTL_MS = 60_000
 
 function sanitizeAsmJson(raw: string): string {
-  // eslint-disable-next-line no-control-regex
   return raw
     .replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g, ' ')
     .replace(/,(\s*[}\]])/g, '$1')
