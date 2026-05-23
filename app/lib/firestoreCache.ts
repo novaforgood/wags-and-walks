@@ -10,6 +10,20 @@ export type CacheEntry<T> = {
   updatedAt: Date
 }
 
+function stripUndefined<T>(value: T): T {
+  if (Array.isArray(value)) {
+    return value.map(item => stripUndefined(item)) as T
+  }
+  if (value && typeof value === 'object' && !(value instanceof Date) && !(value instanceof Timestamp)) {
+    return Object.fromEntries(
+      Object.entries(value)
+        .filter(([, v]) => v !== undefined)
+        .map(([k, v]) => [k, stripUndefined(v)]),
+    ) as T
+  }
+  return value
+}
+
 // Per-doc in-flight deduplication — prevents concurrent background syncs for the same doc
 const syncInFlight = new Map<string, Promise<void>>()
 
@@ -33,7 +47,7 @@ export async function writeFirestoreCache<T>(docId: string, data: T): Promise<vo
   if (!admin.ok) return
   const db = getFirestore(admin.app)
   await db.collection(COLLECTION).doc(docId).set({
-    data,
+    data: stripUndefined(data),
     updatedAt: Timestamp.now(),
   })
 }
@@ -92,7 +106,7 @@ export async function writeFirestoreCacheChunked<T>(docId: string, data: T[], ch
 
   await Promise.all(
     chunks.map((chunk, i) =>
-      db.collection(COLLECTION).doc(`${docId}_${i}`).set({ data: chunk }),
+      db.collection(COLLECTION).doc(`${docId}_${i}`).set({ data: stripUndefined(chunk) }),
     ),
   )
 

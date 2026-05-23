@@ -13,6 +13,7 @@ import type { Person, PersonStatus } from '@/app/lib/peopleTypes'
 import { normalizeEmailKey } from '@/app/lib/peopleTypes'
 import { auth } from '@/firebase'
 import { authFetch } from '@/app/lib/authFetch'
+import { useAuth } from './AuthProvider'
 import {
   subscribeToOverrides,
   mergeOverrides,
@@ -69,6 +70,7 @@ async function saveOverride(email: string, fields: OverrideFields): Promise<void
 }
 
 export function PeopleProvider({ children }: { children: React.ReactNode }) {
+  const { user, loading: authLoading } = useAuth()
   const [people, setPeople] = useState<Person[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -202,13 +204,23 @@ export function PeopleProvider({ children }: { children: React.ReactNode }) {
     } catch (e: any) {
       if (e?.name === 'AbortError') return
       console.error('Fetch error:', e)
-      if (people.length === 0) setError('Failed to load people')
+      if (basePeopleRef.current.length === 0) setError('Failed to load people')
     } finally {
       setIsLoading(false)
     }
-  }, [people.length])
+  }, [])
 
   useEffect(() => {
+    if (authLoading) return
+    if (!user) {
+      setPeople([])
+      basePeopleRef.current = []
+      overridesRef.current = {}
+      setIsLoading(false)
+      setError(null)
+      return
+    }
+
     // Seed from localStorage cache for instant display
     try {
       const cachedRaw = localStorage.getItem('people_v2')
@@ -237,7 +249,7 @@ export function PeopleProvider({ children }: { children: React.ReactNode }) {
       unsubscribeOverrides()
       abortRef.current?.abort()
     }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [authLoading, user, refresh])
 
   const value = useMemo<PeopleContextValue>(
     () => ({
