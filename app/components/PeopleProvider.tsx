@@ -45,7 +45,7 @@ type PeopleContextValue = {
   people: Person[]
   isLoading: boolean
   error: string | null
-  /** Milliseconds since epoch when `/api/people` last returned successfully. */
+  /** Milliseconds since epoch when the people source cache was last updated. */
   lastFetchedAt: number | null
   setStatus: (email: string, status: PersonStatus) => void
   toggleStar: (email: string) => void
@@ -181,6 +181,7 @@ export function PeopleProvider({ children }: { children: React.ReactNode }) {
       const data = (await response.json()) as {
         success?: boolean
         people?: Person[]
+        updatedAt?: string
         error?: string
       }
       if (!data?.success || !Array.isArray(data.people)) {
@@ -188,9 +189,10 @@ export function PeopleProvider({ children }: { children: React.ReactNode }) {
         return
       }
 
-      const now = Date.now()
-      setLastFetchedAt(now)
-      writeLastFetchedAtMs(now)
+      const syncedAt = data.updatedAt ? new Date(data.updatedAt).getTime() : NaN
+      const nextFetchedAt = Number.isFinite(syncedAt) && syncedAt > 0 ? syncedAt : Date.now()
+      setLastFetchedAt(nextFetchedAt)
+      writeLastFetchedAtMs(nextFetchedAt)
 
       // Server already merges overrides, but store as base for client re-merges via onSnapshot
       basePeopleRef.current = data.people

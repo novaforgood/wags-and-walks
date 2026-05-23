@@ -2,7 +2,7 @@ import { fetchAsmFosterDogsUncached } from '@/app/lib/asmDogs'
 import type { DogRecord } from '@/app/lib/asmDogs'
 import { fetchAsmFosterHistoryUncached, groupFosterHistory } from '@/app/lib/asmFosterHistory'
 import { fetchGoogleGroupMembersFromScript } from '@/app/lib/googleGroupMembersFetch'
-import { loadPeopleUncached } from '@/app/api/people/route'
+import { clearPeopleApiCache, loadPeopleUncached } from '@/app/api/people/route'
 import { loadTaskLogUncached } from '@/app/api/tasks/route'
 import { fetchPhotoStatusUncached } from '@/app/api/photo-status/route'
 import {
@@ -60,6 +60,7 @@ export async function GET(request: Request) {
     run('people', async () => {
       const data = await loadPeopleUncached()
       await writeFirestoreCacheChunked('people', data, PEOPLE_FS_CHUNK_SIZE)
+      clearPeopleApiCache()
     }),
     run('tasks', async () => {
       const data = await loadTaskLogUncached()

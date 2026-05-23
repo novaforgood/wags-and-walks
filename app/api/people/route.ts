@@ -24,6 +24,7 @@ const PEOPLE_CACHE_TTL_MS =
 type PeopleGetResponse = {
   success: true
   people: Person[]
+  updatedAt: string
 }
 
 let peopleCache: { data: PeopleGetResponse; expiresAt: number } | null = null
@@ -178,7 +179,7 @@ async function loadPeople(overrides: Record<string, ApplicantOverride> = {}): Pr
     } satisfies Person
   })
 
-  return { success: true, people }
+  return { success: true, people, updatedAt: new Date().toISOString() }
 }
 
 /** Uncached fetch for use in sync routes. */
@@ -186,6 +187,10 @@ export async function loadPeopleUncached(): Promise<Person[]> {
   const overrides = await loadOverrides()
   const result = await loadPeople(overrides)
   return result.people
+}
+
+export function clearPeopleApiCache() {
+  peopleCache = null
 }
 
 export async function GET(request: Request) {
@@ -209,7 +214,11 @@ export async function GET(request: Request) {
         await writeFirestoreCacheChunked(PEOPLE_FS_DOC_ID, result.people, PEOPLE_FS_CHUNK_SIZE)
       })
     }
-    const response: PeopleGetResponse = { success: true, people: fsCached.data }
+    const response: PeopleGetResponse = {
+      success: true,
+      people: fsCached.data,
+      updatedAt: fsCached.updatedAt.toISOString(),
+    }
     peopleCache = { data: response, expiresAt: now + PEOPLE_CACHE_TTL_MS }
     return Response.json(response, { headers: peopleCacheHeaders() })
   }
