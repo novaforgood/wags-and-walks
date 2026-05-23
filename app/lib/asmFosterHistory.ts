@@ -148,6 +148,11 @@ async function fetchAsmFosterHistoryFromAsm(): Promise<AsmFosterRow[]> {
   }
 }
 
+/** Bypasses the module-level cache — use in sync routes that need guaranteed-fresh data. */
+export async function fetchAsmFosterHistoryUncached(): Promise<AsmFosterRow[]> {
+  return fetchAsmFosterHistoryFromAsm()
+}
+
 export async function fetchAsmFosterHistory(): Promise<AsmFosterRow[]> {
   const now = Date.now()
   if (historyCache && historyCache.expiresAt > now) return historyCache.rows

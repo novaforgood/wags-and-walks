@@ -1,3 +1,5 @@
+import { getFosterNoteFromFirestore, setFosterNoteInFirestore } from './fosterNotesFirestore'
+
 export type FosterNotesCacheEntry = {
   notes: string
   notesUpdatedAt: string
@@ -33,15 +35,29 @@ export function prefetchFosterNotes(email: string | null | undefined): Promise<F
   const existing = inFlightByEmail.get(key)
   if (existing) return existing
 
-  const request = fetch(`/api/foster-notes?email=${encodeURIComponent(key)}`)
-    .then(r => r.json())
-    .then(data => {
+  const request = getFosterNoteFromFirestore(key)
+    .then(async firestoreEntry => {
+      if (firestoreEntry !== null) {
+        notesByEmail.set(key, firestoreEntry)
+        return firestoreEntry
+      }
+
+      // Lazy migration: nothing in Firestore yet — read from Sheet 2 and seed Firestore
+      const res = await fetch(`/api/foster-notes?email=${encodeURIComponent(key)}`)
+      const data = await res.json()
       if (!data?.success) return null
-      const entry = {
+
+      const entry: FosterNotesCacheEntry = {
         notes: data.notes || '',
         notesUpdatedAt: data.notesUpdatedAt || '',
       }
       notesByEmail.set(key, entry)
+
+      // Seed Firestore so subsequent reads skip the fallback
+      if (entry.notes) {
+        setFosterNoteInFirestore(key, entry.notes).catch(() => null)
+      }
+
       return entry
     })
     .catch(() => null)

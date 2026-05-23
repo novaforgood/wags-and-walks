@@ -28,18 +28,21 @@ import {
   type DirectoryProfile,
   type GroupMember,
 } from '@/app/lib/directoryPeople'
+import SyncButton from '@/app/components/SyncButton'
 import styles from '../candidates/candidates.module.css'
 import dirStyles from './directory.module.css'
 
 type FostererApiResponse = {
   success?: boolean
   fosterers?: FostererHistory[]
+  updatedAt?: string
   error?: string
 }
 
 type GroupApiResponse = {
   success?: boolean
   members?: GroupMember[]
+  updatedAt?: string
   error?: string
 }
 
@@ -127,6 +130,8 @@ export default function DirectoryPage() {
   const [fosterers, setFosterers] = useState<FostererHistory[]>([])
   const [isLoadingFosterers, setIsLoadingFosterers] = useState(true)
   const [fostererError, setFostererError] = useState<string | null>(null)
+  const [directoryUpdatedAt, setDirectoryUpdatedAt] = useState<string | undefined>()
+  const [fetchKey, setFetchKey] = useState(0)
 
   const tableWrapperRef = useRef<HTMLDivElement>(null)
   const [itemsPerPage, setItemsPerPage] = useState(15)
@@ -152,6 +157,10 @@ export default function DirectoryPage() {
         if (!active) return
         setGroupMembers(data.members)
         writeCachedArray(GROUP_MEMBERS_CACHE_KEY, data.members)
+        if (data.updatedAt) setDirectoryUpdatedAt(prev => {
+          if (!prev || data.updatedAt! < prev) return data.updatedAt
+          return prev
+        })
       } catch (e) {
         if (!active) return
         setGroupError(e instanceof Error ? e.message : 'Failed to load Google Group members')
@@ -162,7 +171,7 @@ export default function DirectoryPage() {
     }
     loadGroup()
     return () => { active = false }
-  }, [])
+  }, [fetchKey])
 
   useEffect(() => {
     let active = true
@@ -184,6 +193,10 @@ export default function DirectoryPage() {
         if (!active) return
         setFosterers(data.fosterers)
         writeCachedArray(FOSTER_HISTORY_CACHE_KEY, data.fosterers)
+        if (data.updatedAt) setDirectoryUpdatedAt(prev => {
+          if (!prev || data.updatedAt! < prev) return data.updatedAt
+          return prev
+        })
       } catch (e) {
         if (!active) return
         setFostererError(e instanceof Error ? e.message : 'Failed to load fosterers')
@@ -194,7 +207,7 @@ export default function DirectoryPage() {
     }
     load()
     return () => { active = false }
-  }, [])
+  }, [fetchKey])
 
   const asmByEmail = useMemo(() => buildAsmPeopleByEmail(fosterers), [fosterers])
   const applicationsByEmail = useMemo(() => buildApplicationsByEmail(people), [people])
@@ -322,6 +335,7 @@ export default function DirectoryPage() {
         <div className={styles.topBar}>
           <h1 className={styles.topBarTitle}>Directory</h1>
           <div className={styles.topBarActions}>
+            <SyncButton updatedAt={directoryUpdatedAt} onRefresh={() => setFetchKey(k => k + 1)} />
             <NotificationPanel />
             <TopBarProfileMenu />
           </div>

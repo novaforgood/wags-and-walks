@@ -6,6 +6,7 @@ import { usePeople } from '@/app/components/PeopleProvider'
 import ProtectedRoute from '@/app/components/ProtectedRoute'
 import NotificationPanel from '@/app/components/NotificationPanel'
 import TopBarProfileMenu from '@/app/components/TopBarProfileMenu'
+import SyncButton from '@/app/components/SyncButton'
 import { DashboardShell } from '@/app/components/DashboardShell'
 import type { Person, PersonStatus } from '@/app/lib/peopleTypes'
 import StatMetricHelp from '@/app/components/StatMetricHelp'
@@ -263,6 +264,8 @@ function earliestOverdueTrigger(
 export default function OverviewPage() {
     const { people, isLoading, error } = usePeople()
     const [queueFilter, setQueueFilter] = useState<QueueFilter>('all')
+    const [fetchKey, setFetchKey] = useState(0)
+    const [syncedAt, setSyncedAt] = useState<string | undefined>(undefined)
 
     const [taskMetrics, setTaskMetrics] = useState<TasksGetMetrics | null>(null)
     const [tasksRequestDone, setTasksRequestDone] = useState(false)
@@ -290,7 +293,7 @@ export default function OverviewPage() {
         }
         void loadTaskMetrics()
         return () => { active = false }
-    }, [])
+    }, [fetchKey])
 
     useEffect(() => {
         let active = true
@@ -301,6 +304,7 @@ export default function OverviewPage() {
                 const data = await res.json()
                 if (!active) return
                 if (Array.isArray(data?.dogs)) setDogs(data.dogs as DogRecord[])
+                if (data?.updatedAt) setSyncedAt(data.updatedAt as string)
             } catch { /* dogs optional */ }
             finally {
                 if (active) setDogsRequestDone(true)
@@ -308,7 +312,7 @@ export default function OverviewPage() {
         }
         void loadDogs()
         return () => { active = false }
-    }, [])
+    }, [fetchKey])
 
     const stats = useMemo(() => {
         const rows = people.filter(hasEmail)
@@ -412,6 +416,13 @@ export default function OverviewPage() {
                 <div className={layoutStyles.topBar}>
                     <h1 className={layoutStyles.topBarTitle}>Overview</h1>
                     <div className={layoutStyles.topBarActions}>
+                        <SyncButton
+                            updatedAt={syncedAt}
+                            onRefresh={() => {
+                                setSyncedAt(new Date().toISOString())
+                                setFetchKey(k => k + 1)
+                            }}
+                        />
                         <NotificationPanel />
                         <TopBarProfileMenu />
                     </div>

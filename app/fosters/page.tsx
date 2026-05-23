@@ -18,12 +18,14 @@ import {
   matchesTaskInboxFilter,
   type TaskInboxFilter,
 } from '@/app/lib/fosterTaskEnrichment'
+import SyncButton from '@/app/components/SyncButton'
 import styles from '../candidates/candidates.module.css'
 import inboxStyles from './fosterTasks.module.css'
 
 type DogsApiResponse = {
   success?: boolean
   dogs?: DogRecord[]
+  updatedAt?: string
   error?: string
 }
 
@@ -115,6 +117,8 @@ export default function FostersPage() {
   const [statusFilter, setStatusFilter] = useState<'all' | FosterStatus>('all')
   const [queueFilter, setQueueFilter] = useState<TaskInboxFilter>('needs_attention')
   const [dogs, setDogs] = useState<DogRecord[]>([])
+  const [dogsUpdatedAt, setDogsUpdatedAt] = useState<string | undefined>()
+  const [fetchKey, setFetchKey] = useState(0)
   const [isLoadingDogs, setIsLoadingDogs] = useState(true)
   const [dogsError, setDogsError] = useState<string | null>(null)
   const [taskRows, setTaskRows] = useState<TaskRow[]>([])
@@ -199,6 +203,7 @@ export default function FostersPage() {
         }
         if (!active) return
         setDogs(dogsData.dogs)
+        if (dogsData.updatedAt) setDogsUpdatedAt(dogsData.updatedAt)
         if (tasksRes) {
           try {
             const tasksData = (await tasksRes.json()) as TasksApiResponse
@@ -223,7 +228,7 @@ export default function FostersPage() {
     return () => {
       active = false
     }
-  }, [])
+  }, [fetchKey])
 
   useEffect(() => {
     setCurrentPage(1)
@@ -252,6 +257,7 @@ export default function FostersPage() {
         <div className={styles.topBar}>
           <h1 className={styles.topBarTitle}>Onboarded Fosters</h1>
           <div className={styles.topBarActions}>
+            <SyncButton updatedAt={dogsUpdatedAt} onRefresh={() => setFetchKey(k => k + 1)} />
             <NotificationPanel />
             <TopBarProfileMenu />
           </div>

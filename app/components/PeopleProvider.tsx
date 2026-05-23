@@ -10,8 +10,14 @@ import {
   useState
 } from 'react'
 import type { Person, PersonStatus } from '@/app/lib/peopleTypes'
-import { normalizeEmailKey, PENDING_STATUS_UPDATES_STORAGE_KEY } from '@/app/lib/peopleTypes'
+import { normalizeEmailKey } from '@/app/lib/peopleTypes'
 import { auth } from '@/firebase'
+import {
+  setOverride,
+  subscribeToOverrides,
+  mergeOverrides,
+  type ApplicantOverride,
+} from '@/app/lib/applicantOverrides'
 
 const PEOPLE_LAST_FETCHED_KEY = 'people_last_fetched_at'
 
@@ -49,140 +55,102 @@ type PeopleContextValue = {
 
 const PeopleContext = createContext<PeopleContextValue | null>(null)
 
-type PendingUpdate = { email: string; status: PersonStatus }
-
-function readPendingQueue(): Record<string, PersonStatus> {
-  try {
-    const raw = localStorage.getItem(PENDING_STATUS_UPDATES_STORAGE_KEY)
-    if (!raw) return {}
-    const parsed = JSON.parse(raw) as Record<string, PersonStatus>
-    if (!parsed || typeof parsed !== 'object') return {}
-    return parsed
-  } catch {
-    return {}
-  }
-}
-
-function writePendingQueue(queue: Record<string, PersonStatus>) {
-  try {
-    localStorage.setItem(PENDING_STATUS_UPDATES_STORAGE_KEY, JSON.stringify(queue))
-  } catch {
-    // ignore
-  }
-}
-
-
 export function PeopleProvider({ children }: { children: React.ReactNode }) {
   const [people, setPeople] = useState<Person[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [lastFetchedAt, setLastFetchedAt] = useState<number | null>(null)
 
-  const pendingRef = useRef<Map<string, PersonStatus>>(new Map())
-  const flushTimerRef = useRef<number | null>(null)
+  const basePeopleRef = useRef<Person[]>([])
+  const overridesRef = useRef<Record<string, ApplicantOverride>>({})
   const abortRef = useRef<AbortController | null>(null)
 
-  const applyPendingOptimistic = useCallback((base: Person[]) => {
-    return base.map(p => {
-      const key = normalizeEmailKey(p.email)
-      if (!key) return p
-      const pending = pendingRef.current.get(key)
-      return { ...p, ...(pending ? { status: pending } : {}) }
-    })
-  }, [])
+  function rebuildPeople(
+    base: Person[],
+    overrides: Record<string, ApplicantOverride>,
+  ): Person[] {
+    return mergeOverrides(base, overrides)
+  }
 
-  const toggleStar = useCallback((email: string) => {
-    const key = normalizeEmailKey(email)
-    if (!key) return
+  const setStatus = useCallback(
+    (email: string, status: PersonStatus) => {
+      const key = normalizeEmailKey(email)
+      if (!key) return
 
-    const person = people.find(p => normalizeEmailKey(p.email) === key)
-    if (!person) return
-    const newStarred = !person.starred
+      setPeople(prev => prev.map(p => normalizeEmailKey(p.email) === key ? { ...p, status } : p))
 
-    setPeople(prev => prev.map(p =>
-      normalizeEmailKey(p.email) === key ? { ...p, starred: newStarred } : p
-    ))
+      const updatedBy =
+        auth.currentUser?.email?.trim() ||
+        auth.currentUser?.displayName?.trim() ||
+        'unknown'
 
-    fetch('/api/send-email', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'set_starred', email, starred: newStarred })
-    })
-      .then(res => res.json())
-      .then(data => {
-        if (!data?.success) console.error('set_starred failed:', data)
+      setOverride(email, { status }, updatedBy).catch(err => {
+        console.error('Failed to set status in Firestore:', err)
+        setPeople(rebuildPeople(basePeopleRef.current, overridesRef.current))
       })
-      .catch(err => {
-        console.error('Failed to sync star:', err)
-        setPeople(prev => prev.map(p =>
-          normalizeEmailKey(p.email) === key ? { ...p, starred: !newStarred } : p
-        ))
+
+      if (status === 'approved') {
+        fetch(
+          'https://script.google.com/macros/s/AKfycbyCk2eN4T6TTtaNF04U7nyM9TDKQOb_2Yw2UDTFbOFv6bmWxqk49sh-ndm7xzVxxskT/exec',
+          {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email }),
+          },
+        ).catch(err => console.error('Failed to add to Google Group:', err))
+      }
+    },
+    [],
+  )
+
+  const toggleStar = useCallback(
+    (email: string) => {
+      const key = normalizeEmailKey(email)
+      if (!key) return
+      const person = people.find(p => normalizeEmailKey(p.email) === key)
+      if (!person) return
+      const newStarred = !person.starred
+
+      setPeople(prev => prev.map(p => normalizeEmailKey(p.email) === key ? { ...p, starred: newStarred } : p))
+
+      const updatedBy = auth.currentUser?.email?.trim() || 'unknown'
+      setOverride(email, { starred: newStarred }, updatedBy).catch(err => {
+        console.error('Failed to toggle star:', err)
+        setPeople(rebuildPeople(basePeopleRef.current, overridesRef.current))
       })
-  }, [people])
+    },
+    [people],
+  )
 
   const setNotes = useCallback(async (email: string, content: string) => {
     const key = normalizeEmailKey(email)
     if (!key) return
+    const notesUpdatedAt = new Date().toISOString()
 
-    setPeople(prev =>
-      prev.map(p => normalizeEmailKey(p.email) === key ? { ...p, notes: content } : p)
-    )
+    setPeople(prev => prev.map(p =>
+      normalizeEmailKey(p.email) === key ? { ...p, notes: content, notesUpdatedAt } : p
+    ))
 
-    await fetch('/api/send-email', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'set_notes', email, content })
+    const updatedBy = auth.currentUser?.email?.trim() || 'unknown'
+    await setOverride(email, { notes: content, notesUpdatedAt }, updatedBy).catch(err => {
+      console.error('Failed to save notes:', err)
     })
-      .then(res => res.json())
-      .then(data => {
-        if (!data?.success) console.error('set_notes failed:', data)
-      })
-      .catch(err => console.error('Failed to save notes:', err))
   }, [])
 
   const setSignedDocument = useCallback(async (email: string, value: 'Yes' | 'No') => {
     const key = normalizeEmailKey(email)
     if (!key) return
 
-    // Optimistic UI update.
-    setPeople(prev =>
-      prev.map(p => (normalizeEmailKey(p.email) === key ? { ...p, signedDocument: value } : p))
-    )
+    setPeople(prev => prev.map(p =>
+      normalizeEmailKey(p.email) === key ? { ...p, signedDocument: value } : p
+    ))
 
-    try {
-      const response = await fetch('/api/send-email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'set_signed_document',
-          email,
-          value
-        })
-      })
-      const data = (await response.json()) as { success?: boolean; value?: string; message?: string }
-      const isExpectedSignedDocumentResponse =
-        typeof data?.value === 'string' &&
-        (data.value === 'Yes' || data.value === 'No')
-
-      if (!response.ok || !data?.success || !isExpectedSignedDocumentResponse) {
-        const details = data?.message ? ` (${data.message})` : ''
-        throw new Error(`set_signed_document failed${details}`)
-      }
-    } catch (err) {
-      console.error('Failed to save signed document:', err)
-      // Revert optimistic update on failure.
-      setPeople(prev =>
-        prev.map(p => {
-          if (normalizeEmailKey(p.email) !== key) return p
-          const fallback = String(p.raw?.['Signed Document'] ?? p.raw?.['Signed document'] ?? '')
-            .trim()
-            .toLowerCase() === 'yes'
-            ? 'Yes'
-            : 'No'
-          return { ...p, signedDocument: fallback }
-        })
-      )
-    }
+    const updatedBy = auth.currentUser?.email?.trim() || 'unknown'
+    await setOverride(email, { signedDocument: value }, updatedBy).catch(err => {
+      console.error('Failed to set signed document:', err)
+      setPeople(rebuildPeople(basePeopleRef.current, overridesRef.current))
+    })
   }, [])
 
   const refresh = useCallback(async (options?: { suppressLoadingBar?: boolean }) => {
@@ -205,7 +173,6 @@ export function PeopleProvider({ children }: { children: React.ReactNode }) {
       }
       if (!data?.success || !Array.isArray(data.people)) {
         setError(data?.error || 'Failed to load people')
-        // Don't clear people on error if we have cached data
         return
       }
 
@@ -213,9 +180,10 @@ export function PeopleProvider({ children }: { children: React.ReactNode }) {
       setLastFetchedAt(now)
       writeLastFetchedAtMs(now)
 
-      setPeople(applyPendingOptimistic(data.people))
+      // Server already merges overrides, but store as base for client re-merges via onSnapshot
+      basePeopleRef.current = data.people
+      setPeople(rebuildPeople(data.people, overridesRef.current))
 
-      // Cache the fresh data
       try {
         localStorage.setItem('people_v2', JSON.stringify(data.people))
       } catch (e) {
@@ -224,117 +192,21 @@ export function PeopleProvider({ children }: { children: React.ReactNode }) {
     } catch (e: any) {
       if (e?.name === 'AbortError') return
       console.error('Fetch error:', e)
-      // Only set error if we have NO people (even from cache)
       if (people.length === 0) setError('Failed to load people')
     } finally {
       setIsLoading(false)
     }
-  }, [applyPendingOptimistic, people.length])
-
-  const flushQueue = useCallback(async () => {
-    const updates: PendingUpdate[] = Array.from(pendingRef.current.entries()).map(
-      ([email, status]) => ({ email, status })
-    )
-    if (updates.length === 0) return
-
-    const updatedBy =
-      auth.currentUser?.email?.trim() ||
-      auth.currentUser?.displayName?.trim() ||
-      'unknown'
-
-    for (const u of updates) {
-      try {
-        const response = await fetch('/api/send-email', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'set_status',
-            email: u.email,
-            status: u.status,
-            updatedBy,
-          })
-        })
-
-        const data = (await response.json()) as { success?: boolean; error?: string }
-        if (!response.ok || !data?.success) {
-          // Keep in queue for retry; UI remains optimistic.
-          continue
-        }
-
-        pendingRef.current.delete(u.email)
-      } catch {
-        // Keep in queue for retry.
-      }
-    }
-
-    const persisted: Record<string, PersonStatus> = {}
-    for (const [email, status] of pendingRef.current.entries()) {
-      persisted[email] = status
-    }
-    writePendingQueue(persisted)
-  }, [])
-
-  const scheduleFlush = useCallback(() => {
-    if (flushTimerRef.current != null) {
-      window.clearTimeout(flushTimerRef.current)
-    }
-    flushTimerRef.current = window.setTimeout(() => {
-      flushTimerRef.current = null
-      flushQueue()
-    }, 900)
-  }, [flushQueue])
-
-  const setStatus = useCallback(
-    (email: string, status: PersonStatus) => {
-      const key = normalizeEmailKey(email)
-      if (!key) return
-
-      // Optimistically update UI immediately.
-      setPeople(prev =>
-        prev.map(p => (normalizeEmailKey(p.email) === key ? { ...p, status } : p))
-      )
-
-      // Queue background sync to Sheets (debounced + coalesced).
-      pendingRef.current.set(key, status)
-      const persisted: Record<string, PersonStatus> = {}
-      for (const [emailKey, queuedStatus] of pendingRef.current.entries()) {
-        persisted[emailKey] = queuedStatus
-      }
-      writePendingQueue(persisted)
-      scheduleFlush()
-
-      // SIDE EFFECT: If moving to 'approved', trigger the Google Script.
-      if (status === 'approved') {
-        // Fire and forget - don't block UI
-        fetch(
-          'https://script.google.com/macros/s/AKfycbyCk2eN4T6TTtaNF04U7nyM9TDKQOb_2Yw2UDTFbOFv6bmWxqk49sh-ndm7xzVxxskT/exec',
-          {
-            method: 'POST',
-            mode: 'no-cors',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email }),
-          }
-        ).catch(err => console.error('Failed to add to Google Group:', err))
-      }
-    },
-    [scheduleFlush]
-  )
+  }, [people.length])
 
   useEffect(() => {
-    const persisted = readPendingQueue()
-    for (const [email, status] of Object.entries(persisted)) {
-      pendingRef.current.set(email, status)
-    }
-
-    // Attempt to load cached people first (instant load)
-    let cacheSeeded = false
+    // Seed from localStorage cache for instant display
     try {
       const cachedRaw = localStorage.getItem('people_v2')
       if (cachedRaw) {
         const cachedPeople = JSON.parse(cachedRaw) as Person[]
         if (Array.isArray(cachedPeople) && cachedPeople.length > 0) {
-          cacheSeeded = true
-          setPeople(applyPendingOptimistic(cachedPeople))
+          basePeopleRef.current = cachedPeople
+          setPeople(rebuildPeople(cachedPeople, overridesRef.current))
         }
       }
       const cachedFetched = readLastFetchedAtMs()
@@ -343,13 +215,19 @@ export function PeopleProvider({ children }: { children: React.ReactNode }) {
       console.error('Failed to load cached people', e)
     }
 
-    void refresh({ suppressLoadingBar: cacheSeeded })
+    // Real-time Firestore subscription — fires immediately then on any change
+    const unsubscribeOverrides = subscribeToOverrides(overrides => {
+      overridesRef.current = overrides
+      setPeople(prev => rebuildPeople(basePeopleRef.current.length > 0 ? basePeopleRef.current : prev, overrides))
+    })
+
+    void refresh()
 
     return () => {
+      unsubscribeOverrides()
       abortRef.current?.abort()
-      if (flushTimerRef.current != null) window.clearTimeout(flushTimerRef.current)
     }
-  }, [refresh, applyPendingOptimistic])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const value = useMemo<PeopleContextValue>(
     () => ({
