@@ -14,7 +14,6 @@ import { normalizeEmailKey } from '@/app/lib/peopleTypes'
 import { auth } from '@/firebase'
 import { authFetch } from '@/app/lib/authFetch'
 import {
-  setOverride,
   subscribeToOverrides,
   mergeOverrides,
   type ApplicantOverride,
@@ -56,6 +55,19 @@ type PeopleContextValue = {
 
 const PeopleContext = createContext<PeopleContextValue | null>(null)
 
+type OverrideFields = Partial<Omit<ApplicantOverride, 'updatedAt' | 'updatedBy'>>
+
+async function saveOverride(email: string, fields: OverrideFields): Promise<void> {
+  const response = await authFetch('/api/applicant-overrides', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, fields }),
+  })
+  if (!response.ok) {
+    throw new Error(`Failed to save override (${response.status})`)
+  }
+}
+
 export function PeopleProvider({ children }: { children: React.ReactNode }) {
   const [people, setPeople] = useState<Person[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -80,12 +92,7 @@ export function PeopleProvider({ children }: { children: React.ReactNode }) {
 
       setPeople(prev => prev.map(p => normalizeEmailKey(p.email) === key ? { ...p, status } : p))
 
-      const updatedBy =
-        auth.currentUser?.email?.trim() ||
-        auth.currentUser?.displayName?.trim() ||
-        'unknown'
-
-      setOverride(email, { status }, updatedBy).catch(err => {
+      saveOverride(email, { status }).catch(err => {
         console.error('Failed to set status in Firestore:', err)
         setPeople(rebuildPeople(basePeopleRef.current, overridesRef.current))
       })
@@ -120,8 +127,7 @@ export function PeopleProvider({ children }: { children: React.ReactNode }) {
 
       setPeople(prev => prev.map(p => normalizeEmailKey(p.email) === key ? { ...p, starred: newStarred } : p))
 
-      const updatedBy = auth.currentUser?.email?.trim() || 'unknown'
-      setOverride(email, { starred: newStarred }, updatedBy).catch(err => {
+      saveOverride(email, { starred: newStarred }).catch(err => {
         console.error('Failed to toggle star:', err)
         setPeople(rebuildPeople(basePeopleRef.current, overridesRef.current))
       })
@@ -138,8 +144,7 @@ export function PeopleProvider({ children }: { children: React.ReactNode }) {
       normalizeEmailKey(p.email) === key ? { ...p, notes: content, notesUpdatedAt } : p
     ))
 
-    const updatedBy = auth.currentUser?.email?.trim() || 'unknown'
-    await setOverride(email, { notes: content, notesUpdatedAt }, updatedBy).catch(err => {
+    await saveOverride(email, { notes: content, notesUpdatedAt }).catch(err => {
       console.error('Failed to save notes:', err)
     })
   }, [])
@@ -152,8 +157,7 @@ export function PeopleProvider({ children }: { children: React.ReactNode }) {
       normalizeEmailKey(p.email) === key ? { ...p, signedDocument: value } : p
     ))
 
-    const updatedBy = auth.currentUser?.email?.trim() || 'unknown'
-    await setOverride(email, { signedDocument: value }, updatedBy).catch(err => {
+    await saveOverride(email, { signedDocument: value }).catch(err => {
       console.error('Failed to set signed document:', err)
       setPeople(rebuildPeople(basePeopleRef.current, overridesRef.current))
     })
