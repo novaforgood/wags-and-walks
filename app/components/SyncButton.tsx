@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { auth } from '@/firebase'
 import styles from './syncButton.module.css'
 
@@ -24,7 +24,14 @@ function formatAgo(iso: string): string {
 export default function SyncButton({ updatedAt, onRefresh }: Props) {
   const [syncing, setSyncing] = useState(false)
   const [error, setError] = useState(false)
+  const mountedRef = useRef(true)
   const statusLabel = error ? 'Sync failed' : updatedAt ? `Synced ${formatAgo(updatedAt)}` : null
+
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false
+    }
+  }, [])
 
   async function handleSync() {
     if (syncing) return
@@ -37,11 +44,13 @@ export default function SyncButton({ updatedAt, onRefresh }: Props) {
         headers: { Authorization: `Bearer ${token}` },
       })
       if (!res.ok) throw new Error(`Sync failed with status ${res.status}`)
-      onRefresh()
-    } catch {
-      setError(true)
+      if (mountedRef.current) onRefresh()
+    } catch (e: unknown) {
+      if (!(e instanceof DOMException && e.name === 'AbortError') && mountedRef.current) {
+        setError(true)
+      }
     } finally {
-      setSyncing(false)
+      if (mountedRef.current) setSyncing(false)
     }
   }
 

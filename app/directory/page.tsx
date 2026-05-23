@@ -4,8 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { usePeople } from '@/app/components/PeopleProvider'
 import ProtectedRoute from '@/app/components/ProtectedRoute'
 import PersonModal from '@/app/components/PersonModal'
-import NotificationPanel from '@/app/components/NotificationPanel'
-import TopBarProfileMenu from '@/app/components/TopBarProfileMenu'
+import DashboardTopBar from '@/app/components/DashboardTopBar'
 import { DashboardShell } from '@/app/components/DashboardShell'
 import {
   FOSTER_HISTORY_CACHE_KEY,
@@ -29,7 +28,6 @@ import {
   type DirectoryProfile,
   type GroupMember,
 } from '@/app/lib/directoryPeople'
-import SyncButton from '@/app/components/SyncButton'
 import styles from '../candidates/candidates.module.css'
 import dirStyles from './directory.module.css'
 
@@ -333,14 +331,11 @@ export default function DirectoryPage() {
   return (
     <ProtectedRoute>
       <DashboardShell>
-        <div className={styles.topBar}>
-          <h1 className={styles.topBarTitle}>Directory</h1>
-          <div className={styles.topBarActions}>
-            <SyncButton updatedAt={directoryUpdatedAt} onRefresh={() => setFetchKey(k => k + 1)} />
-            <NotificationPanel />
-            <TopBarProfileMenu />
-          </div>
-        </div>
+        <DashboardTopBar
+          title="Directory"
+          syncUpdatedAt={directoryUpdatedAt}
+          onSyncRefresh={() => setFetchKey(k => k + 1)}
+        />
 
         <div className={`${styles.toolbar} ${dirStyles.directoryToolbar}`}>
           <div className={styles.searchWrapper}>

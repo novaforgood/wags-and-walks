@@ -4,8 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { usePeople } from '@/app/components/PeopleProvider'
 import ProtectedRoute from '@/app/components/ProtectedRoute'
 import ApplicantSlideOver from '@/app/components/ApplicantSlideOver'
-import NotificationPanel from '@/app/components/NotificationPanel'
-import TopBarProfileMenu from '@/app/components/TopBarProfileMenu'
+import DashboardTopBar from '@/app/components/DashboardTopBar'
 import { DashboardShell } from '@/app/components/DashboardShell'
 import FilterDropdown, { FilterState } from '@/app/components/FilterDropdown'
 import type { Person, PersonStatus } from '@/app/lib/peopleTypes'
@@ -80,7 +79,7 @@ function isClosedStatus(s?: PersonStatus): boolean {
 }
 
 export default function CandidatesPage() {
-    const { people, isLoading, error, toggleStar } = usePeople()
+    const { people, isLoading, error, lastFetchedAt, refresh, toggleStar } = usePeople()
 
     const [searchQuery, setSearchQuery] = useState('')
     const [selectedPerson, setSelectedPerson] = useState<Person | null>(null)
@@ -237,13 +236,13 @@ export default function CandidatesPage() {
     return (
         <ProtectedRoute>
             <DashboardShell>
-                <div className={styles.topBar}>
-                    <h1 className={styles.topBarTitle}>Foster Applicants</h1>
-                    <div className={styles.topBarActions}>
-                        <NotificationPanel />
-                        <TopBarProfileMenu />
-                    </div>
-                </div>
+                <DashboardTopBar
+                    title="Foster Applicants"
+                    syncUpdatedAt={lastFetchedAt ? new Date(lastFetchedAt).toISOString() : undefined}
+                    onSyncRefresh={() => {
+                        void refresh({ suppressLoadingBar: true })
+                    }}
+                />
 
                 {/* Toolbar */}
                 <div className={styles.toolbar}>

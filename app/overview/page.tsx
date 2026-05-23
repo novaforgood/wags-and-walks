@@ -4,9 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { usePeople } from '@/app/components/PeopleProvider'
 import ProtectedRoute from '@/app/components/ProtectedRoute'
-import NotificationPanel from '@/app/components/NotificationPanel'
-import TopBarProfileMenu from '@/app/components/TopBarProfileMenu'
-import SyncButton from '@/app/components/SyncButton'
+import DashboardTopBar from '@/app/components/DashboardTopBar'
 import { DashboardShell } from '@/app/components/DashboardShell'
 import type { Person, PersonStatus } from '@/app/lib/peopleTypes'
 import StatMetricHelp from '@/app/components/StatMetricHelp'
@@ -32,7 +30,6 @@ import {
     type TaskLane,
 } from '@/app/lib/fosterTaskEnrichment'
 import { formatFlagsForDisplay, rawFlagsHasMeaningfulTokens } from '@/app/lib/flagDisplay'
-import layoutStyles from '../candidates/candidates.module.css'
 import styles from './overview.module.css'
 
 function hasEmail(p: Person): boolean {
@@ -414,20 +411,14 @@ export default function OverviewPage() {
     return (
         <ProtectedRoute>
             <DashboardShell>
-                <div className={layoutStyles.topBar}>
-                    <h1 className={layoutStyles.topBarTitle}>Overview</h1>
-                    <div className={layoutStyles.topBarActions}>
-                        <SyncButton
-                            updatedAt={syncedAt}
-                            onRefresh={() => {
-                                setSyncedAt(new Date().toISOString())
-                                setFetchKey(k => k + 1)
-                            }}
-                        />
-                        <NotificationPanel />
-                        <TopBarProfileMenu />
-                    </div>
-                </div>
+                <DashboardTopBar
+                    title="Overview"
+                    syncUpdatedAt={syncedAt}
+                    onSyncRefresh={() => {
+                        setSyncedAt(new Date().toISOString())
+                        setFetchKey(k => k + 1)
+                    }}
+                />
 
                 {error && <div className={styles.errorText}>{error}</div>}
 

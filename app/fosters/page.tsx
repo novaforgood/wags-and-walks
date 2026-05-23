@@ -4,8 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import ProtectedRoute from '@/app/components/ProtectedRoute'
-import NotificationPanel from '@/app/components/NotificationPanel'
-import TopBarProfileMenu from '@/app/components/TopBarProfileMenu'
+import DashboardTopBar from '@/app/components/DashboardTopBar'
 import { DashboardShell } from '@/app/components/DashboardShell'
 import BulkEmailBar from '@/app/components/BulkEmailBar'
 import { formatDateShort, type DogRecord, type FosterStatus } from '@/app/lib/fosterDirectory'
@@ -19,7 +18,6 @@ import {
   matchesTaskInboxFilter,
   type TaskInboxFilter,
 } from '@/app/lib/fosterTaskEnrichment'
-import SyncButton from '@/app/components/SyncButton'
 import styles from '../candidates/candidates.module.css'
 import inboxStyles from './fosterTasks.module.css'
 
@@ -255,14 +253,11 @@ export default function FostersPage() {
   return (
     <ProtectedRoute>
       <DashboardShell>
-        <div className={styles.topBar}>
-          <h1 className={styles.topBarTitle}>Onboarded Fosters</h1>
-          <div className={styles.topBarActions}>
-            <SyncButton updatedAt={dogsUpdatedAt} onRefresh={() => setFetchKey(k => k + 1)} />
-            <NotificationPanel />
-            <TopBarProfileMenu />
-          </div>
-        </div>
+        <DashboardTopBar
+          title="Onboarded Fosters"
+          syncUpdatedAt={dogsUpdatedAt}
+          onSyncRefresh={() => setFetchKey(k => k + 1)}
+        />
 
         <div className={styles.toolbar}>
           <div className={styles.searchWrapper}>
