@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { auth } from '@/firebase'
 import styles from './syncButton.module.css'
 
 type Props = {
@@ -30,7 +31,11 @@ export default function SyncButton({ updatedAt, onRefresh }: Props) {
     setSyncing(true)
     setError(false)
     try {
-      const res = await fetch('/api/sync/all')
+      const token = await auth.currentUser?.getIdToken()
+      if (!token) throw new Error('You must be signed in to sync')
+      const res = await fetch('/api/sync/all', {
+        headers: { Authorization: `Bearer ${token}` },
+      })
       if (!res.ok) throw new Error(`Sync failed with status ${res.status}`)
       onRefresh()
     } catch {

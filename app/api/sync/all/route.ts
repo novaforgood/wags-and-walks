@@ -9,6 +9,7 @@ import {
   writeFirestoreCache,
   writeFirestoreCacheChunked,
 } from '@/app/lib/firestoreCache'
+import { requireAllowedUser } from '@/app/lib/serverAuth'
 
 const PEOPLE_FS_CHUNK_SIZE = 150
 
@@ -16,14 +17,10 @@ function stripRaw(dogs: DogRecord[]): DogRecord[] {
   return dogs.map(({ raw: _raw, ...d }) => d)
 }
 
-// Vercel injects CRON_SECRET and sends it as Authorization: Bearer <secret> for cron calls.
-// Manual browser refreshes have no Authorization header, which we allow since this endpoint
-// only writes to Firestore and exposes no data.
 function isAuthorizedCron(request: Request): boolean {
   const secret = process.env.CRON_SECRET
-  if (!secret) return true
+  if (!secret) return false
   const auth = request.headers.get('authorization')
-  if (!auth) return true
   return auth === `Bearer ${secret}`
 }
 
@@ -43,7 +40,8 @@ async function run(name: string, fn: () => Promise<void>): Promise<SyncResult> {
 
 export async function GET(request: Request) {
   if (!isAuthorizedCron(request)) {
-    return Response.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+    const auth = await requireAllowedUser(request)
+    if (!auth.ok) return auth.response
   }
 
   const [dogs, fosterHistory, groupMembers, people, tasks, photoStatus] = await Promise.allSettled([
