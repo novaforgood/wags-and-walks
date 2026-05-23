@@ -11,6 +11,7 @@ import {
   isCacheFresh,
   triggerBackgroundSync,
 } from '@/app/lib/firestoreCache'
+import { requireAllowedUser } from '@/app/lib/serverAuth'
 
 export type { TaskRow, TaskRowSheetStatus, TasksDataQuality, TasksGetMetrics }
 
@@ -71,6 +72,9 @@ function rollupContribution(status: TaskRowSheetStatus): FosterStatus | null {
 }
 
 export async function POST(request: Request) {
+  const auth = await requireAllowedUser(request)
+  if (!auth.ok) return auth.response
+
   if (!TASK_SCRIPT_URL) {
     return Response.json({ success: false, error: 'TASK_SCRIPT_URL not configured' }, { status: 500 })
   }

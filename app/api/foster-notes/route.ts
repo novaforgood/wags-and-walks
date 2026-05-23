@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { requireAllowedUser } from '@/app/lib/serverAuth'
 
 const APPS_SCRIPT_URL = process.env.APPS_SCRIPT_URL
 const rawTtl = Number(process.env.FOSTER_NOTES_CACHE_TTL_SEC)
@@ -58,6 +59,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const auth = await requireAllowedUser(req)
+  if (!auth.ok) return auth.response
+
   if (!APPS_SCRIPT_URL) {
     return NextResponse.json({ success: false, error: 'APPS_SCRIPT_URL not configured' }, { status: 500 })
   }
