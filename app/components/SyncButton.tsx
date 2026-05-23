@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
-import { auth } from '@/firebase'
+import { useEffect, useRef } from 'react'
+import { useSyncState } from '@/app/components/SyncProvider'
 import styles from './syncButton.module.css'
 
 type Props = {
@@ -22,36 +22,19 @@ function formatAgo(iso: string): string {
 }
 
 export default function SyncButton({ updatedAt, onRefresh }: Props) {
-  const [syncing, setSyncing] = useState(false)
-  const [error, setError] = useState(false)
-  const mountedRef = useRef(true)
+  const { syncing, error, completedRunId, startSync } = useSyncState()
+  const handledRunIdRef = useRef(completedRunId)
   const statusLabel = error ? 'Sync failed' : updatedAt ? `Synced ${formatAgo(updatedAt)}` : null
 
   useEffect(() => {
-    return () => {
-      mountedRef.current = false
-    }
-  }, [])
+    if (completedRunId === handledRunIdRef.current) return
+    handledRunIdRef.current = completedRunId
+    onRefresh()
+  }, [completedRunId, onRefresh])
 
   async function handleSync() {
     if (syncing) return
-    setSyncing(true)
-    setError(false)
-    try {
-      const token = await auth.currentUser?.getIdToken()
-      if (!token) throw new Error('You must be signed in to sync')
-      const res = await fetch('/api/sync/all', {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      if (!res.ok) throw new Error(`Sync failed with status ${res.status}`)
-      if (mountedRef.current) onRefresh()
-    } catch (e: unknown) {
-      if (!(e instanceof DOMException && e.name === 'AbortError') && mountedRef.current) {
-        setError(true)
-      }
-    } finally {
-      if (mountedRef.current) setSyncing(false)
-    }
+    await startSync()
   }
 
   return (
@@ -68,7 +51,7 @@ export default function SyncButton({ updatedAt, onRefresh }: Props) {
         onClick={handleSync}
         disabled={syncing}
         aria-label="Sync data from upstream sources"
-        title="Pull latest data from ASM and Google Group"
+        title={syncing ? 'Sync in progress' : 'Pull latest data from ASM and Google Group'}
       >
         <svg
           className={`${styles.icon} ${syncing ? styles.iconSpin : ''}`}
