@@ -23,6 +23,7 @@ function formatAgo(iso: string): string {
 export default function SyncButton({ updatedAt, onRefresh }: Props) {
   const [syncing, setSyncing] = useState(false)
   const [error, setError] = useState(false)
+  const statusLabel = error ? 'Sync failed' : updatedAt ? `Synced ${formatAgo(updatedAt)}` : null
 
   async function handleSync() {
     if (syncing) return
@@ -30,7 +31,7 @@ export default function SyncButton({ updatedAt, onRefresh }: Props) {
     setError(false)
     try {
       const res = await fetch('/api/sync/all')
-      if (!res.ok) throw new Error('Sync failed')
+      if (!res.ok) throw new Error(`Sync failed with status ${res.status}`)
       onRefresh()
     } catch {
       setError(true)
@@ -41,9 +42,9 @@ export default function SyncButton({ updatedAt, onRefresh }: Props) {
 
   return (
     <div className={styles.wrap}>
-      {updatedAt && !syncing && (
+      {statusLabel && !syncing && (
         <span className={`${styles.label} ${error ? styles.labelError : ''}`}>
-          {error ? 'Sync failed' : `Synced ${formatAgo(updatedAt)}`}
+          {statusLabel}
         </span>
       )}
       {syncing && <span className={styles.label}>Syncing…</span>}

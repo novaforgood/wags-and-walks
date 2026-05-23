@@ -19,8 +19,6 @@ export default function GmailCompose({ email, recipientName, dogNames }: Props) 
   const dragRef = useRef<{ mx: number; my: number; px: number; py: number } | null>(null)
   const modalRef = useRef<HTMLDivElement>(null)
 
-  if (!email?.trim()) return null
-
   function openModal() {
     const firstName = recipientName?.split(/\s+/)[0]?.trim() ?? ''
     const dogs = (dogNames ?? []).filter(Boolean)
@@ -80,6 +78,8 @@ export default function GmailCompose({ email, recipientName, dogNames }: Props) 
   const modalStyle = pos
     ? { position: 'fixed' as const, left: pos.x, top: pos.y, margin: 0, transform: 'none' }
     : {}
+
+  if (!email?.trim()) return null
 
   return (
     <>

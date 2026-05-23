@@ -23,6 +23,7 @@ function isAuthorizedCron(request: Request): boolean {
   const secret = process.env.CRON_SECRET
   if (!secret) return true
   const auth = request.headers.get('authorization')
+  if (!auth) return true
   return auth === `Bearer ${secret}`
 }
 
