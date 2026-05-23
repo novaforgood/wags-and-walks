@@ -1,4 +1,5 @@
 import { getFosterNoteFromFirestore, setFosterNoteInFirestore } from './fosterNotesFirestore'
+import { authFetch } from '@/app/lib/authFetch'
 
 export type FosterNotesCacheEntry = {
   notes: string
@@ -43,7 +44,7 @@ export function prefetchFosterNotes(email: string | null | undefined): Promise<F
       }
 
       // Lazy migration: nothing in Firestore yet — read from Sheet 2 and seed Firestore
-      const res = await fetch(`/api/foster-notes?email=${encodeURIComponent(key)}`)
+      const res = await authFetch(`/api/foster-notes?email=${encodeURIComponent(key)}`)
       const data = await res.json()
       if (!data?.success) return null
 

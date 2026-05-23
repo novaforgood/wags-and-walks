@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { usePeople } from '@/app/components/PeopleProvider'
+import { authFetch } from '@/app/lib/authFetch'
 import { normalizeEmailKey } from '@/app/lib/peopleTypes'
 import type { Person } from '@/app/lib/peopleTypes'
 import ProtectedRoute from '@/app/components/ProtectedRoute'
@@ -50,7 +51,7 @@ function ApplicantDetailInner() {
 
     async function fetchData() {
       try {
-        const res = await fetch('/api/people')
+        const res = await authFetch('/api/people')
         const data = await res.json()
         const match = (data.people ?? []).find(
           (p: unknown) => normalizeEmailKey((p as Person).email) === emailKey

@@ -35,6 +35,9 @@ async function fetchNotesRows(): Promise<NotesRow[]> {
 }
 
 export async function GET(req: NextRequest) {
+  const auth = await requireAllowedUser(req)
+  if (!auth.ok) return auth.response
+
   if (!APPS_SCRIPT_URL) {
     return NextResponse.json({ success: false, error: 'APPS_SCRIPT_URL not configured' }, { status: 500 })
   }

@@ -15,6 +15,7 @@ import {
     countTrackableFosterStartsThisMonth,
 } from '@/app/lib/overviewMetrics'
 import { formatRelativeTime } from '@/app/lib/formatRelativeTime'
+import { authFetch } from '@/app/lib/authFetch'
 import type { TasksGetMetrics, TaskRow } from '@/app/api/tasks/route'
 import {
     countTrackableFosterDogs,
@@ -277,7 +278,7 @@ export default function OverviewPage() {
         let active = true
         async function loadTaskMetrics() {
             try {
-                const res = await fetch('/api/tasks', { cache: 'no-store' })
+                const res = await authFetch('/api/tasks', { cache: 'no-store' })
                 if (!res.ok || !active) return
                 const data = await res.json()
                 if (!active) return
@@ -299,7 +300,7 @@ export default function OverviewPage() {
         let active = true
         async function loadDogs() {
             try {
-                const res = await fetch('/api/dogs', { cache: 'no-store' })
+                const res = await authFetch('/api/dogs', { cache: 'no-store' })
                 if (!res.ok || !active) return
                 const data = await res.json()
                 if (!active) return

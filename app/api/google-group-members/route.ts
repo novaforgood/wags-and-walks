@@ -6,10 +6,14 @@ import {
   isCacheFresh,
   triggerBackgroundSync,
 } from '@/app/lib/firestoreCache'
+import { requireAllowedUser } from '@/app/lib/serverAuth'
 
 const DOC_ID = 'google_group_members'
 
-export async function GET() {
+export async function GET(request: Request) {
+  const auth = await requireAllowedUser(request)
+  if (!auth.ok) return auth.response
+
   try {
     const cached = await readFirestoreCache<GroupMember[]>(DOC_ID)
 

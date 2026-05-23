@@ -13,6 +13,7 @@ import {
   readCachedArray,
   writeCachedArray,
 } from '@/app/lib/directoryClientCache'
+import { authFetch } from '@/app/lib/authFetch'
 import { prefetchFosterNotes } from '@/app/lib/fosterNotesClientCache'
 import type { Person } from '@/app/lib/peopleTypes'
 import type { FostererHistory } from '@/app/lib/asmFosterHistory'
@@ -149,7 +150,7 @@ export default function DirectoryPage() {
       }
       setGroupError(null)
       try {
-        const res = await fetch('/api/google-group-members', { cache: 'no-store' })
+        const res = await authFetch('/api/google-group-members', { cache: 'no-store' })
         const data = (await res.json()) as GroupApiResponse
         if (!res.ok || !data?.success || !Array.isArray(data.members)) {
           throw new Error(data?.error || 'Failed to load Google Group members')
@@ -185,7 +186,7 @@ export default function DirectoryPage() {
       }
       setFostererError(null)
       try {
-        const res = await fetch('/api/foster-history', { cache: 'no-store' })
+        const res = await authFetch('/api/foster-history', { cache: 'no-store' })
         const data = (await res.json()) as FostererApiResponse
         if (!res.ok || !data?.success || !Array.isArray(data.fosterers)) {
           throw new Error(data?.error || 'Failed to load fosterers from Shelter Manager')

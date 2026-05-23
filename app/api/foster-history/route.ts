@@ -12,10 +12,14 @@ import {
   isCacheFresh,
   triggerBackgroundSync,
 } from '@/app/lib/firestoreCache'
+import { requireAllowedUser } from '@/app/lib/serverAuth'
 
 const DOC_ID = 'asm_foster_history'
 
 export async function GET(request: NextRequest) {
+  const auth = await requireAllowedUser(request)
+  if (!auth.ok) return auth.response
+
   try {
     const email = request.nextUrl.searchParams.get('email')?.trim().toLowerCase()
 

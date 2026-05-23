@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import type { FostererHistory, FosterDog } from '@/app/lib/asmFosterHistory'
+import { authFetch } from '@/app/lib/authFetch'
 
 interface Props {
   email: string | null | undefined
@@ -38,7 +39,7 @@ export default function FosterHistoryPanel({ email, initialData, sectionClassNam
       }
     })
 
-    fetch(`/api/foster-history?email=${encodeURIComponent(email)}`)
+    authFetch(`/api/foster-history?email=${encodeURIComponent(email)}`)
       .then(r => r.json())
       .then(json => {
         if (!active) return

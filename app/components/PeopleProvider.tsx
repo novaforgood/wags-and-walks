@@ -12,6 +12,7 @@ import {
 import type { Person, PersonStatus } from '@/app/lib/peopleTypes'
 import { normalizeEmailKey } from '@/app/lib/peopleTypes'
 import { auth } from '@/firebase'
+import { authFetch } from '@/app/lib/authFetch'
 import {
   setOverride,
   subscribeToOverrides,
@@ -170,7 +171,7 @@ export function PeopleProvider({ children }: { children: React.ReactNode }) {
     }
     setError(null)
     try {
-      const response = await fetch('/api/people', { method: 'GET', signal: controller.signal })
+      const response = await authFetch('/api/people', { method: 'GET', signal: controller.signal })
       const data = (await response.json()) as {
         success?: boolean
         people?: Person[]

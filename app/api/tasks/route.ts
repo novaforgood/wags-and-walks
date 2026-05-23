@@ -232,7 +232,10 @@ export async function loadTaskLogUncached(): Promise<TasksGetResponse> {
   return loadTaskLog()
 }
 
-export async function GET() {
+export async function GET(request: Request) {
+  const auth = await requireAllowedUser(request)
+  if (!auth.ok) return auth.response
+
   const now = Date.now()
 
   // Module-level cache (hot path — same server instance)

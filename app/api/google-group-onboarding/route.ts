@@ -1,5 +1,6 @@
 import type { GroupOnboardingStats } from '@/app/lib/groupOnboarding'
 import { loadGroupOnboardingStats } from '@/app/lib/groupOnboardingServer'
+import { requireAllowedUser } from '@/app/lib/serverAuth'
 
 /** group_onboarding can paginate the full group roster on a cold cache. */
 export const maxDuration = 60
@@ -16,6 +17,9 @@ let inFlight: Promise<{ onboarding: GroupOnboardingStats; source: string }> | nu
  * Optional `?month=YYYY-MM` is passed through when the Groups script supports it.
  */
 export async function GET(request: Request) {
+  const auth = await requireAllowedUser(request)
+  if (!auth.ok) return auth.response
+
   try {
     const month = new URL(request.url).searchParams.get('month')?.trim() || undefined
     if (month && !/^\d{4}-\d{2}$/.test(month)) {

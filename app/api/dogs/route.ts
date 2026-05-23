@@ -6,6 +6,7 @@ import {
   triggerBackgroundSync,
 } from '@/app/lib/firestoreCache'
 import type { DogRecord } from '@/app/lib/asmDogs'
+import { requireAllowedUser } from '@/app/lib/serverAuth'
 
 const DOC_ID = 'asm_dogs'
 
@@ -14,7 +15,10 @@ function stripRaw(dogs: DogRecord[]): DogRecord[] {
   return dogs.map(({ raw: _raw, ...d }) => d)
 }
 
-export async function GET() {
+export async function GET(request: Request) {
+  const auth = await requireAllowedUser(request)
+  if (!auth.ok) return auth.response
+
   try {
     const cached = await readFirestoreCache<DogRecord[]>(DOC_ID)
 

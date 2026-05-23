@@ -4,6 +4,7 @@ import {
   isCacheFresh,
   triggerBackgroundSync,
 } from '@/app/lib/firestoreCache'
+import { requireAllowedUser } from '@/app/lib/serverAuth'
 
 const TASK_SCRIPT_URL = process.env.TASK_SCRIPT_URL
 const PHOTO_STATUS_FS_DOC_ID = 'photo_status'
@@ -82,7 +83,10 @@ export async function fetchPhotoStatusUncached(): Promise<PhotoStatusResponse> {
   return { dogs, unassigned }
 }
 
-export async function GET() {
+export async function GET(request: Request) {
+  const auth = await requireAllowedUser(request)
+  if (!auth.ok) return auth.response
+
   if (!TASK_SCRIPT_URL) {
     return Response.json({ success: true, dogs: [], unassigned: [] })
   }

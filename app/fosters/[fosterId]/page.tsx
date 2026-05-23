@@ -16,6 +16,7 @@ import {
   type DogRecord,
   type FosterStatus,
 } from '@/app/lib/fosterDirectory'
+import { authFetch } from '@/app/lib/authFetch'
 import {
   householdLastTaskActivityDate,
   inferLastFosterSubmissionYmdFromEmailSent,
@@ -194,8 +195,8 @@ export default function FosterDetailsPage() {
       setDogsError(null)
       try {
         const [dogsRes, tasksRes] = await Promise.all([
-          fetch('/api/dogs', { cache: 'no-store' }),
-          fetch('/api/tasks', { cache: 'no-store' }).catch(() => null),
+          authFetch('/api/dogs', { cache: 'no-store' }),
+          authFetch('/api/tasks', { cache: 'no-store' }).catch(() => null),
         ])
         const dogsData = (await dogsRes.json()) as DogsApiResponse
         if (!dogsRes.ok || !dogsData?.success || !Array.isArray(dogsData.dogs)) {

@@ -9,6 +9,7 @@ import { getFirestore } from 'firebase-admin/firestore'
 import { resolveFirebaseAdminApp } from '@/app/lib/firebaseAdmin'
 import type { ApplicantOverride } from '@/app/lib/applicantOverrides'
 import { overrideKey } from '@/app/lib/applicantOverrides'
+import { requireAllowedUser } from '@/app/lib/serverAuth'
 
 const PEOPLE_FS_DOC_ID = 'people'
 const PEOPLE_FS_CHUNK_SIZE = 150
@@ -187,7 +188,10 @@ export async function loadPeopleUncached(): Promise<Person[]> {
   return result.people
 }
 
-export async function GET() {
+export async function GET(request: Request) {
+  const auth = await requireAllowedUser(request)
+  if (!auth.ok) return auth.response
+
   const now = Date.now()
 
   // Module-level cache (hot path — same server instance)

@@ -1,7 +1,11 @@
 import { getAsmFosterDogs } from '@/app/lib/asmDogs'
 import { countTrackableFosterDogs } from '@/app/lib/fosterDirectory'
+import { requireAllowedUser } from '@/app/lib/serverAuth'
 
-export async function GET() {
+export async function GET(request: Request) {
+  const auth = await requireAllowedUser(request)
+  if (!auth.ok) return auth.response
+
   try {
     const dogs = await getAsmFosterDogs()
     return Response.json(

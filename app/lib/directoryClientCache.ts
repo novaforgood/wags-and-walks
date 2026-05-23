@@ -1,5 +1,6 @@
 import type { FostererHistory } from '@/app/lib/asmFosterHistory'
 import type { GroupMember } from '@/app/lib/directoryPeople'
+import { authFetch } from '@/app/lib/authFetch'
 
 export const GROUP_MEMBERS_CACHE_KEY = 'directory_group_members_v1'
 export const FOSTER_HISTORY_CACHE_KEY = 'directory_foster_history_v1'
@@ -27,7 +28,7 @@ export function writeCachedArray<T>(key: string, value: T[]) {
 
 async function prewarmGroupMembers() {
   if (readCachedArray<GroupMember>(GROUP_MEMBERS_CACHE_KEY).length > 0) return
-  const res = await fetch('/api/google-group-members', { cache: 'no-store' })
+  const res = await authFetch('/api/google-group-members', { cache: 'no-store' })
   const data = (await res.json()) as { success?: boolean; members?: GroupMember[] }
   if (res.ok && data?.success && Array.isArray(data.members)) {
     writeCachedArray(GROUP_MEMBERS_CACHE_KEY, data.members)
@@ -36,7 +37,7 @@ async function prewarmGroupMembers() {
 
 async function prewarmFosterHistory() {
   if (readCachedArray<FostererHistory>(FOSTER_HISTORY_CACHE_KEY).length > 0) return
-  const res = await fetch('/api/foster-history', { cache: 'no-store' })
+  const res = await authFetch('/api/foster-history', { cache: 'no-store' })
   const data = (await res.json()) as { success?: boolean; fosterers?: FostererHistory[] }
   if (res.ok && data?.success && Array.isArray(data.fosterers)) {
     writeCachedArray(FOSTER_HISTORY_CACHE_KEY, data.fosterers)
