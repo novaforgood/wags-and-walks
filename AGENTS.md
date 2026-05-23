@@ -19,7 +19,7 @@ Use TypeScript for new app code and keep `strict` compatibility. Components use 
 
 ## Testing Guidelines
 
-There is currently no first-party test runner configured. Before opening a PR, run `npm run lint` and `npm run build`. If adding tests, colocate them near the feature or place them under a future `tests/` directory, with names like `fosterDirectory.test.ts` or `ApplicantSlideOver.test.tsx`. Cover Firebase/admin helpers and API routes when changing data access, auth, scheduled email, or external integrations.
+There is currently no first-party test runner configured. Before opening a PR, run `npm run lint` and `npm run build`. If adding tests, colocate them near the feature or place them under a future `tests/` directory, with names like `fosterDirectory.test.ts` or `ApplicantSlideOver.test.tsx`. Cover Firebase/admin helpers and API routes when changing data access, auth, or external integrations.
 
 ## Commit & Pull Request Guidelines
 

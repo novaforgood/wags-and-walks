@@ -19,6 +19,66 @@
     margin-bottom: clamp(24px, 3vw, 36px);
 }
 
+.statCardSubline {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--app-text-muted);
+    margin-top: 2px;
+    font-variant-numeric: tabular-nums;
+}
+
+.statCardHint {
+    font-size: 11px;
+    font-weight: 500;
+    line-height: 1.35;
+    color: var(--app-text-subtle);
+    margin-top: 2px;
+}
+
+.onboardingValueFlip {
+    position: relative;
+    min-height: 34px;
+    cursor: default;
+}
+
+.onboardingFlipCurrent,
+.onboardingFlipPrior {
+    display: block;
+    transition: opacity 0.15s ease;
+}
+
+.onboardingFlipPrior {
+    position: absolute;
+    left: 0;
+    top: 0;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+}
+
+.onboardingValueFlip:hover .onboardingFlipCurrent,
+.onboardingValueFlip:focus-within .onboardingFlipCurrent {
+    opacity: 0;
+}
+
+.onboardingValueFlip:hover .onboardingFlipPrior,
+.onboardingValueFlip:focus-within .onboardingFlipPrior {
+    opacity: 1;
+    visibility: visible;
+}
+
+.visuallyHidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
 .statCard {
     display: flex;
     flex-direction: column;

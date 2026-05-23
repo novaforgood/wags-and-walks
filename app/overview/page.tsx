@@ -8,11 +8,18 @@ import NotificationPanel from '@/app/components/NotificationPanel'
 import TopBarProfileMenu from '@/app/components/TopBarProfileMenu'
 import { DashboardShell } from '@/app/components/DashboardShell'
 import type { Person, PersonStatus } from '@/app/lib/peopleTypes'
-import type { FostererHistory } from '@/app/lib/asmFosterHistory'
-import { countApplicantsAppliedThisWeek, countUniqueAnimalsPlacedThisMonth } from '@/app/lib/overviewMetrics'
+import StatMetricHelp from '@/app/components/StatMetricHelp'
+import {
+    countApplicantsAppliedThisWeek,
+    countTrackableFosterStartsThisMonth,
+} from '@/app/lib/overviewMetrics'
 import { formatRelativeTime } from '@/app/lib/formatRelativeTime'
 import type { TasksGetMetrics, TaskRow } from '@/app/api/tasks/route'
-import type { DogRecord, FosterStatus } from '@/app/lib/fosterDirectory'
+import {
+    countTrackableFosterDogs,
+    type DogRecord,
+    type FosterStatus,
+} from '@/app/lib/fosterDirectory'
 import {
     compareNeedsAttentionPriority,
     enrichFosterDirectoryWithLanes,
@@ -263,9 +270,6 @@ export default function OverviewPage() {
     const [dogsRequestDone, setDogsRequestDone] = useState(false)
     const [taskRows, setTaskRows] = useState<TaskRow[]>([])
     const [taskStatusByAnimalId, setTaskStatusByAnimalId] = useState<Record<string, FosterStatus>>({})
-    const [fosterers, setFosterers] = useState<FostererHistory[]>([])
-    const [fosterHistoryLoading, setFosterHistoryLoading] = useState(true)
-
     useEffect(() => {
         let active = true
         async function loadTaskMetrics() {
@@ -306,29 +310,6 @@ export default function OverviewPage() {
         return () => { active = false }
     }, [])
 
-    useEffect(() => {
-        let active = true
-        async function loadFosterHistory() {
-            setFosterHistoryLoading(true)
-            try {
-                const res = await fetch('/api/foster-history', { cache: 'no-store' })
-                const data = await res.json()
-                if (!active) return
-                if (res.ok && data?.success && Array.isArray(data.fosterers)) {
-                    setFosterers(data.fosterers as FostererHistory[])
-                } else {
-                    setFosterers([])
-                }
-            } catch {
-                if (active) setFosterers([])
-            } finally {
-                if (active) setFosterHistoryLoading(false)
-            }
-        }
-        void loadFosterHistory()
-        return () => { active = false }
-    }, [])
-
     const stats = useMemo(() => {
         const rows = people.filter(hasEmail)
         let newCount = 0, inProgressCount = 0, approvedCount = 0, currentCount = 0
@@ -345,9 +326,11 @@ export default function OverviewPage() {
             const s = p.status || 'new'
             return (s === 'new' || s === 'in-progress') && hasRedFlag(p)
         }).length
-        const activeFosterCount = dogsRequestDone ? dogs.length : currentCount
+        const activeFosterCount = dogsRequestDone
+            ? countTrackableFosterDogs(dogs)
+            : currentCount
         return { newCount, inProgressCount, pipelineCount, approvedCount, currentCount, activeFosterCount, flaggedInPipeline }
-    }, [people, dogsRequestDone, dogs.length])
+    }, [people, dogsRequestDone, dogs])
 
     const applicantQueue = useMemo(() => {
         const rows = people.filter(hasEmail).filter(p => {
@@ -370,11 +353,10 @@ export default function OverviewPage() {
     const overdueFollowUpRows = taskMetrics?.activeOverdueTaskRows ?? 0
     const peoplePending = isLoading && people.length === 0
     const applicantsThisWeek = useMemo(() => countApplicantsAppliedThisWeek(people), [people])
-    const placementsThisMonth = useMemo(
-        () => countUniqueAnimalsPlacedThisMonth(fosterers),
-        [fosterers]
+    const fosterStartsThisMonth = useMemo(
+        () => countTrackableFosterStartsThisMonth(dogs),
+        [dogs]
     )
-
     const enrichedFosters = useMemo(
         () => enrichFosterDirectoryWithLanes(dogs, taskRows, taskStatusByAnimalId),
         [dogs, taskRows, taskStatusByAnimalId]
@@ -417,8 +399,12 @@ export default function OverviewPage() {
         taskQueueCounts.attention > TASK_QUEUE_MAX
     const activeFosterPending =
         !dogsRequestDone && peoplePending
+    const trackableFosterDogCount = useMemo(
+        () => countTrackableFosterDogs(dogs),
+        [dogs]
+    )
     const activeFosterDisplay =
-        dogsRequestDone ? dogs.length : stats.activeFosterCount
+        dogsRequestDone ? trackableFosterDogCount : stats.activeFosterCount
 
     return (
         <ProtectedRoute>
@@ -436,17 +422,31 @@ export default function OverviewPage() {
                 <div className={styles.contentPadding}>
                         <div className={styles.statCards}>
                             <div className={styles.statCard}>
-                                <span className={styles.statCardLabel}>Active fosters</span>
+                                <StatMetricHelp
+                                    label="Active fosters"
+                                    helpAriaLabel="How active fosters is calculated"
+                                >
+                                    <p>
+                                        Shows dogs currently in active foster placements. Dogs
+                                        marked as trial adoption, foster-to-adopt, training, or
+                                        special-status placements are excluded.
+                                    </p>
+                                </StatMetricHelp>
                                 <StatValueFigure pending={activeFosterPending}>
                                     {activeFosterDisplay}
                                 </StatValueFigure>
                             </div>
 
-                            <div
-                                className={styles.statCard}
-                                title="Rows in the Task Log marked overdue (photos or survey follow-ups)."
-                            >
-                                <span className={styles.statCardLabel}>Tasks past due</span>
+                            <div className={styles.statCard}>
+                                <StatMetricHelp
+                                    label="Tasks past due"
+                                    helpAriaLabel="How tasks past due is calculated"
+                                >
+                                    <p>
+                                        Shows how many foster follow-up tasks are currently
+                                        overdue, including photo and survey check-ins.
+                                    </p>
+                                </StatMetricHelp>
                                 <StatValueFigure
                                     pending={!tasksRequestDone}
                                     alert={tasksRequestDone && overdueFollowUpRows > 0}
@@ -455,26 +455,36 @@ export default function OverviewPage() {
                                 </StatValueFigure>
                             </div>
 
-                            <div
-                                className={styles.statCard}
-                                title="Applicants who submitted this calendar week (Monday 12:00 a.m. through now, your local time). Rejected applications are excluded."
-                            >
-                                <span className={styles.statCardLabel}>Applicants this week</span>
-                                <StatValueFigure pending={peoplePending}>{applicantsThisWeek}</StatValueFigure>
+                            <div className={styles.statCard}>
+                                <StatMetricHelp
+                                    label="New applicants this week"
+                                    helpAriaLabel="How new applicants this week is calculated"
+                                >
+                                    <p>
+                                        Shows how many new applications have been received this
+                                        week (starting Monday). Rejected applications are
+                                        excluded.
+                                    </p>
+                                </StatMetricHelp>
+                                <StatValueFigure pending={peoplePending}>
+                                    {applicantsThisWeek}
+                                </StatValueFigure>
                             </div>
 
-                            <div
-                                className={styles.statCard}
-                                title="Each dog is counted once: foster start date falls in the current calendar month (through today), using ShelterManager foster history."
-                            >
-                                <span className={styles.statCardLabel}>Foster starts this month</span>
-                                <span className={styles.statCardValue}>
-                                    {fosterHistoryLoading ? (
-                                        <span className={styles.statValueSkeleton} aria-busy="true" title="Loading" />
-                                    ) : (
-                                        <span className={styles.fadeIn}>{placementsThisMonth}</span>
-                                    )}
-                                </span>
+                            <div className={styles.statCard}>
+                                <StatMetricHelp
+                                    label="Foster starts this month"
+                                    helpAriaLabel="How foster starts this month is calculated"
+                                >
+                                    <p>
+                                        Dogs in active foster placements that started this
+                                        calendar month (through today). Applies the same
+                                        exclusions as Active Fosters. Data from ShelterManager.
+                                    </p>
+                                </StatMetricHelp>
+                                <StatValueFigure pending={!dogsRequestDone}>
+                                    {fosterStartsThisMonth}
+                                </StatValueFigure>
                             </div>
                         </div>
 
@@ -583,6 +593,8 @@ export default function OverviewPage() {
                                         <p className={styles.emptyState}>
                                             No active foster dogs returned from Shelter Manager.
                                         </p>
+                                    ) : trackableFosterDogCount === 0 ? (
+                                        <p className={styles.emptyState}>All caught up.</p>
                                     ) : taskQueue.length === 0 ? (
                                         <p className={styles.emptyState}>All caught up.</p>
                                     ) : (

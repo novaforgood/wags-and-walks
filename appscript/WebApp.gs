@@ -430,6 +430,13 @@ function doPost(e) {
       return json_(Object.assign({}, result, { build: CONFIG.BUILD_ID }));
     }
 
+    // ---- group_onboarding (foster Google Group — first-seen ledger) --------
+    if (action === "sync_group_onboarding") {
+      const emails = Array.isArray(payload.emails) ? payload.emails : [];
+      const result = syncGroupOnboarding_(emails);
+      return json_(Object.assign({}, result, { build: CONFIG.BUILD_ID }));
+    }
+
     // ---- email sending -----------------------------------------------------
     const subject = String(payload.subject || CONFIG.EMAIL_DEFAULTS.DEFAULT_SUBJECT);
     const emailContent = String(payload.emailContent || "");
@@ -868,6 +875,124 @@ function rowToObjectFields_(headers, row, fields) {
     if (idx !== -1) obj[f] = row[idx];
   }
   return obj;
+}
+
+/** Foster Google Group onboarding — same semantics as GoogleGroupMembersWebApp.gs */
+var GROUP_MEMBER_FIRST_SEEN_KEY = "group_member_first_seen_v1";
+var GROUP_ONBOARDING_SEEDED_KEY = "group_onboarding_seeded_v1";
+var GROUP_ONBOARDING_LEGACY_ISO = "1970-01-01T00:00:00.000Z";
+
+function syncGroupOnboarding_(emails) {
+  var members = [];
+  for (var i = 0; i < emails.length; i++) {
+    var e = String(emails[i] || "").trim().toLowerCase();
+    if (e) members.push({ email: e });
+  }
+  var map = recordGroupMemberFirstSeenMain_(members);
+  return {
+    success: true,
+    onboarding: buildOnboardingStatsMain_(map, "")
+  };
+}
+
+function recordGroupMemberFirstSeenMain_(members) {
+  var props = PropertiesService.getScriptProperties();
+  var raw = props.getProperty(GROUP_MEMBER_FIRST_SEEN_KEY) || "{}";
+  var map;
+  try {
+    map = JSON.parse(raw);
+  } catch (err) {
+    map = {};
+  }
+  if (!map || typeof map !== "object") map = {};
+
+  var seeded = props.getProperty(GROUP_ONBOARDING_SEEDED_KEY) === "1";
+  var now = new Date().toISOString();
+  var changed = false;
+
+  if (!seeded) {
+    for (var s = 0; s < members.length; s++) {
+      var seedEmail = String(members[s].email || "").trim().toLowerCase();
+      if (!seedEmail) continue;
+      if (!map[seedEmail]) {
+        map[seedEmail] = GROUP_ONBOARDING_LEGACY_ISO;
+        changed = true;
+      }
+    }
+    props.setProperty(GROUP_ONBOARDING_SEEDED_KEY, "1");
+  }
+
+  for (var i = 0; i < members.length; i++) {
+    var email = String(members[i].email || "").trim().toLowerCase();
+    if (!email) continue;
+    if (!map[email]) {
+      map[email] = now;
+      changed = true;
+    }
+  }
+  if (changed) {
+    props.setProperty(GROUP_MEMBER_FIRST_SEEN_KEY, JSON.stringify(map));
+  }
+  return map;
+}
+
+function buildOnboardingStatsMain_(map, requestedMonthKey) {
+  var tz = Session.getScriptTimeZone();
+  var countsByMonth = {};
+  for (var email in map) {
+    if (!Object.prototype.hasOwnProperty.call(map, email)) continue;
+    var key = monthKeyFromIsoMain_(map[email], tz);
+    if (!key) continue;
+    countsByMonth[key] = (countsByMonth[key] || 0) + 1;
+  }
+  var now = new Date();
+  var currentKey = Utilities.formatDate(now, tz, "yyyy-MM");
+  var parts = currentKey.split("-");
+  var y = parseInt(parts[0], 10);
+  var m = parseInt(parts[1], 10);
+  var prevDate = new Date(y, m - 2, 1);
+  var prevKey = Utilities.formatDate(prevDate, tz, "yyyy-MM");
+
+  var onboarding = {
+    timeZone: tz,
+    currentMonth: {
+      key: currentKey,
+      label: monthLabelFromKeyMain_(currentKey, tz),
+      count: countsByMonth[currentKey] || 0
+    },
+    previousMonth: {
+      key: prevKey,
+      label: monthLabelFromKeyMain_(prevKey, tz),
+      count: countsByMonth[prevKey] || 0
+    },
+    countsByMonth: countsByMonth,
+    memberCount: Object.keys(map).length
+  };
+
+  if (requestedMonthKey && /^\d{4}-\d{2}$/.test(requestedMonthKey)) {
+    onboarding.selectedMonth = {
+      key: requestedMonthKey,
+      label: monthLabelFromKeyMain_(requestedMonthKey, tz),
+      count: countsByMonth[requestedMonthKey] || 0
+    };
+  }
+  return onboarding;
+}
+
+function monthKeyFromIsoMain_(iso, tz) {
+  var d = new Date(iso);
+  if (isNaN(d.getTime()) || d.getFullYear() < 2000) return "";
+  return Utilities.formatDate(d, tz, "yyyy-MM");
+}
+
+function monthLabelFromKeyMain_(key, tz) {
+  var parts = key.split("-");
+  if (parts.length !== 2) return key;
+  var y = parseInt(parts[0], 10);
+  var m = parseInt(parts[1], 10);
+  if (isNaN(y) || isNaN(m)) return key;
+  var d = new Date(y, m - 1, 1);
+  return Utilities.formatDate(d, tz, "MMMM yyyy");
 }
 
 function json_(data) {
