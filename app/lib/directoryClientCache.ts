@@ -1,4 +1,3 @@
-import type { FostererHistory } from '@/app/lib/asmFosterHistory'
 import type { GroupMember } from '@/app/lib/directoryPeople'
 import { authFetch } from '@/app/lib/authFetch'
 
@@ -63,22 +62,11 @@ async function prewarmGroupMembers() {
   }
 }
 
-async function prewarmFosterHistory() {
-  if (readCachedArray<FostererHistory>(FOSTER_HISTORY_CACHE_KEY).length > 0) return
-  const res = await authFetch('/api/foster-history', { cache: 'no-store' })
-  const data = (await res.json()) as { success?: boolean; fosterers?: FostererHistory[] }
-  if (res.ok && data?.success && Array.isArray(data.fosterers)) {
-    writeCachedArray(FOSTER_HISTORY_CACHE_KEY, data.fosterers)
-  }
-}
-
 export function prewarmDirectoryData(): Promise<void> {
   if (!prewarmInFlight) {
-    prewarmInFlight = Promise.allSettled([
-      prewarmGroupMembers(),
-      prewarmFosterHistory(),
-    ])
+    prewarmInFlight = prewarmGroupMembers()
       .then(() => undefined)
+      .catch(() => undefined)
       .finally(() => {
         prewarmInFlight = null
       })

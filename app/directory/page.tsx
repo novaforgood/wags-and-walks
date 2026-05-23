@@ -153,6 +153,7 @@ export default function DirectoryPage() {
 
   useEffect(() => {
     let active = true
+    const controller = new AbortController()
     async function loadGroup() {
       const cachedMembers = readCachedArray<GroupMember>(GROUP_MEMBERS_CACHE_KEY)
       if (cachedMembers.length > 0) {
@@ -163,7 +164,7 @@ export default function DirectoryPage() {
       }
       setGroupError(null)
       try {
-        const res = await authFetch('/api/google-group-members', { cache: 'no-store' })
+        const res = await authFetch('/api/google-group-members', { cache: 'no-store', signal: controller.signal })
         const data = (await res.json()) as GroupApiResponse
         if (!res.ok || !data?.success || !Array.isArray(data.members)) {
           throw new Error(data?.error || 'Failed to load Google Group members')
@@ -177,6 +178,7 @@ export default function DirectoryPage() {
         })
       } catch (e) {
         if (!active) return
+        if (e instanceof DOMException && e.name === 'AbortError') return
         setGroupError(e instanceof Error ? e.message : 'Failed to load Google Group members')
         if (cachedMembers.length === 0) setGroupMembers([])
       } finally {
@@ -184,11 +186,15 @@ export default function DirectoryPage() {
       }
     }
     loadGroup()
-    return () => { active = false }
+    return () => {
+      active = false
+      controller.abort()
+    }
   }, [fetchKey])
 
   useEffect(() => {
     let active = true
+    const controller = new AbortController()
     let cancelScheduledLoad: (() => void) | null = null
     async function load() {
       const cachedFosterers = readCachedArray<FostererHistory>(FOSTER_HISTORY_CACHE_KEY)
@@ -200,7 +206,7 @@ export default function DirectoryPage() {
       }
       setFostererError(null)
       try {
-        const res = await authFetch('/api/foster-history', { cache: 'no-store' })
+        const res = await authFetch('/api/foster-history', { cache: 'no-store', signal: controller.signal })
         const data = (await res.json()) as FostererApiResponse
         if (!res.ok || !data?.success || !Array.isArray(data.fosterers)) {
           throw new Error(data?.error || 'Failed to load fosterers from Shelter Manager')
@@ -214,6 +220,7 @@ export default function DirectoryPage() {
         })
       } catch (e) {
         if (!active) return
+        if (e instanceof DOMException && e.name === 'AbortError') return
         setFostererError(e instanceof Error ? e.message : 'Failed to load fosterers')
         if (cachedFosterers.length === 0) setFosterers([])
       } finally {
@@ -227,6 +234,7 @@ export default function DirectoryPage() {
 
     return () => {
       active = false
+      controller.abort()
       cancelScheduledLoad?.()
     }
   }, [fetchKey])
