@@ -29,10 +29,14 @@ export async function requireAllowedUser(request: Request): Promise<ServerAuthRe
 
   const resolved = resolveFirebaseAdminApp()
   if (!resolved.ok) {
+    const detail =
+      resolved.code === 'ADMIN_SDK_CREDENTIALS_INVALID'
+        ? 'Firebase Admin credentials are invalid. Fix FIREBASE_SERVICE_ACCOUNT_JSON or FIREBASE_SERVICE_ACCOUNT_PATH.'
+        : 'Firebase Admin is not configured. Set FIREBASE_SERVICE_ACCOUNT_JSON or FIREBASE_SERVICE_ACCOUNT_PATH and restart the server.'
     return {
       ok: false,
       response: Response.json(
-        { success: false, code: resolved.code, error: 'Firebase Admin is not configured' },
+        { success: false, code: resolved.code, error: detail },
         { status: 503 },
       ),
     }
