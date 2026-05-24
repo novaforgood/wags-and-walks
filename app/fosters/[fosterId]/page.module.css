@@ -67,6 +67,11 @@
   min-width: 0;
 }
 
+.heroActions {
+  flex-shrink: 0;
+  align-self: flex-start;
+}
+
 .heroNameRow {
   display: flex;
   align-items: center;

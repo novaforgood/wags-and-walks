@@ -5,10 +5,18 @@ import type {
   TasksDataQuality,
   TasksGetMetrics,
 } from '@/app/lib/taskTypes'
+import {
+  readFirestoreCache,
+  writeFirestoreCache,
+  isCacheFresh,
+  triggerBackgroundSync,
+} from '@/app/lib/firestoreCache'
+import { requireAllowedUser } from '@/app/lib/serverAuth'
 
 export type { TaskRow, TaskRowSheetStatus, TasksDataQuality, TasksGetMetrics }
 
 const TASK_SCRIPT_URL = process.env.TASK_SCRIPT_URL
+const TASKS_FS_DOC_ID = 'tasks'
 const rawTaskCacheTtl = Number(process.env.TASK_LOG_CACHE_TTL_SEC)
 const TASK_CACHE_TTL_MS =
   Math.max(10, Math.min(300, Number.isFinite(rawTaskCacheTtl) && rawTaskCacheTtl > 0 ? rawTaskCacheTtl : 45)) * 1000
@@ -64,6 +72,9 @@ function rollupContribution(status: TaskRowSheetStatus): FosterStatus | null {
 }
 
 export async function POST(request: Request) {
+  const auth = await requireAllowedUser(request)
+  if (!auth.ok) return auth.response
+
   if (!TASK_SCRIPT_URL) {
     return Response.json({ success: false, error: 'TASK_SCRIPT_URL not configured' }, { status: 500 })
   }
@@ -101,6 +112,10 @@ export async function POST(request: Request) {
     try {
       const parsed = JSON.parse(text)
       invalidateTaskCache()
+      triggerBackgroundSync(TASKS_FS_DOC_ID, async () => {
+        const fresh = await loadTaskLog()
+        await writeFirestoreCache(TASKS_FS_DOC_ID, fresh)
+      })
       return Response.json(parsed)
     } catch {
       return Response.json({ success: false, error: text }, { status: 502 })
@@ -212,17 +227,43 @@ async function loadTaskLog(): Promise<TasksGetResponse> {
   }
 }
 
-export async function GET() {
+/** Uncached fetch for use in sync routes. */
+export async function loadTaskLogUncached(): Promise<TasksGetResponse> {
+  return loadTaskLog()
+}
+
+export async function GET(request: Request) {
+  const auth = await requireAllowedUser(request)
+  if (!auth.ok) return auth.response
+
   const now = Date.now()
+
+  // Module-level cache (hot path — same server instance)
   if (taskCache && taskCache.expiresAt > now) {
     return Response.json(taskCache.data, { headers: taskCacheHeaders() })
   }
 
+  // Firestore cache (cold start / cross-instance)
+  const fsCached = await readFirestoreCache<TasksGetResponse>(TASKS_FS_DOC_ID)
+  if (fsCached) {
+    if (!isCacheFresh(fsCached.updatedAt)) {
+      triggerBackgroundSync(TASKS_FS_DOC_ID, async () => {
+        const data = await loadTaskLog()
+        await writeFirestoreCache(TASKS_FS_DOC_ID, data)
+      })
+    }
+    taskCache = { data: fsCached.data, expiresAt: now + TASK_CACHE_TTL_MS }
+    return Response.json(fsCached.data, { headers: taskCacheHeaders() })
+  }
+
+  // Cold start — no Firestore doc yet; fetch directly and prime the cache
   try {
     if (!taskInFlight) {
       taskInFlight = loadTaskLog()
         .then(data => {
           taskCache = { data, expiresAt: Date.now() + TASK_CACHE_TTL_MS }
+          writeFirestoreCache(TASKS_FS_DOC_ID, data)
+            .catch(e => console.error('[tasks] Firestore prime failed:', e))
           return data
         })
         .finally(() => {

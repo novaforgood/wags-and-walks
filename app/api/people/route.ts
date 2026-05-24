@@ -1,4 +1,19 @@
 import type { Person, PersonStatus } from '@/app/lib/peopleTypes'
+import {
+  readFirestoreCacheChunked,
+  writeFirestoreCacheChunked,
+  isCacheFresh,
+  triggerBackgroundSync,
+} from '@/app/lib/firestoreCache'
+import { getFirestore } from 'firebase-admin/firestore'
+import { resolveFirebaseAdminApp } from '@/app/lib/firebaseAdmin'
+import type { ApplicantOverride } from '@/app/lib/applicantOverrides'
+import { overrideKey } from '@/app/lib/applicantOverrides'
+import { requireAllowedUser } from '@/app/lib/serverAuth'
+
+const PEOPLE_FS_DOC_ID = 'people'
+const PEOPLE_FS_CHUNK_SIZE = 150
+const PEOPLE_FS_TTL_MS = 30 * 60 * 1000
 
 const APPS_SCRIPT_URL = process.env.APPS_SCRIPT_URL
 const APPS_SCRIPT_KEY = process.env.APPS_SCRIPT_KEY
@@ -9,6 +24,7 @@ const PEOPLE_CACHE_TTL_MS =
 type PeopleGetResponse = {
   success: true
   people: Person[]
+  updatedAt: string
 }
 
 let peopleCache: { data: PeopleGetResponse; expiresAt: number } | null = null
@@ -64,7 +80,21 @@ function normalizeSignedDocument(raw: unknown): 'Yes' | 'No' {
   return value === 'yes' ? 'Yes' : 'No'
 }
 
-async function loadPeople(): Promise<PeopleGetResponse> {
+async function loadOverrides(): Promise<Record<string, ApplicantOverride>> {
+  const admin = resolveFirebaseAdminApp()
+  if (!admin.ok) return {}
+  try {
+    const db = getFirestore(admin.app)
+    const snap = await db.collection('applicantOverrides').get()
+    const map: Record<string, ApplicantOverride> = {}
+    snap.forEach(d => { map[d.id] = d.data() as ApplicantOverride })
+    return map
+  } catch {
+    return {}
+  }
+}
+
+async function loadPeople(overrides: Record<string, ApplicantOverride> = {}): Promise<PeopleGetResponse> {
   const url = buildAppsScriptUrl({
     limit: '5000'
   })
@@ -99,13 +129,19 @@ async function loadPeople(): Promise<PeopleGetResponse> {
       )
       : []
 
-    const rawFlags = String(row['Flags'] || '').trim()
-    let status = normalizeStatus(row['Applicant Status'])
+    const emailKey = overrideKey(String(row['Email'] || '').trim())
+    const override = overrides[emailKey] ?? {}
 
-    // Auto-route: If an applicant has no flags and is currently in the "new" (Onboarding) state,
-    // skip them straight to "in-progress" (Selecting).
-    if (status === 'new' && !rawFlags) {
-      status = 'in-progress'
+    const rawFlags = String(row['Flags'] || '').trim()
+    let status: PersonStatus
+
+    if (override.status !== undefined) {
+      status = override.status
+    } else {
+      status = normalizeStatus(row['Applicant Status'])
+      if (status === 'new' && !rawFlags) {
+        status = 'in-progress'
+      }
     }
 
     const fullName = String(row['Name'] || '').trim()
@@ -133,30 +169,69 @@ async function loadPeople(): Promise<PeopleGetResponse> {
       appliedAt: parseTimestampToIso(row['Submitted On']),
       availability: String(row['When would you like to take your foster dog home'] || '').trim() || undefined,
       specialNeeds,
-      starred: String(row['Starred'] || '').trim().toUpperCase() === 'TRUE',
-      notes: String(row['Notes'] || '').trim() || undefined,
-      notesUpdatedAt: parseTimestampToIso(row['Notes Updated At']),
-      signedDocument: normalizeSignedDocument(row['Signed Document'] ?? row['Signed document']),
+      starred: override.starred ?? (String(row['Starred'] || '').trim().toUpperCase() === 'TRUE'),
+      notes: override.notes ?? (String(row['Notes'] || '').trim() || undefined),
+      notesUpdatedAt: override.notesUpdatedAt ?? parseTimestampToIso(row['Notes Updated At']),
+      signedDocument: override.signedDocument ?? normalizeSignedDocument(row['Signed Document'] ?? row['Signed document']),
       raw: Object.fromEntries(
         Object.entries(row).map(([k, v]) => [k, v == null ? '' : String(v)])
       ) as Record<string, string>
     } satisfies Person
   })
 
-  return { success: true, people }
+  return { success: true, people, updatedAt: new Date().toISOString() }
 }
 
-export async function GET() {
+/** Uncached fetch for use in sync routes. */
+export async function loadPeopleUncached(): Promise<Person[]> {
+  const overrides = await loadOverrides()
+  const result = await loadPeople(overrides)
+  return result.people
+}
+
+export function clearPeopleApiCache() {
+  peopleCache = null
+}
+
+export async function GET(request: Request) {
+  const auth = await requireAllowedUser(request)
+  if (!auth.ok) return auth.response
+
   const now = Date.now()
+
+  // Module-level cache (hot path — same server instance)
   if (peopleCache && peopleCache.expiresAt > now) {
     return Response.json(peopleCache.data, { headers: peopleCacheHeaders() })
   }
 
+  // Firestore cache (cold start / cross-instance)
+  const fsCached = await readFirestoreCacheChunked<Person>(PEOPLE_FS_DOC_ID)
+  if (fsCached) {
+    if (!isCacheFresh(fsCached.updatedAt, PEOPLE_FS_TTL_MS)) {
+      triggerBackgroundSync(PEOPLE_FS_DOC_ID, async () => {
+        const overrides = await loadOverrides()
+        const result = await loadPeople(overrides)
+        await writeFirestoreCacheChunked(PEOPLE_FS_DOC_ID, result.people, PEOPLE_FS_CHUNK_SIZE)
+      })
+    }
+    const response: PeopleGetResponse = {
+      success: true,
+      people: fsCached.data,
+      updatedAt: fsCached.updatedAt.toISOString(),
+    }
+    peopleCache = { data: response, expiresAt: now + PEOPLE_CACHE_TTL_MS }
+    return Response.json(response, { headers: peopleCacheHeaders() })
+  }
+
+  // Cold start — no Firestore doc yet; fetch directly and prime the cache
   try {
     if (!peopleInFlight) {
-      peopleInFlight = loadPeople()
+      peopleInFlight = loadOverrides()
+        .then(overrides => loadPeople(overrides))
         .then(data => {
           peopleCache = { data, expiresAt: Date.now() + PEOPLE_CACHE_TTL_MS }
+          writeFirestoreCacheChunked(PEOPLE_FS_DOC_ID, data.people, PEOPLE_FS_CHUNK_SIZE)
+            .catch(e => console.error('[people] Firestore prime failed:', e))
           return data
         })
         .finally(() => {

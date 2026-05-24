@@ -4,10 +4,11 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import ProtectedRoute from '@/app/components/ProtectedRoute'
-import NotificationPanel from '@/app/components/NotificationPanel'
-import TopBarProfileMenu from '@/app/components/TopBarProfileMenu'
+import DashboardTopBar from '@/app/components/DashboardTopBar'
 import { DashboardShell } from '@/app/components/DashboardShell'
+import BulkEmailBar from '@/app/components/BulkEmailBar'
 import { formatDateShort, type DogRecord, type FosterStatus } from '@/app/lib/fosterDirectory'
+import { authFetch } from '@/app/lib/authFetch'
 import type { TaskRow } from '@/app/api/tasks/route'
 import {
   compareNeedsAttentionPriority,
@@ -24,6 +25,7 @@ import dirStyles from '../directory/directory.module.css'
 type DogsApiResponse = {
   success?: boolean
   dogs?: DogRecord[]
+  updatedAt?: string
   error?: string
 }
 
@@ -79,12 +81,13 @@ function FosterTableSkeletonRows() {
   return (
     <>
       <tr data-fosters-metrics-skip="">
-        <td colSpan={6} className={inboxStyles.visuallyHidden} role="status" aria-live="polite">
+        <td colSpan={7} className={inboxStyles.visuallyHidden} role="status" aria-live="polite">
           Loading foster directory
         </td>
       </tr>
       {Array.from({ length: 8 }).map((_, index) => (
         <tr key={index} className={inboxStyles.skeletonRow} aria-hidden="true">
+          <td className={inboxStyles.checkboxCol} />
           <td><span className={`${inboxStyles.skeletonLine} ${inboxStyles.skeletonName}`} /></td>
           <td><span className={`${inboxStyles.skeletonLine} ${inboxStyles.skeletonDogs}`} /></td>
           <td>
@@ -113,6 +116,8 @@ export default function FostersPage() {
   const [statusFilter, setStatusFilter] = useState<'all' | FosterStatus>('all')
   const [queueFilter, setQueueFilter] = useState<TaskInboxFilter>('needs_attention')
   const [dogs, setDogs] = useState<DogRecord[]>([])
+  const [dogsUpdatedAt, setDogsUpdatedAt] = useState<string | undefined>()
+  const [fetchKey, setFetchKey] = useState(0)
   const [isLoadingDogs, setIsLoadingDogs] = useState(true)
   const [dogsError, setDogsError] = useState<string | null>(null)
   const [taskRows, setTaskRows] = useState<TaskRow[]>([])
@@ -120,10 +125,28 @@ export default function FostersPage() {
     Record<string, FosterStatus>
   >({})
 
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+
+  function toggleSelect(id: string) {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
   const enrichedRows = useMemo(
     () => enrichFosterDirectoryWithLanes(dogs, taskRows, taskStatusByAnimalId),
     [dogs, taskRows, taskStatusByAnimalId]
   )
+
+  const selectedEmails = useMemo(() => {
+    if (selectedIds.size === 0) return []
+    return enrichedRows
+      .filter(r => selectedIds.has(r.id) && r.fosterEmail)
+      .map(r => r.fosterEmail!)
+  }, [selectedIds, enrichedRows])
 
   const directoryRows = useMemo(() => {
     const q = searchQuery.trim().toLowerCase()
@@ -170,8 +193,8 @@ export default function FostersPage() {
       setDogsError(null)
       try {
         const [dogsRes, tasksRes] = await Promise.all([
-          fetch('/api/dogs', { cache: 'no-store' }),
-          fetch('/api/tasks', { cache: 'no-store' }).catch(() => null),
+          authFetch('/api/dogs', { cache: 'no-store' }),
+          authFetch('/api/tasks', { cache: 'no-store' }).catch(() => null),
         ])
         const dogsData = (await dogsRes.json()) as DogsApiResponse
         if (!dogsRes.ok || !dogsData?.success || !Array.isArray(dogsData.dogs)) {
@@ -179,6 +202,7 @@ export default function FostersPage() {
         }
         if (!active) return
         setDogs(dogsData.dogs)
+        if (dogsData.updatedAt) setDogsUpdatedAt(dogsData.updatedAt)
         if (tasksRes) {
           try {
             const tasksData = (await tasksRes.json()) as TasksApiResponse
@@ -200,8 +224,10 @@ export default function FostersPage() {
       }
     }
     loadData()
-    return () => { active = false }
-  }, [])
+    return () => {
+      active = false
+    }
+  }, [fetchKey])
 
   useEffect(() => {
     setCurrentPage(1)
@@ -227,13 +253,11 @@ export default function FostersPage() {
   return (
     <ProtectedRoute>
       <DashboardShell>
-        <div className={styles.topBar}>
-          <h1 className={styles.topBarTitle}>Onboarded Fosters</h1>
-          <div className={styles.topBarActions}>
-            <NotificationPanel />
-            <TopBarProfileMenu />
-          </div>
-        </div>
+        <DashboardTopBar
+          title="Onboarded Fosters"
+          syncUpdatedAt={dogsUpdatedAt}
+          onSyncRefresh={() => setFetchKey(k => k + 1)}
+        />
 
         {/* Search toolbar */}
         <div className={`${styles.toolbar} ${dirStyles.directoryToolbar}`}>
@@ -299,6 +323,7 @@ export default function FostersPage() {
                 <table className={`${styles.table} ${inboxStyles.fostersTaskTable}`}>
                   <thead>
                     <tr>
+                      <th className={inboxStyles.checkboxCol} />
                       <th>Foster name</th>
                       <th>Dog(s)</th>
                       <th title="Task Log status for PHOTOS_* (worst dog in the home). Second line: last photo activity.">
@@ -319,7 +344,7 @@ export default function FostersPage() {
                     ) : paginatedRows.map(row => (
                       <tr
                         key={row.id}
-                        className={`${styles.tableRowClickable} ${inboxStyles.fadeIn}`}
+                        className={`${styles.tableRowClickable} ${inboxStyles.fadeIn} ${selectedIds.has(row.id) ? inboxStyles.selectedRow : ''}`}
                         tabIndex={0}
                         aria-label={`Open foster home: ${row.fosterName}`}
                         onClick={e => {
@@ -333,6 +358,19 @@ export default function FostersPage() {
                           router.push(`/fosters/${row.id}`)
                         }}
                       >
+                        <td
+                          className={inboxStyles.checkboxCol}
+                          onClick={e => { e.stopPropagation(); toggleSelect(row.id) }}
+                        >
+                          <input
+                            type="checkbox"
+                            className={inboxStyles.rowCheckbox}
+                            checked={selectedIds.has(row.id)}
+                            onChange={() => toggleSelect(row.id)}
+                            onClick={e => e.stopPropagation()}
+                            aria-label={`Select ${row.fosterName}`}
+                          />
+                        </td>
                         <td>
                           <Link href={`/fosters/${row.id}`} className={styles.nameLink}>
                             {row.fosterName}
@@ -380,7 +418,7 @@ export default function FostersPage() {
                     ))}
                     {!initialFostersLoading && paginatedRows.length === 0 && (
                       <tr>
-                        <td colSpan={6} className={styles.emptyState}>
+                        <td colSpan={7} className={styles.emptyState}>
                           No directory rows found.
                         </td>
                       </tr>
@@ -418,6 +456,11 @@ export default function FostersPage() {
             </div>
           </div>
         )}
+
+        <BulkEmailBar
+          selectedEmails={selectedEmails}
+          onClear={() => setSelectedIds(new Set())}
+        />
       </DashboardShell>
     </ProtectedRoute>
   )

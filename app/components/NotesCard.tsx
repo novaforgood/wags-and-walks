@@ -7,6 +7,7 @@ import {
   prefetchFosterNotes,
   setCachedFosterNotes,
 } from '@/app/lib/fosterNotesClientCache'
+import { setFosterNoteInFirestore } from '@/app/lib/fosterNotesFirestore'
 import styles from './NotesCard.module.css'
 
 interface Props {
@@ -84,15 +85,11 @@ export default function NotesCard({ email, initialNotes, initialNotesUpdatedAt }
         onBlur={async () => {
           if (!email || draft === null) return
           setSaving(true)
-          await fetch('/api/foster-notes', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, content: draft }),
-          })
-          setCachedFosterNotes(email, {
-            notes: draft,
-            notesUpdatedAt: new Date().toISOString(),
-          })
+          const updatedAt = new Date().toISOString()
+          await setFosterNoteInFirestore(email, draft).catch(err =>
+            console.error('Failed to save foster note:', err)
+          )
+          setCachedFosterNotes(email, { notes: draft, notesUpdatedAt: updatedAt })
           setNotesFromSheet(prev => ({
             notes: draft,
             notesUpdatedAt: prev?.notesUpdatedAt ?? '',

@@ -1,3 +1,5 @@
+import { requireAllowedUser } from '@/app/lib/serverAuth'
+
 const APPS_SCRIPT_URL = process.env.APPS_SCRIPT_URL
 const APPS_SCRIPT_KEY = process.env.APPS_SCRIPT_KEY
 
@@ -17,18 +19,6 @@ function buildAppsScriptUrl(requestUrl: string) {
   return url
 }
 
-function debugEnv() {
-  const key = APPS_SCRIPT_KEY || ''
-  const keyPreview =
-    key.length <= 8 ? key : `${key.slice(0, 4)}...${key.slice(-4)}`
-  return {
-    hasUrl: Boolean(APPS_SCRIPT_URL),
-    hasKey: Boolean(APPS_SCRIPT_KEY),
-    keyLength: key.length,
-    keyPreview
-  }
-}
-
 async function readJsonOrText(response: Response) {
   const text = await response.text()
   try {
@@ -39,16 +29,10 @@ async function readJsonOrText(response: Response) {
 }
 
 export async function GET(request: Request) {
-  try {
-    const incoming = new URL(request.url)
-    if (incoming.searchParams.get('debug') === '1') {
-      return Response.json({
-        success: true,
-        debug: debugEnv(),
-        requestUrl: request.url
-      })
-    }
+  const auth = await requireAllowedUser(request)
+  if (!auth.ok) return auth.response
 
+  try {
     const url = buildAppsScriptUrl(request.url)
     const response = await fetch(url.toString(), { method: 'GET' })
     const { json, text } = await readJsonOrText(response)
@@ -69,6 +53,9 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const auth = await requireAllowedUser(request)
+  if (!auth.ok) return auth.response
+
   try {
     const body = await request.json()
     const url = buildAppsScriptUrl(request.url)

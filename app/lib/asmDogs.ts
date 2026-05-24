@@ -40,7 +40,7 @@ export type DogRecord = {
     phone?: string
     email?: string
   }
-  raw: Record<string, string>
+  raw?: Record<string, string>
 }
 
 // Module-level cache — survives across requests on the same server instance.
@@ -51,7 +51,6 @@ let _inflight: Promise<DogRecord[]> | null = null
 const CACHE_TTL_MS = 60_000
 
 function sanitizeAsmJson(raw: string): string {
-  // eslint-disable-next-line no-control-regex
   return raw
     .replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g, ' ')
     .replace(/,(\s*[}\]])/g, '$1')
@@ -196,6 +195,11 @@ async function fetchFromAsm(): Promise<DogRecord[]> {
   if (!response.ok) throw new Error(`ASM request failed (${response.status})`)
   const rows = extractRows(payload)
   return rows.map(mapDog).filter(d => d.movement?.inFoster)
+}
+
+/** Bypasses the module-level cache — use in sync routes that need guaranteed-fresh data. */
+export async function fetchAsmFosterDogsUncached(): Promise<DogRecord[]> {
+  return fetchFromAsm()
 }
 
 /**

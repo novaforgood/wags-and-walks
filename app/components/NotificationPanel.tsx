@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import styles from './NotificationPanel.module.css'
 import type { TaskRow } from '@/app/lib/taskTypes'
+import { authFetch } from '@/app/lib/authFetch'
 
 type Notification = {
   id: string
@@ -94,7 +95,7 @@ export default function NotificationPanel() {
 
   useEffect(() => {
     queueMicrotask(() => setLoading(true))
-    fetch('/api/tasks', { cache: 'no-store' })
+    authFetch('/api/tasks', { cache: 'no-store' })
       .then(r => r.json())
       .then((data: { success?: boolean; rows?: TaskRow[] }) => {
         if (!data.success || !Array.isArray(data.rows)) return

@@ -1,8 +1,28 @@
 /* Fosters directory — shared with candidates design tokens where possible */
 
+/* Checkbox selection column */
+.checkboxCol {
+    width: 40px;
+    padding-right: 4px;
+    vertical-align: middle;
+}
+
+.rowCheckbox {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    accent-color: #0d9488;
+    flex-shrink: 0;
+}
+
+.selectedRow {
+    background: #f0fdfa !important;
+}
+
 /* Narrower footprint: lane + last-activity stacked; top-align two-line cells */
-.fostersTaskTable td:nth-child(3),
-.fostersTaskTable td:nth-child(4) {
+/* nth-child shifts by 1 because of the new checkbox column */
+.fostersTaskTable td:nth-child(4),
+.fostersTaskTable td:nth-child(5) {
     vertical-align: top;
     padding-top: 14px;
     padding-bottom: 14px;

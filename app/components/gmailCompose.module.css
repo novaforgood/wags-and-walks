@@ -1,0 +1,207 @@
+.trigger {
+  padding: 8px 19px;
+  font-size: 14px;
+  font-family: inherit;
+  font-weight: 400;
+  color: #000;
+  background: #fff;
+  border: 1px solid #c4c4c4;
+  border-radius: 30px;
+  cursor: pointer;
+  line-height: 1.4;
+  white-space: nowrap;
+  height: 37px;
+  display: flex;
+  align-items: center;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.trigger:hover {
+  background: #f0f0f0;
+  border-color: #aaa;
+}
+
+.trigger:focus-visible {
+  outline: 2px solid #0d9488;
+  outline-offset: 2px;
+}
+
+/* Centered modal overlay */
+
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.modal {
+  width: 460px;
+  max-width: 100%;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.16);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  resize: both;
+  min-width: 340px;
+  min-height: 260px;
+}
+
+.modalDragging {
+  user-select: none;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  background: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.headerDraggable {
+  cursor: grab;
+}
+
+.headerDraggable:active {
+  cursor: grabbing;
+}
+
+.title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.closeBtn {
+  background: none;
+  border: none;
+  color: #9ca3af;
+  cursor: pointer;
+  padding: 2px;
+  line-height: 0;
+  border-radius: 4px;
+  transition: color 0.15s;
+}
+
+.closeBtn:hover {
+  color: #374151;
+}
+
+.body {
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.label {
+  font-size: 12px;
+  font-weight: 500;
+  color: #6b7280;
+}
+
+.input {
+  border: 1px solid #e2e8f0;
+  border-radius: 7px;
+  padding: 8px 11px;
+  font-size: 14px;
+  font-family: inherit;
+  color: #1a202c;
+  outline: none;
+  box-sizing: border-box;
+  width: 100%;
+  transition: border-color 0.15s;
+}
+
+.input:focus {
+  border-color: #0d9488;
+}
+
+.inputReadonly {
+  background: #f8fafc;
+  color: #64748b;
+  cursor: default;
+}
+
+.textarea {
+  border: 1px solid #e2e8f0;
+  border-radius: 7px;
+  padding: 8px 11px;
+  font-size: 14px;
+  font-family: inherit;
+  color: #1a202c;
+  outline: none;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 120px;
+  resize: vertical;
+  transition: border-color 0.15s;
+}
+
+.textarea:focus {
+  border-color: #0d9488;
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 14px 18px;
+  border-top: 1px solid #e5e7eb;
+  background: #f9fafb;
+}
+
+.cancelBtn {
+  padding: 7px 16px;
+  font-size: 13px;
+  font-family: inherit;
+  font-weight: 500;
+  color: #374151;
+  background: #fff;
+  border: 1px solid #d1d5db;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.cancelBtn:hover {
+  background: #f9fafb;
+  border-color: #9ca3af;
+}
+
+.gmailBtn {
+  padding: 7px 18px;
+  font-size: 13px;
+  font-family: inherit;
+  font-weight: 600;
+  color: #fff;
+  background: #0d9488;
+  border: none;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.gmailBtn:hover {
+  background: #0f766e;
+}
+
+.gmailBtn:focus-visible {
+  outline: 2px solid #0d9488;
+  outline-offset: 2px;
+}

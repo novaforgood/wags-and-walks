@@ -233,7 +233,10 @@ export default function AdminUsersPage() {
       try {
         const res = await fetch('/api/send-email', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${await user.getIdToken()}`,
+          },
           body: JSON.stringify({
             action: 'send_single_email',
             to: added.toLowerCase(),

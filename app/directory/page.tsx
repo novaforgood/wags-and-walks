@@ -4,8 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { usePeople } from '@/app/components/PeopleProvider'
 import ProtectedRoute from '@/app/components/ProtectedRoute'
 import PersonModal from '@/app/components/PersonModal'
-import NotificationPanel from '@/app/components/NotificationPanel'
-import TopBarProfileMenu from '@/app/components/TopBarProfileMenu'
+import DashboardTopBar from '@/app/components/DashboardTopBar'
 import { DashboardShell } from '@/app/components/DashboardShell'
 import FilterDropdown, { FilterState } from '@/app/components/FilterDropdown'
 import {
@@ -14,6 +13,7 @@ import {
   readCachedArray,
   writeCachedArray,
 } from '@/app/lib/directoryClientCache'
+import { authFetch } from '@/app/lib/authFetch'
 import { prefetchFosterNotes } from '@/app/lib/fosterNotesClientCache'
 import type { Person } from '@/app/lib/peopleTypes'
 import type { FostererHistory } from '@/app/lib/asmFosterHistory'
@@ -35,12 +35,14 @@ import dirStyles from './directory.module.css'
 type FostererApiResponse = {
   success?: boolean
   fosterers?: FostererHistory[]
+  updatedAt?: string
   error?: string
 }
 
 type GroupApiResponse = {
   success?: boolean
   members?: GroupMember[]
+  updatedAt?: string
   error?: string
 }
 
@@ -115,6 +117,21 @@ function InlineSkeleton({ className = dirStyles.skeletonShort }: { className?: s
   return <span className={`${dirStyles.skeletonLine} ${dirStyles.inlineSkeleton} ${className}`} aria-hidden="true" />
 }
 
+function scheduleAfterPaint(callback: () => void): () => void {
+  const win = window as Window & {
+    requestIdleCallback?: (callback: () => void, options?: { timeout?: number }) => number
+    cancelIdleCallback?: (id: number) => void
+  }
+
+  if (win.requestIdleCallback && win.cancelIdleCallback) {
+    const id = win.requestIdleCallback(callback, { timeout: 500 })
+    return () => win.cancelIdleCallback?.(id)
+  }
+
+  const id = window.setTimeout(callback, 0)
+  return () => window.clearTimeout(id)
+}
+
 export default function DirectoryPage() {
   const { people, isLoading: peopleLoading, error: peopleError, toggleStar } = usePeople()
   const [searchQuery, setSearchQuery] = useState('')
@@ -128,6 +145,8 @@ export default function DirectoryPage() {
   const [fosterers, setFosterers] = useState<FostererHistory[]>([])
   const [isLoadingFosterers, setIsLoadingFosterers] = useState(true)
   const [fostererError, setFostererError] = useState<string | null>(null)
+  const [directoryUpdatedAt, setDirectoryUpdatedAt] = useState<string | undefined>()
+  const [fetchKey, setFetchKey] = useState(0)
 
   const [filters, setFilters] = useState<FilterState>({
     livingSituation: [],
@@ -143,6 +162,7 @@ export default function DirectoryPage() {
 
   useEffect(() => {
     let active = true
+    const controller = new AbortController()
     async function loadGroup() {
       const cachedMembers = readCachedArray<GroupMember>(GROUP_MEMBERS_CACHE_KEY)
       if (cachedMembers.length > 0) {
@@ -153,7 +173,7 @@ export default function DirectoryPage() {
       }
       setGroupError(null)
       try {
-        const res = await fetch('/api/google-group-members', { cache: 'no-store' })
+        const res = await authFetch('/api/google-group-members', { cache: 'no-store', signal: controller.signal })
         const data = (await res.json()) as GroupApiResponse
         if (!res.ok || !data?.success || !Array.isArray(data.members)) {
           throw new Error(data?.error || 'Failed to load Google Group members')
@@ -161,8 +181,13 @@ export default function DirectoryPage() {
         if (!active) return
         setGroupMembers(data.members)
         writeCachedArray(GROUP_MEMBERS_CACHE_KEY, data.members)
+        if (data.updatedAt) setDirectoryUpdatedAt(prev => {
+          if (!prev || data.updatedAt! < prev) return data.updatedAt
+          return prev
+        })
       } catch (e) {
         if (!active) return
+        if (e instanceof DOMException && e.name === 'AbortError') return
         setGroupError(e instanceof Error ? e.message : 'Failed to load Google Group members')
         if (cachedMembers.length === 0) setGroupMembers([])
       } finally {
@@ -170,11 +195,16 @@ export default function DirectoryPage() {
       }
     }
     loadGroup()
-    return () => { active = false }
-  }, [])
+    return () => {
+      active = false
+      controller.abort()
+    }
+  }, [fetchKey])
 
   useEffect(() => {
     let active = true
+    const controller = new AbortController()
+    let cancelScheduledLoad: (() => void) | null = null
     async function load() {
       const cachedFosterers = readCachedArray<FostererHistory>(FOSTER_HISTORY_CACHE_KEY)
       if (cachedFosterers.length > 0) {
@@ -185,7 +215,7 @@ export default function DirectoryPage() {
       }
       setFostererError(null)
       try {
-        const res = await fetch('/api/foster-history', { cache: 'no-store' })
+        const res = await authFetch('/api/foster-history', { cache: 'no-store', signal: controller.signal })
         const data = (await res.json()) as FostererApiResponse
         if (!res.ok || !data?.success || !Array.isArray(data.fosterers)) {
           throw new Error(data?.error || 'Failed to load fosterers from Shelter Manager')
@@ -193,17 +223,30 @@ export default function DirectoryPage() {
         if (!active) return
         setFosterers(data.fosterers)
         writeCachedArray(FOSTER_HISTORY_CACHE_KEY, data.fosterers)
+        if (data.updatedAt) setDirectoryUpdatedAt(prev => {
+          if (!prev || data.updatedAt! < prev) return data.updatedAt
+          return prev
+        })
       } catch (e) {
         if (!active) return
+        if (e instanceof DOMException && e.name === 'AbortError') return
         setFostererError(e instanceof Error ? e.message : 'Failed to load fosterers')
         if (cachedFosterers.length === 0) setFosterers([])
       } finally {
         if (active) setIsLoadingFosterers(false)
       }
     }
-    load()
-    return () => { active = false }
-  }, [])
+
+    cancelScheduledLoad = scheduleAfterPaint(() => {
+      void load()
+    })
+
+    return () => {
+      active = false
+      controller.abort()
+      cancelScheduledLoad?.()
+    }
+  }, [fetchKey])
 
   const asmByEmail = useMemo(() => buildAsmPeopleByEmail(fosterers), [fosterers])
   const applicationsByEmail = useMemo(() => buildApplicationsByEmail(people), [people])
@@ -377,13 +420,11 @@ export default function DirectoryPage() {
   return (
     <ProtectedRoute>
       <DashboardShell>
-        <div className={styles.topBar}>
-          <h1 className={styles.topBarTitle}>Directory</h1>
-          <div className={styles.topBarActions}>
-            <NotificationPanel />
-            <TopBarProfileMenu />
-          </div>
-        </div>
+        <DashboardTopBar
+          title="Directory"
+          syncUpdatedAt={directoryUpdatedAt}
+          onSyncRefresh={() => setFetchKey(k => k + 1)}
+        />
 
         <div className={`${styles.toolbar} ${dirStyles.directoryToolbar}`}>
           <div className={styles.searchWrapper}>

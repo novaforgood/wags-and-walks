@@ -14,6 +14,18 @@ function stripBom(s: string): string {
   return s.replace(/^\uFEFF/, '')
 }
 
+function parseServiceAccountJson(raw: string): ServiceAccount {
+  let parsed: ServiceAccount | string
+  try {
+    parsed = JSON.parse(raw) as ServiceAccount | string
+  } catch {
+    parsed = JSON.parse(raw.replace(/\\"/g, '"')) as ServiceAccount
+  }
+  return typeof parsed === 'string'
+    ? JSON.parse(parsed) as ServiceAccount
+    : parsed
+}
+
 type ReadCredentials =
   | { ok: true; raw: string }
   | { ok: false; reason: 'missing' | 'path_not_found'; detail?: string }
@@ -29,7 +41,9 @@ function readCredentialJsonString(): ReadCredentials {
     return { ok: false, reason: 'missing' }
   }
 
-  const resolved = path.isAbsolute(filePath) ? filePath : path.join(process.cwd(), filePath)
+  const resolved = path.isAbsolute(filePath)
+    ? filePath
+    : path.join(/* turbopackIgnore: true */ process.cwd(), filePath)
   if (!fs.existsSync(resolved)) {
     return { ok: false, reason: 'path_not_found', detail: resolved }
   }
@@ -63,7 +77,7 @@ export function resolveFirebaseAdminApp(): FirebaseAdminResolve {
   }
 
   try {
-    const credentials = JSON.parse(read.raw) as ServiceAccount
+    const credentials = parseServiceAccountJson(read.raw)
     const app = initializeApp({
       credential: cert(credentials),
     })
