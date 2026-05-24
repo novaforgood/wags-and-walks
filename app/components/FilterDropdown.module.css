@@ -4,12 +4,13 @@
     font-family: 'Inter', sans-serif;
 }
 
+/* ---- Trigger button ---- */
 .filterBtn {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 8px 16px;
-    border-radius: 8px;
+    gap: 7px;
+    padding: 8px 14px;
+    border-radius: 20px;
     border: 1px solid #e0eaea;
     background: white;
     color: #414141;
@@ -17,11 +18,17 @@
     font-weight: 500;
     cursor: pointer;
     transition: all 0.15s;
+    white-space: nowrap;
 }
 
 .filterBtn:hover {
-    background: #fbfbfb;
-    border-color: #bbcacb;
+    background: #f7fafa;
+    border-color: #b0c8c9;
+}
+
+.filterBtnOpen {
+    border-color: #05aaaf;
+    background: #f0fbfb;
 }
 
 .filterBtnActive {
@@ -40,50 +47,89 @@
     color: #05aaaf;
     font-size: 11px;
     font-weight: 700;
-    padding: 2px 6px;
-    border-radius: 12px;
-    line-height: 1;
+    padding: 1px 6px;
+    border-radius: 10px;
+    line-height: 1.4;
 }
 
-.filterBtnActive .badge {
-    background: white;
-    color: #05aaaf;
-}
-
-.chevronImgWrapBtn {
+.chevron {
     display: flex;
     align-items: center;
-    justify-content: center;
-    transition: transform 0.2s ease;
-    /* Default points down — the image is already pointing down out of the box? Let's assume it points down or we can rotate it to 0deg */
-    margin-left: 2px;
-    opacity: 0.6;
+    opacity: 0.5;
+    transition: transform 0.2s ease, opacity 0.2s;
+    margin-left: 1px;
 }
 
-.chevronRotatedBtn {
+.filterBtn:hover .chevron,
+.filterBtnOpen .chevron {
+    opacity: 0.8;
+}
+
+.chevronUp {
     transform: rotate(180deg);
 }
 
+/* ---- Dropdown panel ---- */
 .menu {
     position: absolute;
     top: calc(100% + 8px);
     right: 0;
-    width: 320px;
+    width: 280px;
     background: white;
-    border-radius: 8px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.06);
+    border-radius: 12px;
+    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.07), 0 10px 30px -4px rgba(0,0,0,0.12);
+    border: 1px solid #eaeaea;
     z-index: 100;
+    overflow: hidden;
+}
+
+.menuHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px 10px;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.menuTitle {
+    font-size: 12px;
+    font-weight: 600;
+    color: #999;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.clearBtn {
+    background: none;
+    border: none;
+    font-size: 12px;
+    font-weight: 500;
+    color: #05aaaf;
+    cursor: pointer;
+    padding: 2px 0;
+    transition: opacity 0.15s;
+}
+
+.clearBtn:hover {
+    opacity: 0.75;
+}
+
+/* ---- Categories ---- */
+.categoriesList {
     display: flex;
     flex-direction: column;
 }
 
 .categoryWrap {
-    position: relative;
-    border-bottom: 1px solid #f0f0f0;
+    border-bottom: 1px solid #f4f4f4;
 }
 
 .categoryWrap:last-child {
     border-bottom: none;
+}
+
+.categoryWrapExpanded {
+    background: #fafefe;
 }
 
 .categoryBtn {
@@ -91,54 +137,62 @@
     justify-content: space-between;
     align-items: center;
     width: 100%;
-    padding: 14px 16px;
+    padding: 12px 16px;
     background: none;
     border: none;
     cursor: pointer;
     text-align: left;
-    transition: background 0.15s;
+    transition: background 0.12s;
 }
 
 .categoryBtn:hover {
-    background: #fbfbfb;
+    background: #f7fafa;
 }
 
-.categoryTitle {
-    font-size: 14px;
-    font-weight: 400;
-    color: #414141;
+.categoryWrapExpanded .categoryBtn {
+    background: #f0fbfb;
 }
 
-.categoryRight {
+.categoryLeft {
     display: flex;
     align-items: center;
     gap: 8px;
 }
 
+.categoryTitle {
+    font-size: 13.5px;
+    font-weight: 500;
+    color: #2d2d2d;
+}
+
 .catBadge {
     background: #05aaaf;
     color: white;
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 700;
-    padding: 2px 6px;
-    border-radius: 12px;
-    line-height: 1;
+    padding: 1px 6px;
+    border-radius: 10px;
+    line-height: 1.4;
 }
 
+.categoryChevron {
+    display: flex;
+    align-items: center;
+    color: #aaa;
+    transition: transform 0.2s ease, color 0.15s;
+}
+
+.categoryChevronOpen {
+    transform: rotate(180deg);
+    color: #05aaaf;
+}
+
+/* ---- Options (accordion body) ---- */
 .optionsList {
-    position: absolute;
-    top: -1px;
-    right: 100%;
-    width: 280px;
     display: flex;
     flex-direction: column;
-    padding: 12px 16px;
-    gap: 12px;
-    background: white;
-    border: 1px solid #e0eaea;
-    border-radius: 8px 0 8px 8px;
-    box-shadow: -4px 8px 24px rgba(0, 0, 0, 0.08);
-    z-index: 110;
+    gap: 2px;
+    padding: 4px 16px 12px;
 }
 
 .optionLabel {
@@ -146,77 +200,51 @@
     align-items: flex-start;
     gap: 10px;
     cursor: pointer;
+    padding: 5px 6px;
+    border-radius: 6px;
+    transition: background 0.1s;
 }
 
-.checkbox {
-    margin-top: 2px;
-    accent-color: #05aaaf;
+.optionLabel:hover {
+    background: #eef8f8;
+}
+
+.hiddenCheckbox {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+    pointer-events: none;
+}
+
+.customCheckbox {
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
+    border: 1.5px solid #d0d5dd;
+    background: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 1px;
+    transition: border-color 0.15s, background 0.15s;
+}
+
+.customCheckboxChecked {
+    background: #05aaaf;
+    border-color: #05aaaf;
 }
 
 .optionText {
     font-size: 13px;
     color: #414141;
-    line-height: 1.4;
+    line-height: 1.45;
 }
 
 .noOptions {
-    position: absolute;
-    top: -1px;
-    right: 100%;
-    width: 220px;
-    padding: 12px 16px;
     font-size: 12px;
-    color: #888;
+    color: #aaa;
     font-style: italic;
-    background: white;
-    border: 1px solid #e0eaea;
-    border-radius: 8px 0 8px 8px;
-    box-shadow: -4px 8px 24px rgba(0, 0, 0, 0.08);
-    z-index: 110;
-}
-
-.chevronImgWrap {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: transform 0.2s ease;
-    transform: rotate(-90deg);
-    /* Default points Right */
-    opacity: 0.6;
-}
-
-.chevronRotated {
-    transform: rotate(90deg);
-    /* Expanded points Left */
-}
-
-/* ---- Clear filters ---- */
-.clearFiltersWrap {
-    padding: 12px 16px;
-    border-top: 1px solid #f0f0f0;
-    display: flex;
-    justify-content: center;
-}
-
-.clearFiltersBtn {
-    background: none;
-    border: none;
-    color: #222;
-    /* Consistent black */
-    font-size: 13px;
-    font-weight: 500;
-    cursor: pointer;
-    text-decoration: none;
-    /* No underline */
-    transition: color 0.15s, opacity 0.15s;
-}
-
-.clearFiltersBtn:hover:not(:disabled) {
-    color: #05aaaf;
-    /* Change color on hover */
-}
-
-.clearFiltersBtn:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
+    padding: 4px 2px 8px;
 }

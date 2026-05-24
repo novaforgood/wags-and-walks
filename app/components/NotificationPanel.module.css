@@ -30,7 +30,6 @@
     outline-offset: 2px;
 }
 
-/* Selected: outlined chip — reads as “panel open”, not a second avatar */
 .bellButtonActive {
     background: #ffffff;
     border-color: #05aaaf;
@@ -62,7 +61,7 @@
 }
 
 .panelHeader {
-    padding: 16px 18px 14px;
+    padding: 16px 18px 0;
     background: #fafcfc;
     border-bottom: 1px solid #e4eaee;
     flex-shrink: 0;
@@ -72,18 +71,68 @@
     font-size: 15px;
     font-weight: 700;
     color: #0f172a;
-    margin: 0;
+    margin: 0 0 14px;
     letter-spacing: -0.01em;
 }
 
-.panelTitle::after {
-    content: '';
-    display: block;
-    width: 36px;
-    height: 3px;
-    margin-top: 10px;
+/* ---- Tabs ---- */
+.tabs {
+    display: flex;
+    gap: 0;
+    margin: 0 -18px;
+}
+
+.tab {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    padding: 10px 16px;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    font-size: 13px;
+    font-weight: 500;
+    font-family: 'Inter', sans-serif;
+    color: #64748b;
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s, background 0.15s;
+    white-space: nowrap;
+}
+
+.tab:hover:not(.tabActive) {
+    color: #334155;
+    background: rgba(5, 170, 175, 0.04);
+}
+
+.tabActive {
+    color: #05aaaf;
+    border-bottom-color: #05aaaf;
+    font-weight: 600;
+}
+
+.tabBadge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
     background: #05aaaf;
-    border-radius: 2px;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    border-radius: 999px;
+    line-height: 1;
+}
+
+.tabActive .tabBadge {
+    background: #05aaaf;
+}
+
+.tab:not(.tabActive) .tabBadge {
+    background: #94a3b8;
 }
 
 /* ---- List ---- */
@@ -116,6 +165,7 @@
     background: #a8b8c2;
 }
 
+/* ---- Cards ---- */
 .card {
     display: flex;
     flex-direction: row;
@@ -136,6 +186,10 @@
     border-color: #c5cdd4;
     box-shadow: 0 4px 14px rgba(15, 23, 42, 0.07);
     transform: translateY(-1px);
+}
+
+.cardOverdue {
+    border-left-color: #ef4444;
 }
 
 .cardBody {

@@ -100,7 +100,6 @@ export default function CandidatesPage() {
     /* ── Visible pipeline (all applicants — sheet decisions never hide rows) */
     const allCandidates = useMemo(() => {
         return [...people].sort((a, b) => {
-            // Pipeline rows first (newest applied first), then closed rows beneath
             const aClosed = isClosedStatus(a.status)
             const bClosed = isClosedStatus(b.status)
             if (aClosed !== bClosed) return aClosed ? 1 : -1
@@ -154,7 +153,11 @@ export default function CandidatesPage() {
         }
         if (filters.experienceLevel.length > 0) {
             result = result.filter((p) => {
-                const val = String(p.raw?.['How would you rate your experience with dogs?'] || '').trim()
+                const val = String(
+                    p.raw?.['How would you rate your experience with dogs?'] ||
+                    p.raw?.['How would you rate your experience with dogs'] ||
+                    ''
+                ).trim()
                 return filters.experienceLevel.includes(val)
             })
         }
@@ -261,7 +264,7 @@ export default function CandidatesPage() {
                         </div>
                     </div>
 
-                    {/* Quick-filter pills */}
+                    {/* Quick-filter pills + Filter dropdown */}
                     <div className={styles.quickPills} role="group" aria-label="Quick filters">
                         <QuickPill
                             label="Red Flags"
@@ -291,9 +294,6 @@ export default function CandidatesPage() {
                                 setQuickFilters((q) => ({ ...q, starred: !q.starred }))
                             }
                         />
-                    </div>
-
-                    <div className={styles.toolbarRight}>
                         <FilterDropdown people={people} filters={filters} setFilters={setFilters} />
                     </div>
                 </div>
@@ -490,7 +490,6 @@ function QuickPill({
 }: {
     label: string
     title?: string
-    /** `null` while applicant list is still loading (avoids showing 0 before data arrives). */
     count: number | null
     active: boolean
     tone: 'accent' | 'danger' | 'neutral'
