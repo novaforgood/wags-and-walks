@@ -20,6 +20,7 @@ import {
 } from '@/app/lib/fosterTaskEnrichment'
 import styles from '../candidates/candidates.module.css'
 import inboxStyles from './fosterTasks.module.css'
+import dirStyles from '../directory/directory.module.css'
 
 type DogsApiResponse = {
   success?: boolean
@@ -34,7 +35,6 @@ type TasksApiResponse = {
   taskStatusByAnimalId?: Record<string, FosterStatus>
 }
 
-/** Combined queue filters; default opens on needs-attention (priority sort applies). */
 const QUEUE_FILTERS: { value: TaskInboxFilter; label: string }[] = [
   { value: 'all', label: 'All (work queue)' },
   { value: 'needs_attention', label: 'Needs attention' },
@@ -259,7 +259,8 @@ export default function FostersPage() {
           onSyncRefresh={() => setFetchKey(k => k + 1)}
         />
 
-        <div className={styles.toolbar}>
+        {/* Search toolbar */}
+        <div className={`${styles.toolbar} ${dirStyles.directoryToolbar}`}>
           <div className={styles.searchWrapper}>
             <input
               type="text"
@@ -274,49 +275,50 @@ export default function FostersPage() {
               <img src="/assets/Search.svg" alt="" width={16} height={16} />
             </div>
           </div>
-          <div className={styles.toolbarRight}>
-            <label htmlFor="dir-queue-filter" className={inboxStyles.visuallyHidden}>
-              Queue
-            </label>
-            <select
-              id="dir-queue-filter"
-              className={`${styles.toolbarBtn} ${styles.statusFilterSelect} ${inboxStyles.fostersToolbarSelect}`}
-              value={queueFilter}
-              disabled={initialFostersLoading}
-              onChange={e => setQueueFilter(e.target.value as TaskInboxFilter)}
-              title="Filter by Task Log lanes (photos / survey)"
-            >
-              {QUEUE_FILTERS.map(o => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-            <label htmlFor="dir-household-status-filter" className={inboxStyles.visuallyHidden}>
-              Household status
-            </label>
-            <select
-              id="dir-household-status-filter"
-              className={`${styles.toolbarBtn} ${styles.statusFilterSelect} ${inboxStyles.fostersToolbarSelect}`}
-              value={statusFilter}
-              disabled={initialFostersLoading}
-              onChange={e => setStatusFilter(e.target.value as 'all' | FosterStatus)}
-              title="Worst status among open Task Log rows (Completed/Retired ignored). Cleared homes show as No open tasks."
-            >
-              <option value="all">Any household</option>
-              <option value="Good">Good / No open tasks</option>
-              <option value="Needs Review">Needs Review</option>
-              <option value="Overdue">Overdue</option>
-              <option value="Unknown">Unknown</option>
-            </select>
-          </div>
         </div>
 
         {dogsError && <div className={styles.errorText}>{dogsError}</div>}
 
         {!dogsError && (
           <div className={styles.tableWrapper} ref={tableWrapperRef}>
-            <div className={styles.tableContainer}>
+            <div className={`${styles.tableContainer} ${dirStyles.directoryTableContainer}`}>
+
+              {/* Filter bar — matches directory style */}
+              <div className={dirStyles.directoryFilterBar}>
+                <div className={dirStyles.chipGroup}>
+                  <label htmlFor="dir-queue-filter" className={inboxStyles.visuallyHidden}>Queue</label>
+                  <select
+                    id="dir-queue-filter"
+                    className={dirStyles.sortSelect}
+                    value={queueFilter}
+                    disabled={initialFostersLoading}
+                    onChange={e => setQueueFilter(e.target.value as TaskInboxFilter)}
+                    title="Filter by Task Log lanes (photos / survey)"
+                    style={{ minWidth: 200 }}
+                  >
+                    {QUEUE_FILTERS.map(o => (
+                      <option key={o.value} value={o.value}>{o.label}</option>
+                    ))}
+                  </select>
+
+                  <label htmlFor="dir-household-status-filter" className={inboxStyles.visuallyHidden}>Household status</label>
+                  <select
+                    id="dir-household-status-filter"
+                    className={dirStyles.sortSelect}
+                    value={statusFilter}
+                    disabled={initialFostersLoading}
+                    onChange={e => setStatusFilter(e.target.value as 'all' | FosterStatus)}
+                    title="Worst status among open Task Log rows"
+                  >
+                    <option value="all">Any household</option>
+                    <option value="Good">Good / No open tasks</option>
+                    <option value="Needs Review">Needs Review</option>
+                    <option value="Overdue">Overdue</option>
+                    <option value="Unknown">Unknown</option>
+                  </select>
+                </div>
+              </div>
+
               <div className={styles.tableScroll}>
                 <table className={`${styles.table} ${inboxStyles.fostersTaskTable}`}>
                   <thead>
@@ -324,13 +326,13 @@ export default function FostersPage() {
                       <th className={inboxStyles.checkboxCol} />
                       <th>Foster name</th>
                       <th>Dog(s)</th>
-                      <th title="Task Log status for PHOTOS_* (worst dog in the home). Second line: last photo activity—Completed date from the log when present, otherwise the latest estimated upload date (Task Log email date minus 5 days), scheduled send, or task retired. Follow-up sent is excluded.">
+                      <th title="Task Log status for PHOTOS_* (worst dog in the home). Second line: last photo activity.">
                         Photos
                       </th>
-                      <th title="Task Log status for SURVEY_* (worst dog in the home). Second line: last survey activity—Completed when present, otherwise estimated last survey (Task Log email date minus 7 days), scheduled send, or retired. Follow-up sent is excluded.">
+                      <th title="Task Log status for SURVEY_* (worst dog in the home). Second line: last survey activity.">
                         Survey
                       </th>
-                      <th title="Worst status among open Task Log rows in this home (Completed and Retired are excluded). Cleared homes: No open tasks.">
+                      <th title="Worst status among open Task Log rows in this home.">
                         Household
                       </th>
                       <th></th>
@@ -380,7 +382,7 @@ export default function FostersPage() {
                             <span>{row.photoHouseholdSheetLabel}</span>
                             <span
                               className={inboxStyles.laneLastTouch}
-                              title="Last photo touchpoint: completed date from the log, or estimated last upload (email date −5 days), scheduled, or retired. Not the raw Task Log email date."
+                              title="Last photo touchpoint"
                             >
                               {row.lastPhotoTaskActivityDate
                                 ? formatDateShort(row.lastPhotoTaskActivityDate)
@@ -393,7 +395,7 @@ export default function FostersPage() {
                             <span>{row.surveyHouseholdSheetLabel}</span>
                             <span
                               className={inboxStyles.laneLastTouch}
-                              title="Last survey touchpoint: completed from the log, or estimated last survey (email date −7 days), scheduled, or retired. Follow-up sent excluded."
+                              title="Last survey touchpoint"
                             >
                               {row.lastSurveyTaskActivityDate
                                 ? formatDateShort(row.lastSurveyTaskActivityDate)
@@ -424,12 +426,12 @@ export default function FostersPage() {
                   </tbody>
                 </table>
               </div>
+
               {totalPages > 1 && (
                 <div className={styles.pagination}>
                   <PageButton onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>
                     ‹ Previous
                   </PageButton>
-
                   {Array.from({ length: totalPages }, (_, i) => i + 1)
                     .filter(page => page === 1 || page === totalPages || Math.abs(page - currentPage) <= 1)
                     .reduce<(number | '...')[]>((acc, page, idx, arr) => {
@@ -439,24 +441,14 @@ export default function FostersPage() {
                     }, [])
                     .map((item, idx) =>
                       item === '...' ? (
-                        <span key={`ellipsis-${idx}`} className={styles.paginationEllipsis}>
-                          ···
-                        </span>
+                        <span key={`ellipsis-${idx}`} className={styles.paginationEllipsis}>···</span>
                       ) : (
-                        <PageButton
-                          key={item}
-                          onClick={() => setCurrentPage(item as number)}
-                          active={currentPage === item}
-                        >
+                        <PageButton key={item} onClick={() => setCurrentPage(item as number)} active={currentPage === item}>
                           {item}
                         </PageButton>
                       )
                     )}
-
-                  <PageButton
-                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                    disabled={currentPage === totalPages}
-                  >
+                  <PageButton onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>
                     Next ›
                   </PageButton>
                 </div>

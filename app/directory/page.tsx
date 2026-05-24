@@ -6,6 +6,7 @@ import ProtectedRoute from '@/app/components/ProtectedRoute'
 import PersonModal from '@/app/components/PersonModal'
 import DashboardTopBar from '@/app/components/DashboardTopBar'
 import { DashboardShell } from '@/app/components/DashboardShell'
+import FilterDropdown, { FilterState } from '@/app/components/FilterDropdown'
 import {
   FOSTER_HISTORY_CACHE_KEY,
   GROUP_MEMBERS_CACHE_KEY,
@@ -146,6 +147,14 @@ export default function DirectoryPage() {
   const [fostererError, setFostererError] = useState<string | null>(null)
   const [directoryUpdatedAt, setDirectoryUpdatedAt] = useState<string | undefined>()
   const [fetchKey, setFetchKey] = useState(0)
+
+  const [filters, setFilters] = useState<FilterState>({
+    livingSituation: [],
+    dogTypes: [],
+    pastCurrentAnimals: [],
+    experienceLevel: [],
+    children: [],
+  })
 
   const tableWrapperRef = useRef<HTMLDivElement>(null)
   const [itemsPerPage, setItemsPerPage] = useState(15)
@@ -297,6 +306,55 @@ export default function DirectoryPage() {
         break
     }
 
+    // Advanced filters (application fields)
+    if (filters.livingSituation.length > 0) {
+      result = result.filter(r => {
+        const val = String(r.application?.raw?.['What is your living arrangement?'] || '').trim()
+        return filters.livingSituation.includes(val)
+      })
+    }
+    if (filters.experienceLevel.length > 0) {
+      result = result.filter(r => {
+        const val = String(
+          r.application?.raw?.['How would you rate your experience with dogs?'] ||
+          r.application?.raw?.['How would you rate your experience with dogs'] ||
+          ''
+        ).trim()
+        return filters.experienceLevel.includes(val)
+      })
+    }
+    if (filters.dogTypes.length > 0) {
+      result = result.filter(r => {
+        const sn = r.application?.specialNeeds || []
+        return filters.dogTypes.some(type => sn.includes(type))
+      })
+    }
+    if (filters.pastCurrentAnimals.length > 0) {
+      result = result.filter(r => {
+        const currentStr = String(r.application?.raw?.['Do you currently have any pets at home?'] || '').trim()
+        const pastStr = String(r.application?.raw?.['Have you ever owned a pet before?'] || '').trim()
+        const noAnimals = currentStr.toLowerCase() === 'no' && pastStr.toLowerCase() === 'no'
+        return filters.pastCurrentAnimals.some(opt => {
+          if (opt === 'Currently owns pets') return currentStr.toLowerCase() === 'yes'
+          if (opt === 'Previously owned pets') return pastStr.toLowerCase() === 'yes'
+          if (opt === 'No past/current animals') return noAnimals
+          return false
+        })
+      })
+    }
+    if (filters.children.length > 0) {
+      result = result.filter(r => {
+        const childStr = String(r.application?.raw?.['How many children are in your home?'] || '').trim()
+        const hasKids = childStr && childStr !== '0'
+        const noKids = childStr === '0'
+        return filters.children.some(opt => {
+          if (opt === 'Has children') return hasKids
+          if (opt === 'No children') return noKids
+          return false
+        })
+      })
+    }
+
     if (sortOrder === 'most_fostered') {
       return [...result].sort((a, b) => {
         if (b.totalFostered !== a.totalFostered) return b.totalFostered - a.totalFostered
@@ -305,7 +363,7 @@ export default function DirectoryPage() {
     }
 
     return [...result].sort((a, b) => compareDirectoryDisplayNames(a.displayName, b.displayName))
-  }, [rows, searchQuery, quickFilter, sortOrder])
+  }, [rows, searchQuery, quickFilter, sortOrder, filters])
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / Math.max(itemsPerPage, 1)))
 
@@ -316,7 +374,7 @@ export default function DirectoryPage() {
 
   useEffect(() => {
     setCurrentPage(1)
-  }, [searchQuery, quickFilter, sortOrder, groupMembers])
+  }, [searchQuery, quickFilter, sortOrder, groupMembers, filters])
 
   useEffect(() => {
     if (currentPage > totalPages) setCurrentPage(totalPages)
@@ -405,6 +463,7 @@ export default function DirectoryPage() {
                     {f.label}
                   </button>
                 ))}
+                <FilterDropdown people={people} filters={filters} setFilters={setFilters} buttonClassName={dirStyles.chip} />
               </div>
               <label className={dirStyles.sortWrap}>
                 <span className={dirStyles.sortLabel}>Sort</span>

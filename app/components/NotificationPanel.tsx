@@ -13,6 +13,7 @@ type Notification = {
   timestamp: Date
   actionLabel: string
   actionHref?: string
+  isOverdue: boolean
 }
 
 function taskLabel(taskType: string): string {
@@ -36,6 +37,7 @@ function rowToNotification(row: TaskRow): Notification | null {
       timestamp: new Date(row.completedDate),
       actionLabel: hasDriveLink ? 'See Photos' : 'Mark as read',
       actionHref: hasDriveLink ? row.driveLink : undefined,
+      isOverdue: false,
     }
   }
 
@@ -52,6 +54,7 @@ function rowToNotification(row: TaskRow): Notification | null {
       entityName: row.dogName || undefined,
       timestamp: new Date(row.emailSentDate || row.followUpSent || Date.now()),
       actionLabel: 'Review task log',
+      isOverdue: false,
     }
   }
 
@@ -67,6 +70,7 @@ function rowToNotification(row: TaskRow): Notification | null {
     entityName: row.dogName || undefined,
     timestamp: new Date(row.followUpSent || row.emailSentDate),
     actionLabel: 'Send follow-up',
+    isOverdue: true,
   }
 }
 
@@ -84,6 +88,7 @@ function formatTimestamp(date: Date): string {
 
 export default function NotificationPanel() {
   const [isOpen, setIsOpen] = useState(false)
+  const [activeTab, setActiveTab] = useState<'overdue' | 'other'>('overdue')
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [loading, setLoading] = useState(true)
   const panelRef = useRef<HTMLDivElement>(null)
@@ -111,6 +116,10 @@ export default function NotificationPanel() {
       .finally(() => setLoading(false))
   }, [])
 
+  const overdueNotifs = notifications.filter(n => n.isOverdue)
+  const otherNotifs = notifications.filter(n => !n.isOverdue)
+  const visibleNotifs = activeTab === 'overdue' ? overdueNotifs : otherNotifs
+
   return (
     <div className={styles.bellWrapper} ref={panelRef}>
       <button
@@ -128,16 +137,44 @@ export default function NotificationPanel() {
         <div className={styles.panel} role="dialog" aria-label="Notifications">
           <div className={styles.panelHeader}>
             <h2 className={styles.panelTitle}>Notifications</h2>
+            <div className={styles.tabs} role="tablist">
+              <button
+                role="tab"
+                type="button"
+                aria-selected={activeTab === 'overdue'}
+                className={`${styles.tab} ${activeTab === 'overdue' ? styles.tabActive : ''}`}
+                onClick={() => setActiveTab('overdue')}
+              >
+                Overdue
+                {!loading && overdueNotifs.length > 0 && (
+                  <span className={styles.tabBadge}>{overdueNotifs.length}</span>
+                )}
+              </button>
+              <button
+                role="tab"
+                type="button"
+                aria-selected={activeTab === 'other'}
+                className={`${styles.tab} ${activeTab === 'other' ? styles.tabActive : ''}`}
+                onClick={() => setActiveTab('other')}
+              >
+                Other
+                {!loading && otherNotifs.length > 0 && (
+                  <span className={styles.tabBadge}>{otherNotifs.length}</span>
+                )}
+              </button>
+            </div>
           </div>
 
           <div className={styles.list}>
             {loading ? (
               <div className={styles.empty}>Loading…</div>
-            ) : notifications.length === 0 ? (
-              <div className={styles.empty}>No notifications</div>
+            ) : visibleNotifs.length === 0 ? (
+              <div className={styles.empty}>
+                {activeTab === 'overdue' ? 'No overdue tasks 🎉' : 'No other notifications'}
+              </div>
             ) : (
-              notifications.map(n => (
-                <div key={n.id} className={styles.card}>
+              visibleNotifs.map(n => (
+                <div key={n.id} className={`${styles.card} ${n.isOverdue ? styles.cardOverdue : ''}`}>
                   <div className={styles.cardBody}>
                     <p className={styles.cardText}>
                       <strong>{n.personName}</strong> {n.action}

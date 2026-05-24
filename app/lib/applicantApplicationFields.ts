@@ -262,7 +262,10 @@ function formatSubmittedOn(iso: string): string {
 export function applicationFieldDisplayValue(person: Person, field: ApplicationFieldDef): string {
   const raw = person.raw ?? {}
   const direct = firstRawValue(raw, field.rawKeys)
-  if (direct) return direct
+  if (direct) {
+    if (field.rawKeys.includes('Submitted On')) return formatSubmittedOn(direct)  // ← add this
+    return direct
+  }
 
   if (field.rawKeys.includes('Submitted On') && person.appliedAt) {
     return formatSubmittedOn(person.appliedAt)
