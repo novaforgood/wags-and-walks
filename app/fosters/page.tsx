@@ -275,6 +275,38 @@ export default function FostersPage() {
               <img src="/assets/Search.svg" alt="" width={16} height={16} />
             </div>
           </div>
+
+          <div className={styles.toolbarRight}>
+            <label htmlFor="dir-queue-filter" className={inboxStyles.visuallyHidden}>Queue</label>
+            <select
+              id="dir-queue-filter"
+              className={`${styles.toolbarBtn} ${styles.statusFilterSelect} ${inboxStyles.fostersToolbarSelect}`}
+              value={queueFilter}
+              disabled={initialFostersLoading}
+              onChange={e => setQueueFilter(e.target.value as TaskInboxFilter)}
+              title="Filter by Task Log lanes (photos / survey)"
+            >
+              {QUEUE_FILTERS.map(o => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+
+            <label htmlFor="dir-household-status-filter" className={inboxStyles.visuallyHidden}>Household status</label>
+            <select
+              id="dir-household-status-filter"
+              className={`${styles.toolbarBtn} ${styles.statusFilterSelect}`}
+              value={statusFilter}
+              disabled={initialFostersLoading}
+              onChange={e => setStatusFilter(e.target.value as 'all' | FosterStatus)}
+              title="Worst status among open Task Log rows"
+            >
+              <option value="all">Any household</option>
+              <option value="Good">Good / No open tasks</option>
+              <option value="Needs Review">Needs Review</option>
+              <option value="Overdue">Overdue</option>
+              <option value="Unknown">Unknown</option>
+            </select>
+          </div>
         </div>
 
         {dogsError && <div className={styles.errorText}>{dogsError}</div>}
@@ -282,43 +314,6 @@ export default function FostersPage() {
         {!dogsError && (
           <div className={styles.tableWrapper} ref={tableWrapperRef}>
             <div className={`${styles.tableContainer} ${dirStyles.directoryTableContainer}`}>
-
-              {/* Filter bar — matches directory style */}
-              <div className={dirStyles.directoryFilterBar}>
-                <div className={dirStyles.chipGroup}>
-                  <label htmlFor="dir-queue-filter" className={inboxStyles.visuallyHidden}>Queue</label>
-                  <select
-                    id="dir-queue-filter"
-                    className={dirStyles.sortSelect}
-                    value={queueFilter}
-                    disabled={initialFostersLoading}
-                    onChange={e => setQueueFilter(e.target.value as TaskInboxFilter)}
-                    title="Filter by Task Log lanes (photos / survey)"
-                    style={{ minWidth: 200 }}
-                  >
-                    {QUEUE_FILTERS.map(o => (
-                      <option key={o.value} value={o.value}>{o.label}</option>
-                    ))}
-                  </select>
-
-                  <label htmlFor="dir-household-status-filter" className={inboxStyles.visuallyHidden}>Household status</label>
-                  <select
-                    id="dir-household-status-filter"
-                    className={dirStyles.sortSelect}
-                    value={statusFilter}
-                    disabled={initialFostersLoading}
-                    onChange={e => setStatusFilter(e.target.value as 'all' | FosterStatus)}
-                    title="Worst status among open Task Log rows"
-                  >
-                    <option value="all">Any household</option>
-                    <option value="Good">Good / No open tasks</option>
-                    <option value="Needs Review">Needs Review</option>
-                    <option value="Overdue">Overdue</option>
-                    <option value="Unknown">Unknown</option>
-                  </select>
-                </div>
-              </div>
-
               <div className={styles.tableScroll}>
                 <table className={`${styles.table} ${inboxStyles.fostersTaskTable}`}>
                   <thead>

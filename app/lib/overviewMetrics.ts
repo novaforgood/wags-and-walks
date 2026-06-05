@@ -1,4 +1,5 @@
 import { shouldHideDog, type DogRecord } from '@/app/lib/fosterDirectory'
+import type { FostererHistory } from '@/app/lib/asmFosterHistory'
 import type { Person, PersonStatus } from '@/app/lib/peopleTypes'
 
 function isRejectedStatus(s?: PersonStatus): boolean {
@@ -69,6 +70,52 @@ export function countApplicantsAppliedThisWeek(people: Person[], now: Date = new
     let n = 0
     for (const p of people) {
         if (applicantAppliedThisWeek(p, t)) n += 1
+    }
+    return n
+}
+
+/**
+ * First-time fosters (people) whose first-ever foster pickup was this calendar month
+ * (month-to-date, local). Uses ASM foster history — includes fosters who already returned
+ * a dog this month. Each fosterer is counted once.
+ */
+export function countFirstTimeFosterPickupsThisMonth(
+    fosterers: readonly FostererHistory[],
+    now: Date = new Date()
+): number {
+    const t = now instanceof Date && !Number.isNaN(now.getTime()) ? now : new Date()
+    const y = t.getFullYear()
+    const m = t.getMonth()
+    const monthStart = new Date(y, m, 1, 0, 0, 0, 0)
+    const end = new Date(t)
+    end.setHours(23, 59, 59, 999)
+
+    let n = 0
+    for (const fosterer of fosterers) {
+        const placements = [...fosterer.currentFosters, ...fosterer.pastFosters]
+        let earliestEver: Date | null = null
+        let hasTrackablePickupThisMonth = false
+
+        for (const placement of placements) {
+            const start = parseCalendarDateLocal(placement.fosterStartDate)
+            if (!start) continue
+            if (!earliestEver || start < earliestEver) earliestEver = start
+            if (shouldHideDog(placement.name)) continue
+            if (
+                start >= monthStart &&
+                start <= end &&
+                start.getFullYear() === y &&
+                start.getMonth() === m
+            ) {
+                hasTrackablePickupThisMonth = true
+            }
+        }
+
+        if (!earliestEver || !hasTrackablePickupThisMonth) continue
+        if (earliestEver < monthStart) continue
+        if (earliestEver > end) continue
+        if (earliestEver.getFullYear() !== y || earliestEver.getMonth() !== m) continue
+        n += 1
     }
     return n
 }

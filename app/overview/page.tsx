@@ -10,8 +10,9 @@ import type { Person, PersonStatus } from '@/app/lib/peopleTypes'
 import StatMetricHelp from '@/app/components/StatMetricHelp'
 import {
     countApplicantsAppliedThisWeek,
-    countTrackableFosterStartsThisMonth,
+    countFirstTimeFosterPickupsThisMonth,
 } from '@/app/lib/overviewMetrics'
+import type { FostererHistory } from '@/app/lib/asmFosterHistory'
 import { formatRelativeTime } from '@/app/lib/formatRelativeTime'
 import { authFetch } from '@/app/lib/authFetch'
 import type { TasksGetMetrics, TaskRow } from '@/app/api/tasks/route'
@@ -260,7 +261,7 @@ function earliestOverdueTrigger(
 }
 
 export default function OverviewPage() {
-    const { people, isLoading, error } = usePeople()
+    const { people, isLoading, error, lastFetchedAt, refresh } = usePeople()
     const [queueFilter, setQueueFilter] = useState<QueueFilter>('all')
     const [fetchKey, setFetchKey] = useState(0)
     const [syncedAt, setSyncedAt] = useState<string | undefined>(undefined)
@@ -269,6 +270,8 @@ export default function OverviewPage() {
     const [tasksRequestDone, setTasksRequestDone] = useState(false)
     const [dogs, setDogs] = useState<DogRecord[]>([])
     const [dogsRequestDone, setDogsRequestDone] = useState(false)
+    const [fosterers, setFosterers] = useState<FostererHistory[]>([])
+    const [fosterHistoryRequestDone, setFosterHistoryRequestDone] = useState(false)
     const [taskRows, setTaskRows] = useState<TaskRow[]>([])
     const [taskStatusByAnimalId, setTaskStatusByAnimalId] = useState<Record<string, FosterStatus>>({})
     useEffect(() => {
@@ -309,6 +312,26 @@ export default function OverviewPage() {
             }
         }
         void loadDogs()
+        return () => { active = false }
+    }, [fetchKey])
+
+    useEffect(() => {
+        let active = true
+        async function loadFosterHistory() {
+            try {
+                const res = await authFetch('/api/foster-history', { cache: 'no-store' })
+                if (!res.ok || !active) return
+                const data = await res.json()
+                if (!active) return
+                if (Array.isArray(data?.fosterers)) {
+                    setFosterers(data.fosterers as FostererHistory[])
+                }
+            } catch { /* foster history optional */ }
+            finally {
+                if (active) setFosterHistoryRequestDone(true)
+            }
+        }
+        void loadFosterHistory()
         return () => { active = false }
     }, [fetchKey])
 
@@ -355,9 +378,9 @@ export default function OverviewPage() {
     const overdueFollowUpRows = taskMetrics?.activeOverdueTaskRows ?? 0
     const peoplePending = isLoading && people.length === 0
     const applicantsThisWeek = useMemo(() => countApplicantsAppliedThisWeek(people), [people])
-    const fosterStartsThisMonth = useMemo(
-        () => countTrackableFosterStartsThisMonth(dogs),
-        [dogs]
+    const newbieFosterPickups = useMemo(
+        () => countFirstTimeFosterPickupsThisMonth(fosterers),
+        [fosterers]
     )
     const enrichedFosters = useMemo(
         () => enrichFosterDirectoryWithLanes(dogs, taskRows, taskStatusByAnimalId),
@@ -413,9 +436,13 @@ export default function OverviewPage() {
             <DashboardShell>
                 <DashboardTopBar
                     title="Overview"
-                    syncUpdatedAt={syncedAt}
+                    syncUpdatedAt={
+                        lastFetchedAt
+                            ? new Date(lastFetchedAt).toISOString()
+                            : syncedAt
+                    }
                     onSyncRefresh={() => {
-                        setSyncedAt(new Date().toISOString())
+                        void refresh({ suppressLoadingBar: true })
                         setFetchKey(k => k + 1)
                     }}
                 />
@@ -426,8 +453,8 @@ export default function OverviewPage() {
                         <div className={styles.statCards}>
                             <div className={styles.statCard}>
                                 <StatMetricHelp
-                                    label="Active fosters"
-                                    helpAriaLabel="How active fosters is calculated"
+                                    label="Dogs in foster homes"
+                                    helpAriaLabel="How dogs in foster homes is calculated"
                                 >
                                     <p>
                                         Shows dogs currently in active foster placements. Dogs
@@ -476,17 +503,17 @@ export default function OverviewPage() {
 
                             <div className={styles.statCard}>
                                 <StatMetricHelp
-                                    label="Foster starts this month"
-                                    helpAriaLabel="How foster starts this month is calculated"
+                                    label="Newbie foster pickup number"
+                                    helpAriaLabel="How newbie foster pickup number is calculated"
                                 >
                                     <p>
-                                        Dogs in active foster placements that started this
-                                        calendar month (through today). Applies the same
-                                        exclusions as Active Fosters. Data from ShelterManager.
+                                        First-time fosters who picked up their first dog this
+                                        calendar month (through today). Each person is counted
+                                        once. Data from ShelterManager foster history.
                                     </p>
                                 </StatMetricHelp>
-                                <StatValueFigure pending={!dogsRequestDone}>
-                                    {fosterStartsThisMonth}
+                                <StatValueFigure pending={!fosterHistoryRequestDone}>
+                                    {newbieFosterPickups}
                                 </StatValueFigure>
                             </div>
                         </div>

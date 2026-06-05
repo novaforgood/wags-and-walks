@@ -407,7 +407,8 @@ export default function FosterDetailsPage() {
                         <StatusBadge status={dog.status} />
                       </div>
                       {tasks.length > 0 && (
-                        <table className={styles.table}>
+                        <div className={layoutStyles.tableEmbedScroll}>
+                        <table className={layoutStyles.table}>
                           <thead>
                             <tr>
                               <th>Task</th>
@@ -469,6 +470,7 @@ export default function FosterDetailsPage() {
                             )})}
                           </tbody>
                         </table>
+                        </div>
                       )}
                       {tasks.length === 0 && (
                         <p className={styles.hint}>No tasks logged yet for {dog.name}.</p>

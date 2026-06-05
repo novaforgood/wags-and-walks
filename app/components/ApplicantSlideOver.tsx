@@ -64,12 +64,12 @@ export default function ApplicantSlideOver({ person, onClose }: Props) {
   const starTitle = !canStar
     ? 'Email required'
     : livePerson.starred
-      ? 'Remove donor'
-      : 'Mark donor'
+      ? 'Remove VIP'
+      : 'Mark VIP'
 
   const starAriaLabel = livePerson.starred
-    ? `Remove donor mark for ${fullName}`
-    : `Mark ${fullName} as donor`
+    ? `Remove VIP mark for ${fullName}`
+    : `Mark ${fullName} as VIP`
 
   return (
     <div

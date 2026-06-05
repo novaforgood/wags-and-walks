@@ -2,7 +2,13 @@
 
 import { useEffect, useState } from 'react'
 import type { FostererHistory, FosterDog } from '@/app/lib/asmFosterHistory'
+import {
+  fosterFailOutcomeLabel,
+  fosterHistoryHasFosterFail,
+} from '@/app/lib/fosterOutcome'
 import { authFetch } from '@/app/lib/authFetch'
+import tableStyles from '../candidates/candidates.module.css'
+import styles from './FosterHistoryPanel.module.css'
 
 interface Props {
   email: string | null | undefined
@@ -62,7 +68,7 @@ export default function FosterHistoryPanel({ email, initialData, sectionClassNam
     return (
       <div className={sc} style={!sectionClassName ? defaultSectionObj : undefined}>
         <SectionTitle className={stc}>Foster History</SectionTitle>
-        <p style={{ color: '#888', margin: 0, fontSize: 14 }}>Loading...</p>
+        <p className={styles.emptyText}>Loading...</p>
       </div>
     )
   }
@@ -71,7 +77,7 @@ export default function FosterHistoryPanel({ email, initialData, sectionClassNam
     return (
       <div className={sc} style={!sectionClassName ? defaultSectionObj : undefined}>
         <SectionTitle className={stc}>Foster History</SectionTitle>
-        <p style={{ color: '#c00', margin: 0, fontSize: 14 }}>{error}</p>
+        <p className={styles.errorText}>{error}</p>
       </div>
     )
   }
@@ -80,13 +86,26 @@ export default function FosterHistoryPanel({ email, initialData, sectionClassNam
     return (
       <div className={sc} style={!sectionClassName ? defaultSectionObj : undefined}>
         <SectionTitle className={stc}>Foster History</SectionTitle>
-        <p style={{ color: '#888', margin: 0, fontSize: 14 }}>No foster history on record.</p>
+        <p className={styles.emptyText}>No foster history on record.</p>
       </div>
     )
   }
 
+  const showFosterFailSummary = fosterHistoryHasFosterFail([
+    ...data.currentFosters,
+    ...data.pastFosters,
+  ])
+
   return (
     <>
+      {showFosterFailSummary && (
+        <div className={sc} style={!sectionClassName ? defaultSectionObj : undefined}>
+          <p className={styles.fosterFailSummary}>
+            This fosterer adopted at least one foster dog (a foster fail). Matching
+            placements are noted in the table below.
+          </p>
+        </div>
+      )}
       {data.currentFosters.length > 0 && (
         <div className={sc} style={!sectionClassName ? defaultSectionObj : undefined}>
           <SectionTitle className={stc}>Currently Fostering</SectionTitle>
@@ -96,7 +115,7 @@ export default function FosterHistoryPanel({ email, initialData, sectionClassNam
       <div className={sc} style={!sectionClassName ? defaultSectionObj : undefined}>
         <SectionTitle className={stc}>Past Fosters</SectionTitle>
         {data.pastFosters.length === 0 ? (
-          <p style={{ color: '#888', margin: 0, fontSize: 14 }}>No past fosters on record.</p>
+          <p className={styles.emptyText}>No past fosters on record.</p>
         ) : (
           <DogTable dogs={data.pastFosters} showEndDate />
         )}
@@ -111,42 +130,45 @@ function SectionTitle({ children, className }: { children: React.ReactNode; clas
 }
 
 function DogTable({ dogs, showEndDate }: { dogs: FosterDog[]; showEndDate: boolean }) {
+  const showOutcome = dogs.some(d => d.fosterFailOutcome)
   return (
-    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
-      <thead>
-        <tr>
-          <Th>Name</Th>
-          <Th>Breed</Th>
-          <Th>Sex</Th>
-          <Th>Start date</Th>
-          {showEndDate && <Th>End date</Th>}
-        </tr>
-      </thead>
-      <tbody>
-        {dogs.map((dog, i) => (
-          <tr key={`${dog.animalId}-${dog.fosterStartDate}-${i}`} style={{ borderBottom: '1px solid #f0f4f4' }}>
-            <Td>{dog.name ?? '—'}</Td>
-            <Td>{dog.breed ?? '—'}</Td>
-            <Td>{dog.sex ?? '—'}</Td>
-            <Td>{fmtDate(dog.fosterStartDate)}</Td>
-            {showEndDate && <Td>{fmtDate(dog.fosterEndDate)}</Td>}
+    <div className={tableStyles.tableEmbedScroll}>
+      <table className={tableStyles.table}>
+        <thead>
+          <tr>
+            <th scope="col">Name</th>
+            <th scope="col">Breed</th>
+            <th scope="col">Sex</th>
+            <th scope="col">Start date</th>
+            {showEndDate && <th scope="col">End date</th>}
+            {showOutcome && <th scope="col">Outcome</th>}
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {dogs.map((dog, i) => (
+            <tr key={`${dog.animalId}-${dog.fosterStartDate}-${i}`}>
+              <td>{dog.name ?? '—'}</td>
+              <td>{dog.breed ?? '—'}</td>
+              <td>{dog.sex ?? '—'}</td>
+              <td>{fmtDate(dog.fosterStartDate)}</td>
+              {showEndDate && <td>{fmtDate(dog.fosterEndDate)}</td>}
+              {showOutcome && (
+                <td>
+                  {dog.fosterFailOutcome ? (
+                    <span className={styles.outcomeNote}>
+                      {fosterFailOutcomeLabel(dog.fosterFailOutcome, showEndDate)}
+                    </span>
+                  ) : (
+                    '—'
+                  )}
+                </td>
+              )}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   )
-}
-
-function Th({ children }: { children: React.ReactNode }) {
-  return (
-    <th style={{ textAlign: 'left', padding: '6px 8px', fontWeight: 600, color: '#3b4b4b', fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.03em', borderBottom: '1px solid #e5eeee' }}>
-      {children}
-    </th>
-  )
-}
-
-function Td({ children }: { children: React.ReactNode }) {
-  return <td style={{ padding: '8px 8px', color: '#222' }}>{children}</td>
 }
 
 function fmtDate(val?: string | null): string {

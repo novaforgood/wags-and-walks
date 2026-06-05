@@ -58,93 +58,15 @@
     border: 0;
 }
 
-/* ---- Directory: search row only in shared toolbar ---- */
+/* ---- Directory: toolbar wraps when filters + sort need a second row ---- */
 .directoryToolbar {
+    flex-wrap: wrap;
+    row-gap: 12px;
     padding-bottom: 14px;
-    align-items: flex-start;
-}
-
-/* ---- Filter + sort row (inside white table card, aligns with table padding) ---- */
-.directoryFilterBar {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: 14px 20px;
-    padding: 16px 30px 18px;
-    box-sizing: border-box;
-    /* Match main shell background — not the white table body */
-    background: #f3f7f7;
-    border-radius: 8px 8px 0 0;
-    border-bottom: 1px solid rgba(4, 130, 137, 0.12);
-}
-
-.chipGroup {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    flex-wrap: wrap;
-    flex: 1;
-    min-width: 0;
-}
-
-.chip {
-    padding: 0 16px;
-    height: 36px;
-    border: 1px solid #c4c4c4;
-    border-radius: 30px;
-    background: #fff;
-    font-size: 14px;
-    font-family: 'Inter', sans-serif;
-    color: #374151;
-    cursor: pointer;
-    white-space: nowrap;
-    transition: background 0.12s, border-color 0.12s, color 0.12s;
-    display: flex;
     align-items: center;
 }
 
-.chip:hover:not(.chipActive) {
-    background: #f0f0f0;
-    border-color: #aaa;
-}
-
-.chip:disabled {
-    cursor: default;
-    opacity: 0.55;
-}
-
-.chip:disabled:hover {
-    background: #fff;
-    border-color: #c4c4c4;
-}
-
-/* Solid primary fill — matches View / selectBtn (#05aaaf) */
-.chipActive {
-    background: #05aaaf;
-    border-color: #05aaaf;
-    color: #fff;
-    font-weight: 600;
-}
-
-.chipActive:hover {
-    background: #05999e;
-    border-color: #05999e;
-}
-
-.chipActive:disabled,
-.chipActive:disabled:hover {
-    background: #05aaaf;
-    border-color: #05aaaf;
-    color: #fff;
-}
-
-.chip:focus-visible {
-    outline: 2px solid #05aaaf;
-    outline-offset: 2px;
-}
-
-/* ---- Sort: native menu (no faux-gradient chevron) ---- */
+/* ---- Sort control (toolbar right) ---- */
 .sortWrap {
     display: inline-flex;
     align-items: center;
@@ -157,31 +79,6 @@
     color: #6b7280;
     font-family: 'Inter', sans-serif;
     white-space: nowrap;
-}
-
-.sortSelect {
-    appearance: auto;
-    -webkit-appearance: menulist;
-    height: 36px;
-    min-width: 140px;
-    padding: 0 8px;
-    border-radius: 8px;
-    border: 1px solid #c4c4c4;
-    background-color: #fff;
-    font-size: 14px;
-    font-family: 'Inter', sans-serif;
-    color: #111827;
-    cursor: pointer;
-    box-sizing: border-box;
-}
-
-.sortSelect:hover {
-    border-color: #9ca3af;
-}
-
-.sortSelect:disabled {
-    cursor: default;
-    opacity: 0.6;
 }
 
 .fadeIn {
@@ -273,8 +170,7 @@
 /* Disabled star: same circular chrome as .actionIconBtn (rows without application) */
 .starDisabledWrap {
     opacity: 0.38;
-    cursor: default;
-    pointer-events: none;
+    cursor: not-allowed;
 }
 
 /* ---- Column widths (via <colgroup>) ---- */
@@ -300,7 +196,6 @@
     white-space: nowrap;
     vertical-align: middle;
     line-height: 1.35;
-    font-size: 14px;
     word-break: normal;
     overflow-wrap: normal;
 }
@@ -348,25 +243,8 @@
 }
 
 @media (max-width: 720px) {
-    .directoryFilterBar {
-        padding: 14px 16px 16px;
-        gap: 12px 14px;
-    }
-
-    .chipGroup {
-        gap: 8px;
-    }
-
-    .chip {
-        padding: 0 12px;
-        height: 34px;
-        font-size: 13px;
-    }
-
-    .sortSelect {
-        min-width: 0;
-        flex: 1;
-        max-width: 200px;
+    .sortWrap {
+        width: 100%;
     }
 
     .tableStateLoading,

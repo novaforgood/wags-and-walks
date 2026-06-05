@@ -233,7 +233,7 @@ function doGet(e) {
     }
 
     const headers = getHeaders_(sheet);
-    const values = sheet.getRange(2, 1, lastRow - 1, lastCol).getValues();
+    const values = sheet.getRange(2, 1, lastRow, lastCol).getValues();
 
     const start = Math.max(0, Number.isFinite(offset) ? offset : 0);
     const lim = Number.isFinite(limit) ? Math.max(1, limit) : 1000;

@@ -70,7 +70,7 @@ function buildPageList(totalPages: number, currentPage: number): (number | 'elli
 
 const QUICK_FILTERS: { id: QuickFilter; label: string; title: string }[] = [
   { id: 'all', label: 'All', title: 'Show all directory members' },
-  { id: 'starred', label: 'Donor', title: 'Members marked as donors' },
+  { id: 'starred', label: 'VIP', title: 'Members marked as VIP' },
   { id: 'flagged', label: 'Flagged', title: 'Members with a flag on their application' },
   { id: 'current_foster', label: 'Fostering now', title: 'Currently has a foster dog in Shelter Manager' },
   { id: 'available', label: 'Available', title: 'Has Shelter Manager history but is not currently fostering' },
@@ -440,45 +440,47 @@ export default function DirectoryPage() {
               <img src="/assets/Search.svg" alt="Search" width={16} height={16} />
             </div>
           </div>
+
+          <div className={styles.quickPills} role="group" aria-label="Filter directory">
+            {QUICK_FILTERS.map(f => (
+              <button
+                key={f.id}
+                type="button"
+                className={`${styles.quickPill} ${quickFilter === f.id ? styles.quickPillActive : ''}`}
+                onClick={() => setQuickFilter(f.id)}
+                disabled={
+                  initialDirectoryLoading ||
+                  ((f.id === 'starred' || f.id === 'flagged') && peoplePending) ||
+                  ((f.id === 'current_foster' || f.id === 'available') && fosterersPending)
+                }
+                title={f.title}
+                aria-pressed={quickFilter === f.id}
+              >
+                <span className={styles.quickPillLabel}>{f.label}</span>
+              </button>
+            ))}
+            <FilterDropdown people={people} filters={filters} setFilters={setFilters} />
+          </div>
+
+          <div className={styles.toolbarRight}>
+            <label className={dirStyles.sortWrap}>
+              <span className={dirStyles.sortLabel}>Sort</span>
+              <select
+                className={`${styles.toolbarBtn} ${styles.statusFilterSelect}`}
+                value={sortOrder}
+                disabled={initialDirectoryLoading}
+                onChange={e => setSortOrder(e.target.value as SortOrder)}
+                aria-label="Sort directory"
+              >
+                <option value="az">A – Z</option>
+                <option value="most_fostered" disabled={fosterersPending}>Most fostered</option>
+              </select>
+            </label>
+          </div>
         </div>
 
         <div className={styles.tableWrapper} ref={tableWrapperRef}>
           <div className={`${styles.tableContainer} ${dirStyles.directoryTableContainer}`}>
-            <div className={dirStyles.directoryFilterBar}>
-              <div className={dirStyles.chipGroup} role="group" aria-label="Filter directory">
-                {QUICK_FILTERS.map(f => (
-                  <button
-                    key={f.id}
-                    type="button"
-                    className={`${dirStyles.chip} ${quickFilter === f.id ? dirStyles.chipActive : ''}`}
-                    onClick={() => setQuickFilter(f.id)}
-                    disabled={
-                      initialDirectoryLoading ||
-                      ((f.id === 'starred' || f.id === 'flagged') && peoplePending) ||
-                      ((f.id === 'current_foster' || f.id === 'available') && fosterersPending)
-                    }
-                    title={f.title}
-                    aria-pressed={quickFilter === f.id}
-                  >
-                    {f.label}
-                  </button>
-                ))}
-                <FilterDropdown people={people} filters={filters} setFilters={setFilters} buttonClassName={dirStyles.chip} />
-              </div>
-              <label className={dirStyles.sortWrap}>
-                <span className={dirStyles.sortLabel}>Sort</span>
-                <select
-                  className={dirStyles.sortSelect}
-                  value={sortOrder}
-                  disabled={initialDirectoryLoading}
-                  onChange={e => setSortOrder(e.target.value as SortOrder)}
-                  aria-label="Sort directory"
-                >
-                  <option value="az">A – Z</option>
-                  <option value="most_fostered" disabled={fosterersPending}>Most fostered</option>
-                </select>
-              </label>
-            </div>
             <div className={styles.tableScroll}>
             <table className={`${styles.table} ${dirStyles.directoryTable}`}>
               <colgroup>
@@ -547,12 +549,14 @@ export default function DirectoryPage() {
                           tabIndex={0}
                           aria-label={`Open directory entry for ${r.displayName}`}
                           onClick={e => {
-                            if ((e.target as HTMLElement).closest('button')) return
+                            const el = e.target as HTMLElement
+                            if (el.closest('button, [data-vip-control]')) return
                             openPerson()
                           }}
                           onKeyDown={e => {
                             if (e.key !== 'Enter' && e.key !== ' ') return
-                            if ((e.target as HTMLElement).closest('button')) return
+                            const el = e.target as HTMLElement
+                            if (el.closest('button, [data-vip-control]')) return
                             e.preventDefault()
                             openPerson()
                           }}
@@ -592,13 +596,16 @@ export default function DirectoryPage() {
                                 <span className={`${dirStyles.skeletonStar} ${dirStyles.starSlot}`} aria-hidden="true" />
                               ) : r.hasApplication ? (
                                 <button
+                                  type="button"
+                                  data-vip-control
                                   className={`${styles.actionIconBtn} ${r.starred ? styles.actionIconStarActive : styles.actionIconStar} ${dirStyles.starSlot}`}
+                                  onMouseDown={e => e.stopPropagation()}
                                   onClick={e => {
                                     e.stopPropagation()
                                     toggleStar(r.application!.email || '')
                                   }}
-                                  title={r.starred ? 'Unmark donor' : 'Mark as donor'}
-                                  aria-label={r.starred ? `Unmark ${r.displayName} as donor` : `Mark ${r.displayName} as donor`}
+                                  title={r.starred ? 'Unmark VIP' : 'Mark as VIP'}
+                                  aria-label={r.starred ? `Unmark ${r.displayName} as VIP` : `Mark ${r.displayName} as VIP`}
                                 >
                                   <svg viewBox="0 0 24 24" aria-hidden="true" className={styles.actionIconSvg}>
                                     <path
@@ -613,8 +620,11 @@ export default function DirectoryPage() {
                                 </button>
                               ) : (
                                 <span
+                                  data-vip-control
                                   className={`${styles.actionIconBtn} ${styles.actionIconStar} ${dirStyles.starSlot} ${dirStyles.starDisabledWrap}`}
-                                  title="No application on file — donor flag unavailable"
+                                  onMouseDown={e => e.stopPropagation()}
+                                  onClick={e => e.stopPropagation()}
+                                  title="No application on file — VIP flag unavailable"
                                   aria-hidden="true"
                                 >
                                   <svg viewBox="0 0 24 24" aria-hidden="true" className={styles.actionIconSvg}>
@@ -630,7 +640,9 @@ export default function DirectoryPage() {
                                 </span>
                               )}
                               <button
+                                type="button"
                                 className={`${styles.selectBtn} ${dirStyles.selectBtnCompact}`}
+                                onMouseDown={e => e.stopPropagation()}
                                 onClick={e => {
                                   e.stopPropagation()
                                   openPerson()

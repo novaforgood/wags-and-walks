@@ -285,7 +285,7 @@ export default function CandidatesPage() {
                             }
                         />
                         <QuickPill
-                            label="Donor"
+                            label="VIP"
                             count={isLoading && people.length === 0 ? null : bucketCounts.starred}
                             active={quickFilters.starred}
                             tone="neutral"
@@ -312,7 +312,7 @@ export default function CandidatesPage() {
                                         <th>Name</th>
                                         <th>Red Flags</th>
                                         <th>Applied</th>
-                                        <th style={{ textAlign: 'center', width: '80px' }}>Donor</th>
+                                        <th style={{ textAlign: 'center', width: '80px' }}>VIP</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -407,7 +407,7 @@ export default function CandidatesPage() {
                                                 {formatRelativeTime(person.appliedAt)}
                                             </td>
 
-                                            {/* Donor toggle */}
+                                            {/* VIP toggle */}
                                             <td style={{ textAlign: 'center', verticalAlign: 'middle' }}>
                                                 <button
                                                     type="button"
@@ -416,8 +416,8 @@ export default function CandidatesPage() {
                                                         e.stopPropagation()
                                                         toggleStar(person.email || '')
                                                     }}
-                                                    title={person.starred ? 'Unmark donor' : 'Mark as donor'}
-                                                    aria-label={person.starred ? `Unmark ${name} as donor` : `Mark ${name} as donor`}
+                                                    title={person.starred ? 'Unmark VIP' : 'Mark as VIP'}
+                                                    aria-label={person.starred ? `Unmark ${name} as VIP` : `Mark ${name} as VIP`}
                                                 >
                                                     <svg viewBox="0 0 24 24" aria-hidden="true" className={styles.actionIconSvg}>
                                                         <path

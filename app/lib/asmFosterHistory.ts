@@ -1,3 +1,8 @@
+import {
+  fosterFailOutcomeFromName,
+  type FosterFailOutcome,
+} from '@/app/lib/fosterOutcome'
+
 export type AsmFosterRow = {
   FOSTERERNAME: string
   FOSTERERID: string | number
@@ -31,6 +36,8 @@ export type FosterDog = {
   animalAge?: string
   fosterStartDate?: string
   fosterEndDate?: string | null
+  /** Inferred from ASM animal name prefix (*FTA, *ADOPTING, etc.). */
+  fosterFailOutcome?: FosterFailOutcome | null
 }
 
 export type FostererHistory = {
@@ -55,16 +62,18 @@ let historyCache: { rows: AsmFosterRow[]; expiresAt: number } | null = null
 let historyInFlight: Promise<AsmFosterRow[]> | null = null
 
 function rowToDog(row: AsmFosterRow): FosterDog {
+  const name = row.ANIMALNAME || undefined
   return {
     animalId: String(row.ANIMALID),
     shelterCode: row.SHELTERCODE || undefined,
-    name: row.ANIMALNAME || undefined,
+    name,
     breed: row.BREEDNAME || undefined,
     sex: row.SEX || undefined,
     colour: row.COLOUR || undefined,
     animalAge: row.ANIMALAGE || undefined,
     fosterStartDate: row.FOSTERSTARTDATE || undefined,
     fosterEndDate: row.FOSTERENDDATE || null,
+    fosterFailOutcome: fosterFailOutcomeFromName(name),
   }
 }
 

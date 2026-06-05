@@ -711,6 +711,17 @@
     outline-offset: -2px;
 }
 
+/* Embedded tables (detail tabs, modals) — same cell styling, no sticky header */
+.tableEmbedScroll {
+    overflow-x: auto;
+    border: 1px solid rgba(81, 81, 81, 0.07);
+    border-radius: var(--radius-card, 14px);
+}
+
+.tableEmbedScroll .table thead {
+    position: static;
+}
+
 /* ── Pagination bar (lives at the bottom of the panel) ────────────────── */
 
 .pagination {
@@ -1502,6 +1513,16 @@
 .quickPill:hover {
   border-color: var(--color-gray-normal-hover, #cfcfcf);
   background: var(--color-gray-light-hover, #fbfbfb);
+}
+
+.quickPill:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.quickPill:disabled:hover {
+  background: #fff;
+  border-color: var(--color-gray-normal, #e6e6e6);
 }
 
 .quickPillActive,
