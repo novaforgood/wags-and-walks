@@ -10,7 +10,9 @@ import type { Person, PersonStatus } from '@/app/lib/peopleTypes'
 import StatMetricHelp from '@/app/components/StatMetricHelp'
 import {
     countApplicantsAppliedThisWeek,
+    countFirstTimeFosterPickupsPreviousMonth,
     countFirstTimeFosterPickupsThisMonth,
+    previousCalendarMonthLabel,
 } from '@/app/lib/overviewMetrics'
 import type { FostererHistory } from '@/app/lib/asmFosterHistory'
 import { formatRelativeTime } from '@/app/lib/formatRelativeTime'
@@ -105,20 +107,66 @@ function StatValueFigure({
     pending,
     children,
     alert,
+    subline,
 }: {
     pending: boolean
     children: React.ReactNode
     alert?: boolean
+    subline?: string
 }) {
-    if (pending) {
-        return (
-            <span className={styles.statValueSkeleton} aria-busy="true" title="Loading" />
-        )
-    }
     return (
-        <span className={`${styles.statCardValue} ${styles.fadeIn} ${alert ? styles.statCardValueAlert : ''}`}>
-            {children}
-        </span>
+        <div className={styles.statCardBody}>
+            {pending ? (
+                <span className={styles.statValueSkeleton} aria-busy="true" title="Loading" />
+            ) : (
+                <span className={`${styles.statCardValue} ${styles.fadeIn} ${alert ? styles.statCardValueAlert : ''}`}>
+                    {children}
+                </span>
+            )}
+            {subline && <span className={styles.statCardSubline}>{subline}</span>}
+        </div>
+    )
+}
+
+function NewbieFosterPickupFigure({
+    pending,
+    currentMonthCount,
+    previousMonthCount,
+    previousMonthLabel,
+}: {
+    pending: boolean
+    currentMonthCount: number
+    previousMonthCount: number
+    previousMonthLabel: string
+}) {
+    const [flipped, setFlipped] = useState(false)
+
+    return (
+        <div className={`${styles.statCardBody} ${styles.newbiePickupBody}`}>
+            {pending ? (
+                <span className={styles.statValueSkeleton} aria-busy="true" title="Loading" />
+            ) : (
+                <button
+                    type="button"
+                    className={`${styles.newbiePickupFlip} ${flipped ? styles.newbiePickupFlipActive : ''}`}
+                    onClick={() => setFlipped(f => !f)}
+                    aria-pressed={flipped}
+                    aria-label={
+                        flipped
+                            ? `${previousMonthCount} newbie pickups in ${previousMonthLabel}. Tap to show this month (${currentMonthCount}).`
+                            : `${currentMonthCount} newbie pickups this month. Tap to show ${previousMonthLabel} (${previousMonthCount}).`
+                    }
+                >
+                    <span className={styles.newbiePickupFace} aria-hidden={flipped}>
+                        <span className={`${styles.statCardValue} ${styles.fadeIn}`}>{currentMonthCount}</span>
+                    </span>
+                    <span className={`${styles.newbiePickupFace} ${styles.newbiePickupFacePrior}`} aria-hidden={!flipped}>
+                        <span className={`${styles.statCardValue} ${styles.fadeIn}`}>{previousMonthCount}</span>
+                        <span className={styles.statCardSubline}>{previousMonthLabel}</span>
+                    </span>
+                </button>
+            )}
+        </div>
     )
 }
 
@@ -382,6 +430,11 @@ export default function OverviewPage() {
         () => countFirstTimeFosterPickupsThisMonth(fosterers),
         [fosterers]
     )
+    const newbieFosterPickupsPreviousMonth = useMemo(
+        () => countFirstTimeFosterPickupsPreviousMonth(fosterers),
+        [fosterers]
+    )
+    const previousMonthLabel = useMemo(() => previousCalendarMonthLabel(), [])
     const enrichedFosters = useMemo(
         () => enrichFosterDirectoryWithLanes(dogs, taskRows, taskStatusByAnimalId),
         [dogs, taskRows, taskStatusByAnimalId]
@@ -501,20 +554,32 @@ export default function OverviewPage() {
                                 </StatValueFigure>
                             </div>
 
-                            <div className={styles.statCard}>
+                            <div className={`${styles.statCard} ${styles.statCardInteractive}`}>
                                 <StatMetricHelp
                                     label="Newbie foster pickup number"
                                     helpAriaLabel="How newbie foster pickup number is calculated"
+                                    trailing={
+                                        <span className={styles.statCardSwapIcon} aria-hidden="true" title="Hover or tap to compare months">
+                                            ⇄
+                                        </span>
+                                    }
                                 >
                                     <p>
                                         First-time fosters who picked up their first dog this
                                         calendar month (through today). Each person is counted
                                         once. Data from ShelterManager foster history.
                                     </p>
+                                    <p>
+                                        Hover or tap the number to see the count for{' '}
+                                        {previousMonthLabel} (full prior calendar month).
+                                    </p>
                                 </StatMetricHelp>
-                                <StatValueFigure pending={!fosterHistoryRequestDone}>
-                                    {newbieFosterPickups}
-                                </StatValueFigure>
+                                <NewbieFosterPickupFigure
+                                    pending={!fosterHistoryRequestDone}
+                                    currentMonthCount={newbieFosterPickups}
+                                    previousMonthCount={newbieFosterPickupsPreviousMonth}
+                                    previousMonthLabel={previousMonthLabel}
+                                />
                             </div>
                         </div>
 

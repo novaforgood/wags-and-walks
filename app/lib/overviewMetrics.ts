@@ -75,26 +75,42 @@ export function countApplicantsAppliedThisWeek(people: Person[], now: Date = new
 }
 
 /**
- * First-time fosters (people) whose first-ever foster pickup was this calendar month
- * (month-to-date, local). Uses ASM foster history — includes fosters who already returned
- * a dog this month. Each fosterer is counted once.
+ * Calendar month bounds for first-time foster pickup counts.
+ * `monthsAgo: 0` = current month through today; `1` = full previous calendar month.
  */
-export function countFirstTimeFosterPickupsThisMonth(
-    fosterers: readonly FostererHistory[],
-    now: Date = new Date()
-): number {
+function calendarMonthWindow(monthsAgo: number, now: Date = new Date()): {
+    monthStart: Date
+    monthEnd: Date
+    year: number
+    month: number
+} {
     const t = now instanceof Date && !Number.isNaN(now.getTime()) ? now : new Date()
-    const y = t.getFullYear()
-    const m = t.getMonth()
-    const monthStart = new Date(y, m, 1, 0, 0, 0, 0)
-    const end = new Date(t)
-    end.setHours(23, 59, 59, 999)
+    const ref = new Date(t.getFullYear(), t.getMonth() - monthsAgo, 1)
+    const year = ref.getFullYear()
+    const month = ref.getMonth()
+    const monthStart = new Date(year, month, 1, 0, 0, 0, 0)
+    const monthEnd =
+        monthsAgo === 0
+            ? (() => {
+                const end = new Date(t)
+                end.setHours(23, 59, 59, 999)
+                return end
+            })()
+            : new Date(year, month + 1, 0, 23, 59, 59, 999)
+    return { monthStart, monthEnd, year, month }
+}
+
+function countFirstTimeFosterPickupsInWindow(
+    fosterers: readonly FostererHistory[],
+    window: ReturnType<typeof calendarMonthWindow>
+): number {
+    const { monthStart, monthEnd, year, month } = window
 
     let n = 0
     for (const fosterer of fosterers) {
         const placements = [...fosterer.currentFosters, ...fosterer.pastFosters]
         let earliestEver: Date | null = null
-        let hasTrackablePickupThisMonth = false
+        let hasTrackablePickupInWindow = false
 
         for (const placement of placements) {
             const start = parseCalendarDateLocal(placement.fosterStartDate)
@@ -103,21 +119,48 @@ export function countFirstTimeFosterPickupsThisMonth(
             if (shouldHideDog(placement.name)) continue
             if (
                 start >= monthStart &&
-                start <= end &&
-                start.getFullYear() === y &&
-                start.getMonth() === m
+                start <= monthEnd &&
+                start.getFullYear() === year &&
+                start.getMonth() === month
             ) {
-                hasTrackablePickupThisMonth = true
+                hasTrackablePickupInWindow = true
             }
         }
 
-        if (!earliestEver || !hasTrackablePickupThisMonth) continue
+        if (!earliestEver || !hasTrackablePickupInWindow) continue
         if (earliestEver < monthStart) continue
-        if (earliestEver > end) continue
-        if (earliestEver.getFullYear() !== y || earliestEver.getMonth() !== m) continue
+        if (earliestEver > monthEnd) continue
+        if (earliestEver.getFullYear() !== year || earliestEver.getMonth() !== month) continue
         n += 1
     }
     return n
+}
+
+/**
+ * First-time fosters (people) whose first-ever foster pickup was this calendar month
+ * (month-to-date, local). Uses ASM foster history — includes fosters who already returned
+ * a dog this month. Each fosterer is counted once.
+ */
+export function countFirstTimeFosterPickupsThisMonth(
+    fosterers: readonly FostererHistory[],
+    now: Date = new Date()
+): number {
+    return countFirstTimeFosterPickupsInWindow(fosterers, calendarMonthWindow(0, now))
+}
+
+/** Same as {@link countFirstTimeFosterPickupsThisMonth} but for the prior full calendar month. */
+export function countFirstTimeFosterPickupsPreviousMonth(
+    fosterers: readonly FostererHistory[],
+    now: Date = new Date()
+): number {
+    return countFirstTimeFosterPickupsInWindow(fosterers, calendarMonthWindow(1, now))
+}
+
+/** e.g. "May 2026" for the calendar month before `now`. */
+export function previousCalendarMonthLabel(now: Date = new Date()): string {
+    const t = now instanceof Date && !Number.isNaN(now.getTime()) ? now : new Date()
+    const d = new Date(t.getFullYear(), t.getMonth() - 1, 1)
+    return d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
 }
 
 /**
