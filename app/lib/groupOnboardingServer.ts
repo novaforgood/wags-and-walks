@@ -11,9 +11,6 @@ const FIRESTORE_COLLECTION = 'groupMemberFirstSeen'
 const FIRESTORE_META_DOC = 'groupOnboarding/meta'
 const FIRESTORE_BATCH_LIMIT = 400
 
-const APPS_SCRIPT_URL = process.env.APPS_SCRIPT_URL
-const APPS_SCRIPT_KEY = process.env.APPS_SCRIPT_KEY
-
 function memberEmails(members: GroupMember[]): string[] {
   const out: string[] = []
   for (const m of members) {
@@ -158,33 +155,6 @@ export async function fetchGroupOnboardingViaGroupsScript(
   return onboarding as GroupOnboardingStats
 }
 
-async function syncViaMainAppsScript(members: GroupMember[]): Promise<GroupOnboardingStats | null> {
-  if (!APPS_SCRIPT_URL) return null
-
-  const res = await fetch(APPS_SCRIPT_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    cache: 'no-store',
-    body: JSON.stringify({
-      action: 'sync_group_onboarding',
-      emails: memberEmails(members),
-      key: APPS_SCRIPT_KEY,
-    }),
-  })
-  const text = await res.text()
-  let json: unknown
-  try {
-    json = JSON.parse(text)
-  } catch {
-    return null
-  }
-  const obj = json && typeof json === 'object' ? (json as Record<string, unknown>) : null
-  if (!res.ok || obj?.success === false) return null
-  const onboarding = obj?.onboarding
-  if (!onboarding || typeof onboarding !== 'object') return null
-  return onboarding as GroupOnboardingStats
-}
-
 /**
  * Fast read from Firestore ledger, then optional background member sync.
  */
@@ -218,11 +188,6 @@ export async function loadGroupOnboardingStats(
       if (afterSync) {
         return { onboarding: afterSync, source: 'firestore' }
       }
-
-      const fromMainScript = await syncViaMainAppsScript(members)
-      if (fromMainScript) {
-        return { onboarding: fromMainScript, source: 'apps_script' }
-      }
     }
   }
 
@@ -232,6 +197,6 @@ export async function loadGroupOnboardingStats(
   }
 
   throw new Error(
-    'Onboarding tracking is not available. Set FIREBASE_SERVICE_ACCOUNT_JSON, redeploy Sheet 1 Apps Script (sync_group_onboarding), or Google Group Apps Script (group_onboarding).'
+    'Onboarding tracking is not available. Set FIREBASE_SERVICE_ACCOUNT_JSON or configure Google Group Apps Script (group_onboarding).'
   )
 }

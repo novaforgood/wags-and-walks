@@ -1,4 +1,4 @@
-import { getFosterNoteFromFirestore, setFosterNoteInFirestore } from './fosterNotesFirestore'
+import { getFosterNoteFromFirestore } from './fosterNotesFirestore'
 import { authFetch } from '@/app/lib/authFetch'
 
 export type FosterNotesCacheEntry = {
@@ -43,7 +43,7 @@ export function prefetchFosterNotes(email: string | null | undefined): Promise<F
         return firestoreEntry
       }
 
-      // Lazy migration: nothing in Firestore yet — read from Sheet 2 and seed Firestore
+      // Server fallback uses Firebase Admin, which covers clients without direct Firestore read access.
       const res = await authFetch(`/api/foster-notes?email=${encodeURIComponent(key)}`)
       const data = await res.json()
       if (!data?.success) return null
@@ -53,11 +53,6 @@ export function prefetchFosterNotes(email: string | null | undefined): Promise<F
         notesUpdatedAt: data.notesUpdatedAt || '',
       }
       notesByEmail.set(key, entry)
-
-      // Seed Firestore so subsequent reads skip the fallback
-      if (entry.notes) {
-        setFosterNoteInFirestore(key, entry.notes).catch(() => null)
-      }
 
       return entry
     })

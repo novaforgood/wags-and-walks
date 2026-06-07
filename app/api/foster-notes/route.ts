@@ -1,63 +1,39 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getFirestore, Timestamp } from 'firebase-admin/firestore'
 import { requireAllowedUser } from '@/app/lib/serverAuth'
 
-const APPS_SCRIPT_URL = process.env.APPS_SCRIPT_URL
-const rawTtl = Number(process.env.FOSTER_NOTES_CACHE_TTL_SEC)
-const CACHE_TTL_MS =
-  Math.max(15, Math.min(300, Number.isFinite(rawTtl) && rawTtl > 0 ? rawTtl : 60)) * 1000
+const COLLECTION = 'fosterNotes'
 
-type NotesRow = Record<string, unknown>
+function noteKey(email: string): string {
+  return email.trim().toLowerCase()
+}
 
-let notesCache: { rows: NotesRow[]; expiresAt: number } | null = null
-let notesInFlight: Promise<NotesRow[]> | null = null
-
-async function fetchNotesRows(): Promise<NotesRow[]> {
-  if (!APPS_SCRIPT_URL) {
-    throw new Error('APPS_SCRIPT_URL not configured')
+function timestampToIso(value: unknown): string {
+  if (value instanceof Timestamp) return value.toDate().toISOString()
+  const maybeDate = value as { toDate?: () => Date } | undefined
+  if (typeof maybeDate?.toDate === 'function') {
+    const date = maybeDate.toDate()
+    return Number.isNaN(date.getTime()) ? '' : date.toISOString()
   }
-
-  const now = Date.now()
-  if (notesCache && notesCache.expiresAt > now) return notesCache.rows
-  if (notesInFlight) return notesInFlight
-
-  notesInFlight = (async () => {
-    const url = `${APPS_SCRIPT_URL}?fields=${encodeURIComponent('Email,Notes,Notes Updated At')}`
-    const res = await fetch(url, { method: 'GET', cache: 'no-store' })
-    const data = await res.json()
-    const rows = data?.success && Array.isArray(data.rows) ? data.rows : []
-    notesCache = { rows, expiresAt: Date.now() + CACHE_TTL_MS }
-    return rows
-  })().finally(() => {
-    notesInFlight = null
-  })
-
-  return notesInFlight
+  return ''
 }
 
 export async function GET(req: NextRequest) {
   const auth = await requireAllowedUser(req)
   if (!auth.ok) return auth.response
 
-  if (!APPS_SCRIPT_URL) {
-    return NextResponse.json({ success: false, error: 'APPS_SCRIPT_URL not configured' }, { status: 500 })
-  }
-
   const email = req.nextUrl.searchParams.get('email')
   if (!email) {
     return NextResponse.json({ success: false, error: 'email parameter required' }, { status: 400 })
   }
 
-  const rows = await fetchNotesRows()
-
-  const emailKey = email.trim().toLowerCase()
-  const row = rows.find((r: Record<string, unknown>) =>
-    String(r['Email'] ?? '').trim().toLowerCase() === emailKey
-  )
+  const snap = await getFirestore().collection(COLLECTION).doc(noteKey(email)).get()
+  const data = snap.data()
 
   return NextResponse.json({
     success: true,
-    notes: row?.['Notes'] ?? '',
-    notesUpdatedAt: row?.['Notes Updated At'] ?? '',
+    notes: data?.notes ?? '',
+    notesUpdatedAt: timestampToIso(data?.updatedAt),
   })
 }
 
@@ -65,17 +41,20 @@ export async function POST(req: NextRequest) {
   const auth = await requireAllowedUser(req)
   if (!auth.ok) return auth.response
 
-  if (!APPS_SCRIPT_URL) {
-    return NextResponse.json({ success: false, error: 'APPS_SCRIPT_URL not configured' }, { status: 500 })
+  const body = await req.json().catch(() => null) as { email?: string; content?: string } | null
+  const email = body?.email?.trim().toLowerCase()
+  if (!email) {
+    return NextResponse.json({ success: false, error: 'email is required' }, { status: 400 })
   }
 
-  const body = await req.json()
-  const res = await fetch(APPS_SCRIPT_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action: 'set_notes', ...body }),
-  })
-  const data = await res.json()
-  notesCache = null
-  return NextResponse.json(data)
+  await getFirestore().collection(COLLECTION).doc(noteKey(email)).set(
+    {
+      notes: String(body?.content ?? ''),
+      updatedAt: Timestamp.now(),
+      updatedBy: auth.user.email,
+    },
+    { merge: true }
+  )
+
+  return NextResponse.json({ success: true })
 }

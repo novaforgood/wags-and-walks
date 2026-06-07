@@ -1,20 +1,16 @@
 /**************************************
  * Foster management platform - Apps Script
  *
- * OPEN TESTING VERSION (NO AUTH, NO SEND LOCK)
- * - Anyone who can reach the web app can read rows and send emails.
- * - Strongly recommended: Deploy access = "Only myself"
+ * Production Sheet 1 script:
+ * - Authenticated by script property APPS_SCRIPT_KEY.
+ * - GET reads applicant rows for the Next.js app.
+ * - POST only sends single emails through Gmail.
+ * - Sheet writes are limited to derived flag columns from manual/form triggers.
  **************************************/
 
-
-
-/**************************************
- * CONFIG
- **************************************/
 const CONFIG = {
   SHEET_NAME: "Sheet1",
 
-  // Flagging input headers (must match your sheet headers exactly)
   HEADERS: {
     TIMESTAMP: "Submitted On",
     NAME: "Name",
@@ -48,31 +44,11 @@ const CONFIG = {
     SOURCE: "Source"
   },
 
-  // Output columns we create/write
   OUTPUT_HEADERS: {
     UNDER_21: "Flag: Under 21",
     NO_PET_EXP: "Flag: No Pet Experience",
     FLAGS: "Flags",
-    REVIEW: "Review Status",
-
-    // Shared workflow status columns
-    APPLICANT_STATUS: "Applicant Status",
-    STATUS_UPDATED_AT: "Status Updated At",
-    STATUS_UPDATED_BY: "Status Updated By",
-
-    // Email metadata
-    EMAIL_SENT: "Email Sent",
-    EMAIL_SENT_AT: "Email Sent At",
-
-    // Starred
-    STARRED: "Starred",
-
-    // Foster notes
-    NOTES: "Notes",
-    NOTES_UPDATED_AT: "Notes Updated At",
-
-    // Applicant paperwork
-    SIGNED_DOCUMENT: "Signed Document"
+    REVIEW: "Review Status"
   },
 
   REVIEW_VALUES: {
@@ -80,18 +56,20 @@ const CONFIG = {
     OK: "OK"
   },
 
-  // Email defaults
-  EMAIL_DEFAULTS: {
-    DEFAULT_SUBJECT: "Foster Interest",
-    DEFAULT_RECIPIENT_OVERRIDE: "",
-    MAX_EMAILS_PER_CALL: 90
-  },
-
-  // Helps you confirm which deployed version you're hitting
-  BUILD_ID: "OPEN_NOAUTH_2026-01-22_21-00_PT"
+  BUILD_ID: "PROD_READ_EMAIL_FLAGS_2026-06-07"
 };
 
-const GROUP_EMAIL = "wags-and-walks@googlegroups.com";
+/**************************************
+ * Auth
+ **************************************/
+function requireKey_(e, payload) {
+  const expected = PropertiesService.getScriptProperties().getProperty("APPS_SCRIPT_KEY");
+  if (!expected) return true;
+
+  const queryKey = e && e.parameter ? String(e.parameter.key || "") : "";
+  const bodyKey = payload && payload.key ? String(payload.key || "") : "";
+  return queryKey === expected || bodyKey === expected;
+}
 
 /**************************************
  * FLAGGING (batch) - manually run anytime
@@ -105,7 +83,6 @@ function runFlagging() {
   }
 
   const headers = getHeaders_(sheet);
-
   ensureOutputColumns_(sheet, headers, [
     CONFIG.OUTPUT_HEADERS.UNDER_21,
     CONFIG.OUTPUT_HEADERS.NO_PET_EXP,
@@ -114,7 +91,6 @@ function runFlagging() {
   ]);
 
   const newHeaders = getHeaders_(sheet);
-
   const col = resolveColumns_(newHeaders, [
     CONFIG.HEADERS.AGE,
     CONFIG.HEADERS.OWNED_PET,
@@ -125,9 +101,7 @@ function runFlagging() {
     CONFIG.OUTPUT_HEADERS.REVIEW
   ]);
 
-  const newLastCol = sheet.getLastColumn();
-  const data = sheet.getRange(2, 1, lastRow - 1, newLastCol).getValues();
-
+  const data = sheet.getRange(2, 1, lastRow - 1, sheet.getLastColumn()).getValues();
   const under21Vals = [];
   const noPetVals = [];
   const flagsVals = [];
@@ -136,7 +110,6 @@ function runFlagging() {
   for (let i = 0; i < data.length; i++) {
     const row = data[i];
     const computed = computeFlagsForRow_(row, col);
-
     const existingReview = String(row[col[CONFIG.OUTPUT_HEADERS.REVIEW] - 1] || "").trim();
     const review = existingReview
       ? existingReview
@@ -174,7 +147,6 @@ function onFormSubmit(e) {
 function flagRow_(rowIndex) {
   const sheet = getSheetByNameOrThrow_(CONFIG.SHEET_NAME);
   const headers = getHeaders_(sheet);
-
   ensureOutputColumns_(sheet, headers, [
     CONFIG.OUTPUT_HEADERS.UNDER_21,
     CONFIG.OUTPUT_HEADERS.NO_PET_EXP,
@@ -193,11 +165,8 @@ function flagRow_(rowIndex) {
     CONFIG.OUTPUT_HEADERS.REVIEW
   ]);
 
-  const newLastCol = sheet.getLastColumn();
-  const row = sheet.getRange(rowIndex, 1, 1, newLastCol).getValues()[0];
-
+  const row = sheet.getRange(rowIndex, 1, 1, sheet.getLastColumn()).getValues()[0];
   const computed = computeFlagsForRow_(row, col);
-
   const existingReview = String(row[col[CONFIG.OUTPUT_HEADERS.REVIEW] - 1] || "").trim();
   const review = existingReview
     ? existingReview
@@ -207,38 +176,39 @@ function flagRow_(rowIndex) {
   sheet.getRange(rowIndex, col[CONFIG.OUTPUT_HEADERS.NO_PET_EXP]).setValue(computed.noPetExperience);
   sheet.getRange(rowIndex, col[CONFIG.OUTPUT_HEADERS.FLAGS]).setValue(computed.flagsText);
   sheet.getRange(rowIndex, col[CONFIG.OUTPUT_HEADERS.REVIEW]).setValue(review);
-
   SpreadsheetApp.flush();
 }
 
 /**************************************
- * GET ENDPOINT (OPEN)
+ * GET ENDPOINT
  * Query params:
+ *  - key
  *  - offset (default 0)
  *  - limit (default 1000)
  *  - fields (comma-separated headers); if omitted returns all columns
  **************************************/
 function doGet(e) {
   try {
-    var offset = e && e.parameter && e.parameter.offset ? parseInt(e.parameter.offset, 10) : 0;
-    var limit = e && e.parameter && e.parameter.limit ? parseInt(e.parameter.limit, 10) : 1000;
-    var fieldsParam = e && e.parameter && e.parameter.fields ? String(e.parameter.fields) : "";
+    if (!requireKey_(e, null)) {
+      return json_({ success: false, build: CONFIG.BUILD_ID, error: "Unauthorized" });
+    }
+
+    const offset = e && e.parameter && e.parameter.offset ? parseInt(e.parameter.offset, 10) : 0;
+    const limit = e && e.parameter && e.parameter.limit ? parseInt(e.parameter.limit, 10) : 1000;
+    const fieldsParam = e && e.parameter && e.parameter.fields ? String(e.parameter.fields) : "";
 
     const sheet = getSheetByNameOrThrow_(CONFIG.SHEET_NAME);
     const lastRow = sheet.getLastRow();
     const lastCol = sheet.getLastColumn();
-
     if (lastRow < 2) {
       return json_({ success: true, build: CONFIG.BUILD_ID, total: 0, returned: 0, rows: [] });
     }
 
     const headers = getHeaders_(sheet);
-    const values = sheet.getRange(2, 1, lastRow, lastCol).getValues();
-
+    const values = sheet.getRange(2, 1, lastRow - 1, lastCol).getValues();
     const start = Math.max(0, Number.isFinite(offset) ? offset : 0);
     const lim = Number.isFinite(limit) ? Math.max(1, limit) : 1000;
     const paged = values.slice(start, Math.min(values.length, start + lim));
-
     const requestedFields = fieldsParam
       ? fieldsParam.split(",").map(function(s) { return s.trim(); }).filter(Boolean)
       : headers.slice();
@@ -266,527 +236,47 @@ function doGet(e) {
 
 /**************************************
  * POST ENDPOINT
+ * Supported action:
+ *  - send_single_email: { to, subject, body, htmlBody? }
  **************************************/
 function doPost(e) {
   try {
     const payload = parseJsonBody_(e);
+    if (!requireKey_(e, payload)) {
+      return json_({ success: false, build: CONFIG.BUILD_ID, error: "Unauthorized" });
+    }
 
     const action = payload.action ? String(payload.action) : "";
-
-    // ---- set_status --------------------------------------------------------
-    if (action === "set_status") {
-      const email = String(payload.email || "").trim();
-      const status = String(payload.status || "").trim();
-      const updatedBy = String(payload.updatedBy || "").trim();
-
-      const allowedStatuses = ["new", "in-progress", "approved", "current", "rejected", "rejected_new", "rejected_in-progress", "rejected_approved"];
-      if (!email) {
-        return json_({ success: false, build: CONFIG.BUILD_ID, error: "email is required" });
-      }
-      if (allowedStatuses.indexOf(status) === -1) {
-        return json_({
-          success: false,
-          build: CONFIG.BUILD_ID,
-          error: "Invalid status \"" + status + "\". Allowed: " + allowedStatuses.join(", ")
-        });
-      }
-
-      const lock = LockService.getScriptLock();
-      try {
-        lock.waitLock(15000);
-
-        const sheet = getSheetByNameOrThrow_(CONFIG.SHEET_NAME);
-        const headers = getHeaders_(sheet);
-
-        ensureOutputColumns_(sheet, headers, [
-          CONFIG.OUTPUT_HEADERS.APPLICANT_STATUS,
-          CONFIG.OUTPUT_HEADERS.STATUS_UPDATED_AT,
-          CONFIG.OUTPUT_HEADERS.STATUS_UPDATED_BY
-        ]);
-
-        const newHeaders = getHeaders_(sheet);
-        const col = resolveColumns_(newHeaders, [
-          CONFIG.HEADERS.EMAIL,
-          CONFIG.OUTPUT_HEADERS.APPLICANT_STATUS,
-          CONFIG.OUTPUT_HEADERS.STATUS_UPDATED_AT,
-          CONFIG.OUTPUT_HEADERS.STATUS_UPDATED_BY
-        ]);
-
-        const lastRow = sheet.getLastRow();
-        if (lastRow < 2) {
-          return json_({ success: false, build: CONFIG.BUILD_ID, error: "No rows in sheet" });
-        }
-
-        const emailKey = email.toLowerCase();
-        const emailColValues = sheet
-          .getRange(2, col[CONFIG.HEADERS.EMAIL], lastRow - 1, 1)
-          .getValues();
-
-        let rowIndex = null;
-        for (let i = emailColValues.length - 1; i >= 0; i--) {
-          const v = String(emailColValues[i][0] || "").trim().toLowerCase();
-          if (v && v === emailKey) {
-            rowIndex = i + 2;
-            break;
-          }
-        }
-
-        if (!rowIndex) {
-          return json_({ success: false, build: CONFIG.BUILD_ID, error: "Email not found: " + email });
-        }
-
-        sheet.getRange(rowIndex, col[CONFIG.OUTPUT_HEADERS.APPLICANT_STATUS]).setValue(status);
-        sheet.getRange(rowIndex, col[CONFIG.OUTPUT_HEADERS.STATUS_UPDATED_AT]).setValue(new Date());
-        if (updatedBy) {
-          sheet.getRange(rowIndex, col[CONFIG.OUTPUT_HEADERS.STATUS_UPDATED_BY]).setValue(updatedBy);
-        }
-
-        let groupResult = null;
-        if (status === "approved") {
-          try {
-            MailApp.sendEmail(
-              email,
-              "You're Approved! Please Join the Group",
-              "Click here to request to join:\n\nhttps://groups.google.com/g/wags-and-walks"
-            );
-            groupResult = "added";
-          } catch (err) {
-            groupResult = "error: " + err.message;
-            Logger.log("Group add failed: " + err.message);
-          }
-        }
-
-        SpreadsheetApp.flush();
-        return json_({
-          success: true,
-          build: CONFIG.BUILD_ID,
-          action: "set_status",
-          rowIndex: rowIndex,
-          email: email,
-          status: status,
-          groupResult: groupResult
-        });
-
-      } catch (err) {
-        return json_({ success: false, build: CONFIG.BUILD_ID, error: String(err) });
-      } finally {
-        try { lock.releaseLock(); } catch (_) {}
-      }
-    }
-
-    // ---- send_single_email -------------------------------------------------
-    if (action === "send_single_email") {
-      const to       = String(payload.to       || "").trim();
-      const subject  = String(payload.subject  || "").trim();
-      const body     = String(payload.body     || "").trim();
-      const htmlBody = payload.htmlBody ? String(payload.htmlBody).trim() : "";
-      if (!to || !subject || !body) {
-        return json_({ success: false, build: CONFIG.BUILD_ID, error: "to, subject, and body are required" });
-      }
-      if (htmlBody) {
-        GmailApp.sendEmail(to, subject, body, { htmlBody: htmlBody });
-      } else {
-        GmailApp.sendEmail(to, subject, body);
-      }
-      return json_({ success: true, build: CONFIG.BUILD_ID });
-    }
-
-    // ---- scheduled emails --------------------------------------------------
-    if (
-      action === "schedule_email" ||
-      action === "list_scheduled" ||
-      action === "update_scheduled" ||
-      action === "delete_scheduled" ||
-      action === "due_scheduled"
-    ) {
-      const actionMap = {
-        list_scheduled:   "list",
-        schedule_email:   "create",
-        update_scheduled: "update",
-        delete_scheduled: "delete",
-        due_scheduled:    "due",
-      };
-      const result = handleScheduledEmails_(actionMap[action], payload);
-      return json_(Object.assign({}, result, { build: CONFIG.BUILD_ID }));
-    }
-
-    // ---- set_starred -------------------------------------------------------
-    if (action === "set_starred") {
-      const result = setStarred_(payload.email, payload.starred);
-      return json_(Object.assign({}, result, { build: CONFIG.BUILD_ID }));
-    }
-
-    // ---- set_notes ---------------------------------------------------------
-    if (action === "set_notes") {
-      const result = setNotes_(payload.email, payload.content);
-      return json_(Object.assign({}, result, { build: CONFIG.BUILD_ID }));
-    }
-
-    // ---- create_person -----------------------------------------------------
-    // Idempotent: no-ops if email already exists. Used to register ASM-only
-    // fosters so notes and status can be tracked for them in Sheet 1.
-    if (action === "create_person") {
-      const result = createPerson_(payload.name, payload.email, payload.source || "ASM");
-      return json_(Object.assign({}, result, { build: CONFIG.BUILD_ID }));
-    }
-
-    // ---- group_onboarding (foster Google Group — first-seen ledger) --------
-    if (action === "sync_group_onboarding") {
-      const emails = Array.isArray(payload.emails) ? payload.emails : [];
-      const result = syncGroupOnboarding_(emails);
-      return json_(Object.assign({}, result, { build: CONFIG.BUILD_ID }));
-    }
-
-    // ---- email sending -----------------------------------------------------
-    const subject = String(payload.subject || CONFIG.EMAIL_DEFAULTS.DEFAULT_SUBJECT);
-    const emailContent = String(payload.emailContent || "");
-    const sendEmails = payload.sendEmails === true;
-    const testEmail = payload.testEmail ? String(payload.testEmail).trim() : "";
-
-    const mode = payload.mode ? String(payload.mode) : "ok";
-    const skipIfSent = (payload.skipIfSent === undefined) ? true : (payload.skipIfSent === true);
-
-    const recipientOverride = (payload.recipientOverride === undefined)
-      ? CONFIG.EMAIL_DEFAULTS.DEFAULT_RECIPIENT_OVERRIDE
-      : String(payload.recipientOverride || "").trim();
-
-    const sendToApplicants = payload.sendToApplicants === true;
-
-    if (!emailContent && sendEmails) {
-      return json_({ success: false, build: CONFIG.BUILD_ID, error: "emailContent is required when sendEmails=true" });
-    }
-
-    const sheet = getSheetByNameOrThrow_(CONFIG.SHEET_NAME);
-    const headers = getHeaders_(sheet);
-
-    ensureOutputColumns_(sheet, headers, [
-      CONFIG.OUTPUT_HEADERS.EMAIL_SENT,
-      CONFIG.OUTPUT_HEADERS.EMAIL_SENT_AT
-    ]);
-    const newHeaders = getHeaders_(sheet);
-
-    const col = resolveColumns_(newHeaders, [
-      CONFIG.HEADERS.NAME,
-      CONFIG.HEADERS.EMAIL,
-      CONFIG.OUTPUT_HEADERS.REVIEW,
-      CONFIG.OUTPUT_HEADERS.EMAIL_SENT,
-      CONFIG.OUTPUT_HEADERS.EMAIL_SENT_AT
-    ]);
-
-    const lastRow = sheet.getLastRow();
-    const lastCol = sheet.getLastColumn();
-    if (lastRow < 2) {
-      return json_({ success: true, build: CONFIG.BUILD_ID, message: "No recipients", recipients: [], emailsSent: 0 });
-    }
-
-    const values = sheet.getRange(2, 1, lastRow - 1, lastCol).getValues();
-
-    let candidates = values.map(function(row, i) {
-      var fullName = String(row[col[CONFIG.HEADERS.NAME] - 1] || "").trim();
-      var lastSpace = fullName.lastIndexOf(" ");
-      var firstName = lastSpace > 0 ? fullName.slice(0, lastSpace) : fullName;
-      var lastName = lastSpace > 0 ? fullName.slice(lastSpace + 1) : "";
-      return {
-        rowIndex: i + 2,
-        firstName: firstName,
-        lastName: lastName,
-        email: String(row[col[CONFIG.HEADERS.EMAIL] - 1] || "").trim(),
-        review: String(row[col[CONFIG.OUTPUT_HEADERS.REVIEW] - 1] || "").trim(),
-        emailSent: String(row[col[CONFIG.OUTPUT_HEADERS.EMAIL_SENT] - 1] || "").trim()
-      };
-    }).filter(function(r) { return r.email; });
-
-    candidates = candidates.filter(function(r) {
-      if (mode === "all") return true;
-      if (mode === "ok") return r.review === CONFIG.REVIEW_VALUES.OK;
-      if (mode === "needs_review") return r.review === CONFIG.REVIEW_VALUES.NEEDS_REVIEW;
-      return r.review === CONFIG.REVIEW_VALUES.OK;
-    });
-
-    if (skipIfSent) {
-      candidates = candidates.filter(function(r) { return !/^true$/i.test(r.emailSent); });
-    }
-
-    const rowIndices = Array.isArray(payload.rowIndices)
-      ? payload.rowIndices.map(function(n) { return parseInt(n, 10); }).filter(function(n) { return Number.isFinite(n); })
-      : [];
-
-    if (rowIndices.length) {
-      candidates = candidates.filter(function(r) { return rowIndices.indexOf(r.rowIndex) !== -1; });
-    }
-
-    const targets = testEmail
-      ? (candidates[0] ? [Object.assign({}, candidates[0], { overrideEmail: testEmail, isTest: true })] : [])
-      : candidates.map(function(r) { return Object.assign({}, r, { isTest: false }); });
-
-    const previewRecipients = targets.map(function(t) {
-      return {
-        rowIndex: t.rowIndex || null,
-        fullName: (t.firstName + " " + t.lastName).trim(),
-        applicantEmail: t.email,
-        willSendTo: resolveSendTo_(t.email, recipientOverride, sendToApplicants),
-        review: t.review,
-        skippedBecauseAlreadySent: false
-      };
-    });
-
-    if (!sendEmails) {
+    if (action !== "send_single_email") {
       return json_({
-        success: true,
+        success: false,
         build: CONFIG.BUILD_ID,
-        message: "Dry run (sendEmails=false). No emails sent.",
-        recipients: previewRecipients,
-        emailsSent: 0
+        error: "Unsupported action: " + action
       });
     }
 
-    let emailsSent = 0;
-    const max = CONFIG.EMAIL_DEFAULTS.MAX_EMAILS_PER_CALL;
-
-    for (let i = 0; i < targets.length; i++) {
-      if (emailsSent >= max) break;
-
-      const t = targets[i];
-      const fullName = (t.firstName + " " + t.lastName).trim();
-
-      const personalized = renderTemplate_(emailContent, {
-        fullName: fullName,
-        firstName: t.firstName,
-        lastName: t.lastName,
-        email: t.email
-      });
-
-      const to = resolveSendTo_(t.email, recipientOverride, sendToApplicants);
-
-      GmailApp.sendEmail(to, subject, personalized);
-      emailsSent += 1;
-
-      if (!t.isTest && t.rowIndex) {
-        sheet.getRange(t.rowIndex, col[CONFIG.OUTPUT_HEADERS.EMAIL_SENT]).setValue(true);
-        sheet.getRange(t.rowIndex, col[CONFIG.OUTPUT_HEADERS.EMAIL_SENT_AT]).setValue(new Date());
-      }
-
-      Utilities.sleep(100);
+    const to = String(payload.to || "").trim();
+    const subject = String(payload.subject || "").trim();
+    const body = String(payload.body || "").trim();
+    const htmlBody = payload.htmlBody ? String(payload.htmlBody).trim() : "";
+    if (!to || !subject || !body) {
+      return json_({ success: false, build: CONFIG.BUILD_ID, error: "to, subject, and body are required" });
     }
 
-    SpreadsheetApp.flush();
-
-    return json_({
-      success: true,
-      build: CONFIG.BUILD_ID,
-      message: "Emails processed",
-      mode: mode,
-      sendToApplicants: sendToApplicants,
-      recipientOverride: recipientOverride,
-      skipIfSent: skipIfSent,
-      emailsSent: emailsSent,
-      recipients: previewRecipients
-    });
-
+    if (htmlBody) {
+      GmailApp.sendEmail(to, subject, body, { htmlBody: htmlBody });
+    } else {
+      GmailApp.sendEmail(to, subject, body);
+    }
+    return json_({ success: true, build: CONFIG.BUILD_ID });
   } catch (err) {
     return json_({ success: false, build: CONFIG.BUILD_ID, error: String(err) });
   }
 }
 
 /**************************************
- * Scheduled emails handler
- **************************************/
-function handleScheduledEmails_(action, data) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  let sheet = ss.getSheetByName("ScheduledEmails");
-
-  // Auto-create the sheet if it doesn't exist yet
-  if (!sheet) {
-    sheet = ss.insertSheet("ScheduledEmails");
-    sheet.appendRow(["id", "fosterId", "to", "title", "subject", "body", "scheduledDate", "status", "createdAt"]);
-  }
-
-  if (action === "list") {
-    const rows = sheet.getDataRange().getValues();
-    const headers = rows[0];
-    const emails = rows.slice(1)
-      .map(function(row) {
-        var obj = {};
-        headers.forEach(function(h, i) { obj[h] = row[i]; });
-        return obj;
-      })
-      .filter(function(e) { return e.id; });
-    return { success: true, emails: emails };
-  }
-
-  if (action === "create") {
-    sheet.appendRow([
-      data.id,
-      data.fosterId || "",
-      data.to,
-      data.title,
-      data.subject,
-      data.body,
-      data.scheduledDate,
-      "scheduled",
-      new Date().toISOString()
-    ]);
-    SpreadsheetApp.flush();
-    return { success: true };
-  }
-
-  if (action === "update") {
-    const rows = sheet.getDataRange().getValues();
-    for (var i = 1; i < rows.length; i++) {
-      if (rows[i][0] === data.id) {
-        if (data.subject !== undefined)       sheet.getRange(i + 1, 5).setValue(data.subject);
-        if (data.body !== undefined)          sheet.getRange(i + 1, 6).setValue(data.body);
-        if (data.scheduledDate !== undefined) sheet.getRange(i + 1, 7).setValue(data.scheduledDate);
-        if (data.status !== undefined)        sheet.getRange(i + 1, 8).setValue(data.status);
-        SpreadsheetApp.flush();
-        return { success: true };
-      }
-    }
-    return { success: false, error: "Not found" };
-  }
-
-  if (action === "delete") {
-    const rows = sheet.getDataRange().getValues();
-    for (var i = 1; i < rows.length; i++) {
-      if (rows[i][0] === data.id) {
-        sheet.deleteRow(i + 1);
-        SpreadsheetApp.flush();
-        return { success: true };
-      }
-    }
-    return { success: false, error: "Not found" };
-  }
-
-  if (action === "due") {
-    const rows = sheet.getDataRange().getValues();
-    const headers = rows[0];
-    const now = new Date();
-    const due = rows.slice(1)
-      .map(function(row) {
-        var obj = {};
-        headers.forEach(function(h, i) { obj[h] = row[i]; });
-        return obj;
-      })
-      .filter(function(e) {
-        return e.id && e.status === "scheduled" && new Date(e.scheduledDate) <= now;
-      });
-    return { success: true, emails: due };
-  }
-
-  return { success: false, error: "Unknown action: " + action };
-}
-
-/**************************************
  * Internal helpers
  **************************************/
-function setStarred_(email, starred) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName(CONFIG.SHEET_NAME);
-  if (!sheet) return { success: false, error: "Sheet not found" };
-
-  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-
-  ensureOutputColumns_(sheet, headers, [CONFIG.OUTPUT_HEADERS.STARRED]);
-
-  const freshHeaders = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-  const emailCol = freshHeaders.findIndex(function(h) { return String(h).trim().toLowerCase() === "email"; });
-  const starredCol = freshHeaders.findIndex(function(h) { return String(h).trim() === CONFIG.OUTPUT_HEADERS.STARRED; });
-
-  if (emailCol === -1 || starredCol === -1)
-    return { success: false, error: "Required column not found" };
-
-  const lastRow = sheet.getLastRow();
-  if (lastRow < 2) return { success: false, error: "No data rows" };
-
-  const emailData = sheet.getRange(2, emailCol + 1, lastRow - 1, 1).getValues();
-  for (let i = 0; i < emailData.length; i++) {
-    if (String(emailData[i][0]).trim().toLowerCase() === String(email).trim().toLowerCase()) {
-      sheet.getRange(i + 2, starredCol + 1).setValue(starred ? "TRUE" : "");
-      SpreadsheetApp.flush();
-      return { success: true };
-    }
-  }
-  return { success: false, error: "Email not found" };
-}
-
-function setNotes_(email, content) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName(CONFIG.SHEET_NAME);
-  if (!sheet) return { success: false, error: "Sheet not found" };
-
-  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-
-  ensureOutputColumns_(sheet, headers, [
-    CONFIG.OUTPUT_HEADERS.NOTES,
-    CONFIG.OUTPUT_HEADERS.NOTES_UPDATED_AT
-  ]);
-
-  const freshHeaders = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-  const emailCol = freshHeaders.findIndex(function(h) { return String(h).trim().toLowerCase() === "email"; });
-  const notesCol = freshHeaders.findIndex(function(h) { return String(h).trim() === CONFIG.OUTPUT_HEADERS.NOTES; });
-  const updatedAtCol = freshHeaders.findIndex(function(h) { return String(h).trim() === CONFIG.OUTPUT_HEADERS.NOTES_UPDATED_AT; });
-
-  if (emailCol === -1 || notesCol === -1 || updatedAtCol === -1)
-    return { success: false, error: "Required column not found" };
-
-  const lastRow = sheet.getLastRow();
-  if (lastRow < 2) return { success: false, error: "No data rows" };
-
-  const emailData = sheet.getRange(2, emailCol + 1, lastRow - 1, 1).getValues();
-  for (let i = 0; i < emailData.length; i++) {
-    if (String(emailData[i][0]).trim().toLowerCase() === String(email).trim().toLowerCase()) {
-      sheet.getRange(i + 2, notesCol + 1).setValue(content);
-      sheet.getRange(i + 2, updatedAtCol + 1).setValue(new Date());
-      SpreadsheetApp.flush();
-      return { success: true };
-    }
-  }
-  return { success: false, error: "Email not found" };
-}
-
-function createPerson_(name, email, source) {
-  if (!email) return { success: false, error: "email is required" };
-  const emailKey = String(email).trim().toLowerCase();
-  const nameVal = String(name || "").trim();
-
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName(CONFIG.SHEET_NAME);
-  if (!sheet) return { success: false, error: "Sheet not found" };
-
-  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-
-  ensureOutputColumns_(sheet, headers, [CONFIG.HEADERS.SOURCE]);
-
-  const freshHeaders = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-  const emailCol = freshHeaders.findIndex(function(h) { return String(h).trim().toLowerCase() === "email"; });
-  const sourceCol = freshHeaders.findIndex(function(h) { return String(h).trim() === CONFIG.HEADERS.SOURCE; });
-
-  if (emailCol === -1) return { success: false, error: "Email column not found" };
-
-  const lastRow = sheet.getLastRow();
-  if (lastRow >= 2) {
-    const emailData = sheet.getRange(2, emailCol + 1, lastRow - 1, 1).getValues();
-    for (var i = 0; i < emailData.length; i++) {
-      if (String(emailData[i][0]).trim().toLowerCase() === emailKey) {
-        return { success: true, created: false, message: "Person already exists" };
-      }
-    }
-  }
-
-  const newRow = new Array(freshHeaders.length).fill("");
-  const nameCol = freshHeaders.findIndex(function(h) { return String(h).trim() === CONFIG.HEADERS.NAME; });
-  const tsCol = freshHeaders.findIndex(function(h) { return String(h).trim() === CONFIG.HEADERS.TIMESTAMP; });
-
-  if (nameCol !== -1) newRow[nameCol] = nameVal;
-  newRow[emailCol] = email;
-  if (tsCol !== -1) newRow[tsCol] = new Date();
-  if (sourceCol !== -1) newRow[sourceCol] = source || "ASM";
-
-  sheet.appendRow(newRow);
-  SpreadsheetApp.flush();
-  return { success: true, created: true };
-}
-
 function computeFlagsForRow_(row, col) {
   const age = String(row[col[CONFIG.HEADERS.AGE] - 1] || "").trim();
   const ownedPet = String(row[col[CONFIG.HEADERS.OWNED_PET] - 1] || "").trim();
@@ -809,19 +299,6 @@ function computeFlagsForRow_(row, col) {
   };
 }
 
-function resolveSendTo_(applicantEmail, recipientOverride, sendToApplicants) {
-  if (recipientOverride && recipientOverride !== "") return recipientOverride;
-  return applicantEmail;
-}
-
-function renderTemplate_(text, vars) {
-  return String(text || "")
-    .replace(/\{\{fullName\}\}/g, vars.fullName || "")
-    .replace(/\{\{firstName\}\}/g, vars.firstName || "")
-    .replace(/\{\{lastName\}\}/g, vars.lastName || "")
-    .replace(/\{\{email\}\}/g, vars.email || "");
-}
-
 function parseJsonBody_(e) {
   if (!e || !e.postData || !e.postData.contents) {
     throw new Error("Missing postData.contents");
@@ -837,13 +314,7 @@ function getSheetByNameOrThrow_(name) {
 }
 
 function getHeaders_(sheet) {
-  const lastCol = sheet.getLastColumn();
-  return sheet.getRange(1, 1, 1, lastCol).getValues()[0];
-}
-
-function safeFindCol_(headers, headerName) {
-  const idx = headers.indexOf(headerName);
-  return idx === -1 ? null : idx + 1;
+  return sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
 }
 
 function resolveColumns_(headers, requiredHeaderNames) {
@@ -877,133 +348,12 @@ function rowToObjectFields_(headers, row, fields) {
   return obj;
 }
 
-/** Foster Google Group onboarding — same semantics as GoogleGroupMembersWebApp.gs */
-var GROUP_MEMBER_FIRST_SEEN_KEY = "group_member_first_seen_v1";
-var GROUP_ONBOARDING_SEEDED_KEY = "group_onboarding_seeded_v1";
-var GROUP_ONBOARDING_LEGACY_ISO = "1970-01-01T00:00:00.000Z";
-
-function syncGroupOnboarding_(emails) {
-  var members = [];
-  for (var i = 0; i < emails.length; i++) {
-    var e = String(emails[i] || "").trim().toLowerCase();
-    if (e) members.push({ email: e });
-  }
-  var map = recordGroupMemberFirstSeenMain_(members);
-  return {
-    success: true,
-    onboarding: buildOnboardingStatsMain_(map, "")
-  };
-}
-
-function recordGroupMemberFirstSeenMain_(members) {
-  var props = PropertiesService.getScriptProperties();
-  var raw = props.getProperty(GROUP_MEMBER_FIRST_SEEN_KEY) || "{}";
-  var map;
-  try {
-    map = JSON.parse(raw);
-  } catch (err) {
-    map = {};
-  }
-  if (!map || typeof map !== "object") map = {};
-
-  var seeded = props.getProperty(GROUP_ONBOARDING_SEEDED_KEY) === "1";
-  var now = new Date().toISOString();
-  var changed = false;
-
-  if (!seeded) {
-    for (var s = 0; s < members.length; s++) {
-      var seedEmail = String(members[s].email || "").trim().toLowerCase();
-      if (!seedEmail) continue;
-      if (!map[seedEmail]) {
-        map[seedEmail] = GROUP_ONBOARDING_LEGACY_ISO;
-        changed = true;
-      }
-    }
-    props.setProperty(GROUP_ONBOARDING_SEEDED_KEY, "1");
-  }
-
-  for (var i = 0; i < members.length; i++) {
-    var email = String(members[i].email || "").trim().toLowerCase();
-    if (!email) continue;
-    if (!map[email]) {
-      map[email] = now;
-      changed = true;
-    }
-  }
-  if (changed) {
-    props.setProperty(GROUP_MEMBER_FIRST_SEEN_KEY, JSON.stringify(map));
-  }
-  return map;
-}
-
-function buildOnboardingStatsMain_(map, requestedMonthKey) {
-  var tz = Session.getScriptTimeZone();
-  var countsByMonth = {};
-  for (var email in map) {
-    if (!Object.prototype.hasOwnProperty.call(map, email)) continue;
-    var key = monthKeyFromIsoMain_(map[email], tz);
-    if (!key) continue;
-    countsByMonth[key] = (countsByMonth[key] || 0) + 1;
-  }
-  var now = new Date();
-  var currentKey = Utilities.formatDate(now, tz, "yyyy-MM");
-  var parts = currentKey.split("-");
-  var y = parseInt(parts[0], 10);
-  var m = parseInt(parts[1], 10);
-  var prevDate = new Date(y, m - 2, 1);
-  var prevKey = Utilities.formatDate(prevDate, tz, "yyyy-MM");
-
-  var onboarding = {
-    timeZone: tz,
-    currentMonth: {
-      key: currentKey,
-      label: monthLabelFromKeyMain_(currentKey, tz),
-      count: countsByMonth[currentKey] || 0
-    },
-    previousMonth: {
-      key: prevKey,
-      label: monthLabelFromKeyMain_(prevKey, tz),
-      count: countsByMonth[prevKey] || 0
-    },
-    countsByMonth: countsByMonth,
-    memberCount: Object.keys(map).length
-  };
-
-  if (requestedMonthKey && /^\d{4}-\d{2}$/.test(requestedMonthKey)) {
-    onboarding.selectedMonth = {
-      key: requestedMonthKey,
-      label: monthLabelFromKeyMain_(requestedMonthKey, tz),
-      count: countsByMonth[requestedMonthKey] || 0
-    };
-  }
-  return onboarding;
-}
-
-function monthKeyFromIsoMain_(iso, tz) {
-  var d = new Date(iso);
-  if (isNaN(d.getTime()) || d.getFullYear() < 2000) return "";
-  return Utilities.formatDate(d, tz, "yyyy-MM");
-}
-
-function monthLabelFromKeyMain_(key, tz) {
-  var parts = key.split("-");
-  if (parts.length !== 2) return key;
-  var y = parseInt(parts[0], 10);
-  var m = parseInt(parts[1], 10);
-  if (isNaN(y) || isNaN(m)) return key;
-  var d = new Date(y, m - 1, 1);
-  return Utilities.formatDate(d, tz, "MMMM yyyy");
-}
-
 function json_(data) {
   return ContentService
     .createTextOutput(JSON.stringify(data))
     .setMimeType(ContentService.MimeType.JSON);
 }
 
-/**************************************
- * Optional convenience: Add a custom menu
- **************************************/
 function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu("Foster Tools")
