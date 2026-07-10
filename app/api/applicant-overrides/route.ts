@@ -1,5 +1,10 @@
 import { Timestamp, getFirestore } from 'firebase-admin/firestore'
 import { requireAllowedUser } from '@/app/lib/serverAuth'
+import { resolveFirebaseAdminApp } from '@/app/lib/firebaseAdmin'
+import type { ApplicantOverride } from '@/app/lib/applicantOverrides'
+import {
+  mergeApplicantOverrideIntoCache,
+} from '@/app/lib/applicantOverridesServer'
 import type { PersonStatus } from '@/app/lib/peopleTypes'
 
 const ALLOWED_STATUSES: PersonStatus[] = [
@@ -36,6 +41,11 @@ function cleanFields(raw: unknown): Record<string, unknown> {
   return fields
 }
 
+export async function GET() {
+  // Bulk override reads disabled — use client localStorage + POST writes only.
+  return Response.json({ success: true, overrides: {} })
+}
+
 export async function POST(request: Request) {
   const auth = await requireAllowedUser(request)
   if (!auth.ok) return auth.response
@@ -51,7 +61,15 @@ export async function POST(request: Request) {
     return Response.json({ success: false, error: 'No supported override fields provided' }, { status: 400 })
   }
 
-  const db = getFirestore()
+  const admin = resolveFirebaseAdminApp()
+  if (!admin.ok) {
+    return Response.json(
+      { success: false, error: 'Firebase Admin is not configured' },
+      { status: 503 },
+    )
+  }
+
+  const db = getFirestore(admin.app)
   await db.collection('applicantOverrides').doc(email).set(
     {
       ...fields,
@@ -60,6 +78,8 @@ export async function POST(request: Request) {
     },
     { merge: true },
   )
+
+  mergeApplicantOverrideIntoCache(email, fields as import('@/app/lib/applicantOverrides').ApplicantOverride)
 
   return Response.json({ success: true })
 }

@@ -6,6 +6,7 @@ import { useAuth } from '@/app/components/AuthProvider'
 import { AUTH_VALIDATION, getAuthErrorMessage } from '@/app/lib/authErrors'
 import Image from 'next/image'
 import Link from 'next/link'
+import AppFooter from '@/app/components/AppFooter'
 import styles from '../login/login.module.css'
 
 export default function SignUpPage() {
@@ -230,11 +231,9 @@ export default function SignUpPage() {
                         </p>
                     </div>
 
-                    <p className={styles.copyright}>
-                        © 2026 Wags & Walks, all rights reserved.
-                    </p>
                 </form>
             </div>
+            <AppFooter variant="auth" />
         </div>
     )
 }

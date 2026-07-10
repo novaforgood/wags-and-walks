@@ -308,18 +308,6 @@
     color: var(--app-accent-strong);
 }
 
-/* Copyright — subtle divider, minimal vertical cost */
-.copyright {
-    font-size: 11px;
-    color: var(--app-text-subtle);
-    text-align: center;
-    margin: 0;
-    padding-top: 12px;
-    margin-top: 2px;
-    border-top: 1px solid var(--app-border);
-    line-height: 1.4;
-}
-
 /* Responsive: Mobile */
 @media (max-width: 480px) {
     .container {

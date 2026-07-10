@@ -3,6 +3,7 @@
 import { FormEvent, useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
+import AppFooter from '@/app/components/AppFooter'
 import { useAuth } from '@/app/components/AuthProvider'
 import { getAuthErrorMessage } from '@/app/lib/authErrors'
 import styles from '../login/login.module.css'
@@ -62,7 +63,6 @@ export default function ForgotPasswordPage() {
                 </Link>
               </p>
             </div>
-            <p className={styles.copyright}>© 2026 Wags & Walks, all rights reserved.</p>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className={styles.form}>
@@ -114,10 +114,10 @@ export default function ForgotPasswordPage() {
               </p>
             </div>
 
-            <p className={styles.copyright}>© 2026 Wags & Walks, all rights reserved.</p>
           </form>
         )}
       </div>
+      <AppFooter variant="auth" />
     </div>
   )
 }

@@ -15,12 +15,14 @@ import { auth } from '@/firebase'
 import { authFetch } from '@/app/lib/authFetch'
 import { useAuth } from './AuthProvider'
 import {
-  subscribeToOverrides,
   mergeOverrides,
+  relatedOverrideEmails,
+  resolveStarred,
   type ApplicantOverride,
 } from '@/app/lib/applicantOverrides'
 
 const PEOPLE_LAST_FETCHED_KEY = 'people_last_fetched_at'
+const OVERRIDES_CACHE_KEY = 'applicant_overrides_v1'
 
 function readLastFetchedAtMs(): number | null {
   try {
@@ -41,16 +43,45 @@ function writeLastFetchedAtMs(ms: number) {
   }
 }
 
+function readCachedOverrides(): Record<string, ApplicantOverride> {
+  try {
+    const raw = localStorage.getItem(OVERRIDES_CACHE_KEY)
+    if (!raw) return {}
+    const parsed = JSON.parse(raw) as Record<string, ApplicantOverride>
+    return parsed && typeof parsed === 'object' ? parsed : {}
+  } catch {
+    return {}
+  }
+}
+
+function writeCachedOverrides(map: Record<string, ApplicantOverride>) {
+  try {
+    localStorage.setItem(OVERRIDES_CACHE_KEY, JSON.stringify(map))
+  } catch {
+    // ignore
+  }
+}
+
+function clearCachedOverrides() {
+  try {
+    localStorage.removeItem(OVERRIDES_CACHE_KEY)
+  } catch {
+    // ignore
+  }
+}
+
 type PeopleContextValue = {
   people: Person[]
+  /** Firestore applicantOverrides keyed by normalized email — used by Directory VIP. */
+  overrides: Record<string, ApplicantOverride>
   isLoading: boolean
   error: string | null
   /** Milliseconds since epoch when the people source cache was last updated. */
   lastFetchedAt: number | null
   setStatus: (email: string, status: PersonStatus) => void
-  toggleStar: (email: string) => void
+  toggleStar: (email: string, options?: { relatedEmail?: string }) => void
   setSignedDocument: (email: string, value: 'Yes' | 'No') => Promise<void>
-  setNotes: (email: string, content: string) => Promise<void>
+  setNotes: (email: string, content: string, options?: { relatedEmail?: string }) => Promise<void>
   refresh: (options?: { suppressLoadingBar?: boolean }) => Promise<void>
 }
 
@@ -65,13 +96,15 @@ async function saveOverride(email: string, fields: OverrideFields): Promise<void
     body: JSON.stringify({ email, fields }),
   })
   if (!response.ok) {
-    throw new Error(`Failed to save override (${response.status})`)
+    const data = await response.json().catch(() => null) as { error?: string } | null
+    throw new Error(data?.error || `Failed to save override (${response.status})`)
   }
 }
 
 export function PeopleProvider({ children }: { children: React.ReactNode }) {
   const { user, loading: authLoading } = useAuth()
   const [people, setPeople] = useState<Person[]>([])
+  const [overrides, setOverrides] = useState<Record<string, ApplicantOverride>>({})
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [lastFetchedAt, setLastFetchedAt] = useState<number | null>(null)
@@ -82,9 +115,16 @@ export function PeopleProvider({ children }: { children: React.ReactNode }) {
 
   function rebuildPeople(
     base: Person[],
-    overrides: Record<string, ApplicantOverride>,
+    nextOverrides: Record<string, ApplicantOverride>,
   ): Person[] {
-    return mergeOverrides(base, overrides)
+    return mergeOverrides(base, nextOverrides)
+  }
+
+  function applyOverrides(next: Record<string, ApplicantOverride>) {
+    overridesRef.current = next
+    setOverrides(next)
+    setPeople(rebuildPeople(basePeopleRef.current, next))
+    writeCachedOverrides(next)
   }
 
   const setStatus = useCallback(
@@ -120,44 +160,64 @@ export function PeopleProvider({ children }: { children: React.ReactNode }) {
   )
 
   const toggleStar = useCallback(
-    (email: string) => {
-      const key = normalizeEmailKey(email)
-      if (!key) return
-      const person = people.find(p => normalizeEmailKey(p.email) === key)
-      if (!person) return
-      const newStarred = !person.starred
+    (email: string, options?: { relatedEmail?: string }) => {
+      const keys = relatedOverrideEmails(email, options?.relatedEmail)
+      const primaryKey = keys[0]
+      if (!primaryKey) return
 
-      setPeople(prev => prev.map(p => normalizeEmailKey(p.email) === key ? { ...p, starred: newStarred } : p))
+      const person = people.find(p => {
+        const pk = normalizeEmailKey(p.email)
+        return keys.includes(pk)
+      })
+      const currentStarred = resolveStarred(email, overridesRef.current, person ?? undefined)
+      const newStarred = !currentStarred
 
-      saveOverride(email, { starred: newStarred }).catch(err => {
+      const next = { ...overridesRef.current }
+      for (const key of keys) {
+        next[key] = { ...next[key], starred: newStarred }
+      }
+      applyOverrides(next)
+
+      Promise.all(keys.map(key => saveOverride(key, { starred: newStarred }))).catch(err => {
         console.error('Failed to toggle star:', err)
-        setPeople(rebuildPeople(basePeopleRef.current, overridesRef.current))
       })
     },
     [people],
   )
 
-  const setNotes = useCallback(async (email: string, content: string) => {
-    const key = normalizeEmailKey(email)
-    if (!key) return
+  const setNotes = useCallback(async (
+    email: string,
+    content: string,
+    options?: { relatedEmail?: string },
+  ) => {
+    const keys = relatedOverrideEmails(email, options?.relatedEmail)
+    const primaryKey = keys[0]
+    if (!primaryKey) return
     const notesUpdatedAt = new Date().toISOString()
 
-    setPeople(prev => prev.map(p =>
-      normalizeEmailKey(p.email) === key ? { ...p, notes: content, notesUpdatedAt } : p
-    ))
+    const next = { ...overridesRef.current }
+    for (const key of keys) {
+      next[key] = { ...next[key], notes: content, notesUpdatedAt }
+    }
+    applyOverrides(next)
 
-    await saveOverride(email, { notes: content, notesUpdatedAt }).catch(err => {
+    try {
+      await Promise.all(keys.map(key => saveOverride(key, { notes: content, notesUpdatedAt })))
+    } catch (err) {
       console.error('Failed to save notes:', err)
-    })
+      throw err
+    }
   }, [])
 
   const setSignedDocument = useCallback(async (email: string, value: 'Yes' | 'No') => {
     const key = normalizeEmailKey(email)
     if (!key) return
 
-    setPeople(prev => prev.map(p =>
-      normalizeEmailKey(p.email) === key ? { ...p, signedDocument: value } : p
-    ))
+    const next = {
+      ...overridesRef.current,
+      [key]: { ...overridesRef.current[key], signedDocument: value },
+    }
+    applyOverrides(next)
 
     await saveOverride(email, { signedDocument: value }).catch(err => {
       console.error('Failed to set signed document:', err)
@@ -194,7 +254,6 @@ export function PeopleProvider({ children }: { children: React.ReactNode }) {
       setLastFetchedAt(nextFetchedAt)
       writeLastFetchedAtMs(nextFetchedAt)
 
-      // Server already merges overrides, but store as base for client re-merges via onSnapshot
       basePeopleRef.current = data.people
       setPeople(rebuildPeople(data.people, overridesRef.current))
 
@@ -218,12 +277,19 @@ export function PeopleProvider({ children }: { children: React.ReactNode }) {
       setPeople([])
       basePeopleRef.current = []
       overridesRef.current = {}
+      setOverrides({})
+      clearCachedOverrides()
       setIsLoading(false)
       setError(null)
       return
     }
 
-    // Seed from localStorage cache for instant display
+    const cachedOverrides = readCachedOverrides()
+    if (Object.keys(cachedOverrides).length > 0) {
+      overridesRef.current = cachedOverrides
+      setOverrides(cachedOverrides)
+    }
+
     try {
       const cachedRaw = localStorage.getItem('people_v2')
       if (cachedRaw) {
@@ -239,16 +305,9 @@ export function PeopleProvider({ children }: { children: React.ReactNode }) {
       console.error('Failed to load cached people', e)
     }
 
-    // Real-time Firestore subscription — fires immediately then on any change
-    const unsubscribeOverrides = subscribeToOverrides(overrides => {
-      overridesRef.current = overrides
-      setPeople(prev => rebuildPeople(basePeopleRef.current.length > 0 ? basePeopleRef.current : prev, overrides))
-    })
-
     void refresh()
 
     return () => {
-      unsubscribeOverrides()
       abortRef.current?.abort()
     }
   }, [authLoading, user, refresh])
@@ -256,6 +315,7 @@ export function PeopleProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo<PeopleContextValue>(
     () => ({
       people,
+      overrides,
       isLoading,
       error,
       lastFetchedAt,
@@ -265,7 +325,7 @@ export function PeopleProvider({ children }: { children: React.ReactNode }) {
       setNotes,
       refresh,
     }),
-    [people, isLoading, error, lastFetchedAt, setStatus, toggleStar, setSignedDocument, setNotes, refresh]
+    [people, overrides, isLoading, error, lastFetchedAt, setStatus, toggleStar, setSignedDocument, setNotes, refresh]
   )
 
   return <PeopleContext.Provider value={value}>{children}</PeopleContext.Provider>

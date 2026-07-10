@@ -278,6 +278,14 @@
     transition: margin-left 0.2s ease;
 }
 
+.mainContentInner {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
 .topBar {
     display: flex;
     align-items: center;

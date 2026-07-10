@@ -12,6 +12,7 @@
  * CONFIG
  **************************************/
 const CONFIG = {
+  /** Applicant tab within the LA Foster Apps workbook (override via Script property APPLICANT_SHEET_NAME) */
   SHEET_NAME: "Sheet1",
 
   // Flagging input headers (must match your sheet headers exactly)
@@ -97,7 +98,7 @@ const GROUP_EMAIL = "wags-and-walks@googlegroups.com";
  * FLAGGING (batch) - manually run anytime
  **************************************/
 function runFlagging() {
-  const sheet = getSheetByNameOrThrow_(CONFIG.SHEET_NAME);
+  const sheet = getApplicantSheet_();
   const lastRow = sheet.getLastRow();
   if (lastRow < 2) {
     Logger.log("No responses.");
@@ -172,7 +173,7 @@ function onFormSubmit(e) {
 }
 
 function flagRow_(rowIndex) {
-  const sheet = getSheetByNameOrThrow_(CONFIG.SHEET_NAME);
+  const sheet = getApplicantSheet_();
   const headers = getHeaders_(sheet);
 
   ensureOutputColumns_(sheet, headers, [
@@ -224,7 +225,7 @@ function doGet(e) {
     var limit = e && e.parameter && e.parameter.limit ? parseInt(e.parameter.limit, 10) : 1000;
     var fieldsParam = e && e.parameter && e.parameter.fields ? String(e.parameter.fields) : "";
 
-    const sheet = getSheetByNameOrThrow_(CONFIG.SHEET_NAME);
+    const sheet = getApplicantSheet_();
     const lastRow = sheet.getLastRow();
     const lastCol = sheet.getLastColumn();
 
@@ -252,6 +253,7 @@ function doGet(e) {
     return json_({
       success: true,
       build: CONFIG.BUILD_ID,
+      sheetName: getApplicantSheetName_(),
       total: values.length,
       returned: rows.length,
       offset: start,
@@ -295,7 +297,7 @@ function doPost(e) {
       try {
         lock.waitLock(15000);
 
-        const sheet = getSheetByNameOrThrow_(CONFIG.SHEET_NAME);
+        const sheet = getApplicantSheet_();
         const headers = getHeaders_(sheet);
 
         ensureOutputColumns_(sheet, headers, [
@@ -456,7 +458,7 @@ function doPost(e) {
       return json_({ success: false, build: CONFIG.BUILD_ID, error: "emailContent is required when sendEmails=true" });
     }
 
-    const sheet = getSheetByNameOrThrow_(CONFIG.SHEET_NAME);
+    const sheet = getApplicantSheet_();
     const headers = getHeaders_(sheet);
 
     ensureOutputColumns_(sheet, headers, [
@@ -680,9 +682,12 @@ function handleScheduledEmails_(action, data) {
  * Internal helpers
  **************************************/
 function setStarred_(email, starred) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName(CONFIG.SHEET_NAME);
-  if (!sheet) return { success: false, error: "Sheet not found" };
+  var sheet;
+  try {
+    sheet = getApplicantSheet_();
+  } catch (err) {
+    return { success: false, error: String(err) };
+  }
 
   const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
 
@@ -710,9 +715,12 @@ function setStarred_(email, starred) {
 }
 
 function setNotes_(email, content) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName(CONFIG.SHEET_NAME);
-  if (!sheet) return { success: false, error: "Sheet not found" };
+  var sheet;
+  try {
+    sheet = getApplicantSheet_();
+  } catch (err) {
+    return { success: false, error: String(err) };
+  }
 
   const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
 
@@ -749,9 +757,13 @@ function createPerson_(name, email, source) {
   const emailKey = String(email).trim().toLowerCase();
   const nameVal = String(name || "").trim();
 
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName(CONFIG.SHEET_NAME);
-  if (!sheet) return { success: false, error: "Sheet not found" };
+  const ss = getApplicantSpreadsheet_();
+  var sheet;
+  try {
+    sheet = getApplicantSheet_();
+  } catch (err) {
+    return { success: false, error: String(err) };
+  }
 
   const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
 
@@ -829,9 +841,31 @@ function parseJsonBody_(e) {
   return JSON.parse(e.postData.contents);
 }
 
+function getApplicantSpreadsheet_() {
+  var props = PropertiesService.getScriptProperties();
+  var id = props.getProperty("APPLICANT_SPREADSHEET_ID");
+  if (id) return SpreadsheetApp.openById(String(id).trim());
+  return SpreadsheetApp.getActiveSpreadsheet();
+}
+
+function getApplicantSheetName_() {
+  var props = PropertiesService.getScriptProperties();
+  var fromProp = props.getProperty("APPLICANT_SHEET_NAME");
+  if (fromProp) return String(fromProp).trim();
+  return CONFIG.SHEET_NAME;
+}
+
+function getApplicantSheet_() {
+  var ss = getApplicantSpreadsheet_();
+  var name = getApplicantSheetName_();
+  var sheet = ss.getSheetByName(name);
+  if (!sheet) throw new Error("Sheet not found: " + name);
+  return sheet;
+}
+
 function getSheetByNameOrThrow_(name) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName(name);
+  var ss = getApplicantSpreadsheet_();
+  var sheet = ss.getSheetByName(name);
   if (!sheet) throw new Error("Sheet not found: " + name);
   return sheet;
 }

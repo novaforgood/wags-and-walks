@@ -154,7 +154,8 @@ There are **two independent Google Sheets / Apps Script projects**. Changes to e
 
 **Sheet 1 — Applicants** (`appscript/WebApp.gs`)
 - Backs the `APPS_SCRIPT_URL` endpoint — the main data API used by the Next.js app
-- Sheet: "Form Responses 1" (applicant pipeline data: status, starred, notes, flags)
+- Applicant tab: **`Sheet1`** inside the **LA Foster Apps** spreadsheet (override tab via Script property `APPLICANT_SHEET_NAME`; if the script is bound to a different file than the live workbook, set `APPLICANT_SPREADSHEET_ID` to the LA Foster Apps spreadsheet ID from the URL)
+- After changing tab/spreadsheet config, **redeploy** the web app and hit **Sync** on Overview so `/api/people` cache refreshes
 - Current deployment ID: stored in `.env.local` as `APPS_SCRIPT_DEPLOYMENT_ID`
 - Called by: `/api/people` (GET rows) and `/api/send-email` (POST mutations)
 

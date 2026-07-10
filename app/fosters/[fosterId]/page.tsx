@@ -22,8 +22,9 @@ import {
   inferLastFosterSubmissionYmdFromEmailSent,
 } from '@/app/lib/fosterTaskEnrichment'
 import type { TaskRow } from '@/app/lib/taskTypes'
-import NotesCard from '@/app/components/NotesCard'
-import GmailCompose from '@/app/components/GmailCompose'
+import ApplicantNotesCard from '@/app/components/ApplicantNotesCard'
+import EmailTemplateCompose from '@/app/components/EmailTemplateCompose'
+import { DEFAULT_TEMPLATE_BY_CONTEXT } from '@/app/lib/emailTemplates'
 import FosterHistoryPanel from '@/app/components/FosterHistoryPanel'
 import layoutStyles from '../../candidates/candidates.module.css'
 import styles from './page.module.css'
@@ -306,10 +307,12 @@ export default function FosterDetailsPage() {
                     </div>
                   </div>
                   <div className={styles.heroActions}>
-                    <GmailCompose
+                    <EmailTemplateCompose
                       email={foster.fosterEmail}
                       recipientName={foster.fosterName}
                       dogNames={foster.dogs.map(d => d.name)}
+                      defaultTemplateId={DEFAULT_TEMPLATE_BY_CONTEXT.foster}
+                      triggerVariant="pill"
                     />
                   </div>
                 </section>
@@ -484,7 +487,7 @@ export default function FosterDetailsPage() {
                 {activeTab === 'notes' && (
                   <div className={styles.tabPanel}>
                     <section className={styles.card}>
-                      <NotesCard email={emailFromSlug} />
+                      <ApplicantNotesCard email={emailFromSlug} />
                     </section>
                   </div>
                 )}

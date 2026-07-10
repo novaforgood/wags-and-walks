@@ -8,6 +8,7 @@ import {
   applicationFieldDisplayValue,
 } from '@/app/lib/applicantApplicationFields'
 import { usePeople } from '@/app/components/PeopleProvider'
+import { resolveStarred } from '@/app/lib/applicantOverrides'
 import candStyles from '@/app/candidates/candidates.module.css'
 import styles from './ApplicantSlideOver.module.css'
 
@@ -24,15 +25,17 @@ function sectionDomId(sectionTitle: string): string {
 }
 
 export default function ApplicantSlideOver({ person, onClose }: Props) {
-  const { toggleStar, people } = usePeople()
+  const { toggleStar, people, overrides } = usePeople()
 
   const livePerson = useMemo((): Person | null => {
     if (!person) return null
     if (!person.email?.trim()) return person
     const key = normalizeEmailKey(person.email)
     const fromList = people.find(p => normalizeEmailKey(p.email) === key)
-    return fromList ?? person
-  }, [people, person])
+    const base = fromList ?? person
+    const starred = resolveStarred(person.email, overrides, base)
+    return { ...base, starred }
+  }, [people, person, overrides])
 
   useEffect(() => {
     if (!person) return

@@ -12,8 +12,9 @@ import {
 import NotificationPanel from './NotificationPanel'
 import TopBarProfileMenu from './TopBarProfileMenu'
 import layoutStyles from '@/app/candidates/candidates.module.css'
-import NotesCard from './NotesCard'
-import EmailComposeTrigger from './EmailComposeTrigger'
+import ApplicantNotesCard from './ApplicantNotesCard'
+import EmailTemplateCompose from './EmailTemplateCompose'
+import { DEFAULT_TEMPLATE_BY_CONTEXT } from '@/app/lib/emailTemplates'
 import FosterHistoryPanel from './FosterHistoryPanel'
 import styles from './PersonModal.module.css'
 
@@ -21,6 +22,8 @@ interface Props {
   person: Person | null
   onClose: () => void
   fosterHistory?: FostererHistory | null
+  /** Applicant sheet email when it differs from person.email (directory group vs sheet). */
+  notesRelatedEmail?: string | null
 }
 
 type ModalTab = 'summary' | 'application' | 'foster-history'
@@ -62,7 +65,7 @@ const META_FIELDS = new Set([
   'rowIndex',
 ])
 
-export default function PersonModal({ person, onClose, fosterHistory }: Props) {
+export default function PersonModal({ person, onClose, fosterHistory, notesRelatedEmail }: Props) {
   const [activeTab, setActiveTab] = useState<ModalTab>('summary')
   const emailKey = person?.email ?? ''
   const prevEmailKeyRef = useRef(emailKey)
@@ -148,7 +151,11 @@ export default function PersonModal({ person, onClose, fosterHistory }: Props) {
             aria-labelledby={TAB_IDS.summary}
             className={styles.tabPanel}
           >
-            <SummaryTab person={person} onOpenApplication={() => setActiveTab('application')} />
+            <SummaryTab
+              person={person}
+              notesRelatedEmail={notesRelatedEmail}
+              onOpenApplication={() => setActiveTab('application')}
+            />
           </div>
         )}
         {activeTab === 'application' && (
@@ -264,9 +271,11 @@ function ApplicationTab({ person }: { person: Person }) {
 // ---- Summary tab (contact + link to application + notes only; no duplicate form answers) ----
 function SummaryTab({
   person,
+  notesRelatedEmail,
   onOpenApplication,
 }: {
   person: Person
+  notesRelatedEmail?: string | null
   onOpenApplication: () => void
 }) {
   const raw = person.raw ?? {}
@@ -344,11 +353,10 @@ function SummaryTab({
       </section>
 
       <section className={styles.section} aria-label="Notes">
-        <NotesCard
+        <ApplicantNotesCard
           key={person.email || `${person.firstName ?? ''}-${person.lastName ?? ''}`}
           email={person.email}
-          initialNotes={person.notes}
-          initialNotesUpdatedAt={person.notesUpdatedAt}
+          relatedEmail={notesRelatedEmail}
         />
       </section>
 
@@ -357,7 +365,11 @@ function SummaryTab({
           <h3 id="summary-email-heading" className={styles.sectionTitle}>
             Email
           </h3>
-          <EmailComposeTrigger email={person.email} recipientName={person.firstName} />
+          <EmailTemplateCompose
+            email={person.email}
+            recipientName={person.firstName}
+            defaultTemplateId={DEFAULT_TEMPLATE_BY_CONTEXT.applicant}
+          />
         </section>
       )}
     </div>

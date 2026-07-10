@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/app/components/AuthProvider'
 import { getAuthErrorMessage } from '@/app/lib/authErrors'
 import Image from 'next/image'
+import AppFooter from '@/app/components/AppFooter'
 import styles from './login.module.css'
 
 function LoginPageInner() {
@@ -185,11 +186,9 @@ function LoginPageInner() {
                         </p>
                     </div>
 
-                    <p className={styles.copyright}>
-                        © 2026 Wags & Walks, all rights reserved.
-                    </p>
                 </form>
             </div>
+            <AppFooter variant="auth" />
         </div>
     )
 }

@@ -5,8 +5,6 @@ import {
   isCacheFresh,
   triggerBackgroundSync,
 } from '@/app/lib/firestoreCache'
-import { getFirestore } from 'firebase-admin/firestore'
-import { resolveFirebaseAdminApp } from '@/app/lib/firebaseAdmin'
 import type { ApplicantOverride } from '@/app/lib/applicantOverrides'
 import { overrideKey } from '@/app/lib/applicantOverrides'
 import { requireAllowedUser } from '@/app/lib/serverAuth'
@@ -81,17 +79,7 @@ function normalizeSignedDocument(raw: unknown): 'Yes' | 'No' {
 }
 
 async function loadOverrides(): Promise<Record<string, ApplicantOverride>> {
-  const admin = resolveFirebaseAdminApp()
-  if (!admin.ok) return {}
-  try {
-    const db = getFirestore(admin.app)
-    const snap = await db.collection('applicantOverrides').get()
-    const map: Record<string, ApplicantOverride> = {}
-    snap.forEach(d => { map[d.id] = d.data() as ApplicantOverride })
-    return map
-  } catch {
-    return {}
-  }
+  return {}
 }
 
 async function loadPeople(overrides: Record<string, ApplicantOverride> = {}): Promise<PeopleGetResponse> {

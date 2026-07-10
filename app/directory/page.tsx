@@ -14,8 +14,8 @@ import {
   writeCachedArray,
 } from '@/app/lib/directoryClientCache'
 import { authFetch } from '@/app/lib/authFetch'
-import { prefetchFosterNotes } from '@/app/lib/fosterNotesClientCache'
 import type { Person } from '@/app/lib/peopleTypes'
+import { normalizeEmailKey } from '@/app/lib/peopleTypes'
 import type { FostererHistory } from '@/app/lib/asmFosterHistory'
 import {
   buildApplicationsByEmail,
@@ -29,6 +29,7 @@ import {
   type DirectoryProfile,
   type GroupMember,
 } from '@/app/lib/directoryPeople'
+import { resolveStarred } from '@/app/lib/applicantOverrides'
 import styles from '../candidates/candidates.module.css'
 import dirStyles from './directory.module.css'
 
@@ -133,11 +134,12 @@ function scheduleAfterPaint(callback: () => void): () => void {
 }
 
 export default function DirectoryPage() {
-  const { people, isLoading: peopleLoading, error: peopleError, toggleStar } = usePeople()
+  const { people, overrides, isLoading: peopleLoading, error: peopleError, toggleStar } = usePeople()
   const [searchQuery, setSearchQuery] = useState('')
   const [quickFilter, setQuickFilter] = useState<QuickFilter>('all')
   const [sortOrder, setSortOrder] = useState<SortOrder>('az')
   const [selectedPerson, setSelectedPerson] = useState<Person | null>(null)
+  const [selectedNotesRelatedEmail, setSelectedNotesRelatedEmail] = useState<string | null>(null)
   const [selectedFosterHistory, setSelectedFosterHistory] = useState<FostererHistory | null>(null)
   const [groupMembers, setGroupMembers] = useState<GroupMember[]>([])
   const [isLoadingGroup, setIsLoadingGroup] = useState(true)
@@ -267,11 +269,11 @@ export default function DirectoryPage() {
         phone: directoryPhone(p),
         currentlyFostering,
         totalFostered,
-        starred: !!p.application?.starred,
+        starred: resolveStarred(p.email, overrides, p.application),
         flagged: p.application ? directoryPersonIsFlagged(p.application) : false,
       }
     })
-  }, [directoryProfiles])
+  }, [directoryProfiles, overrides])
 
   const filtered = useMemo(() => {
     let result = rows
@@ -401,16 +403,6 @@ export default function DirectoryPage() {
     return () => ro.disconnect()
   }, [])
 
-  useEffect(() => {
-    if (paginatedRows.length === 0) return
-    const id = window.setTimeout(() => {
-      for (const row of paginatedRows.slice(0, 12)) {
-        void prefetchFosterNotes(row.email)
-      }
-    }, 250)
-    return () => window.clearTimeout(id)
-  }, [paginatedRows])
-
   const peoplePending = peopleLoading && people.length === 0 && !peopleError
   const fosterersPending = isLoadingFosterers && fosterers.length === 0 && !fostererError
   const initialDirectoryLoading = isLoadingGroup && rows.length === 0
@@ -534,10 +526,12 @@ export default function DirectoryPage() {
                 ) : (
                   <>
                     {paginatedRows.map((r, index) => {
+                      const isVip = resolveStarred(r.email, overrides, r.application)
                       const key = r.asmProfile?.fostererId || r.email || `${r.displayName}-${index}`
                       const personForModal = buildPersonForModal(r)
                       const openPerson = () => {
                         setSelectedPerson(personForModal)
+                        setSelectedNotesRelatedEmail(r.application?.email ?? null)
                         setSelectedFosterHistory(r.asmProfile)
                       }
                       return (
@@ -594,23 +588,29 @@ export default function DirectoryPage() {
                             <div className={styles.rowActions}>
                               {peoplePending ? (
                                 <span className={`${dirStyles.skeletonStar} ${dirStyles.starSlot}`} aria-hidden="true" />
-                              ) : r.hasApplication ? (
+                              ) : r.email ? (
                                 <button
                                   type="button"
                                   data-vip-control
-                                  className={`${styles.actionIconBtn} ${r.starred ? styles.actionIconStarActive : styles.actionIconStar} ${dirStyles.starSlot}`}
+                                  className={`${styles.actionIconBtn} ${isVip ? styles.actionIconStarActive : styles.actionIconStar} ${dirStyles.starSlot}`}
                                   onMouseDown={e => e.stopPropagation()}
                                   onClick={e => {
+                                    e.preventDefault()
                                     e.stopPropagation()
-                                    toggleStar(r.application!.email || '')
+                                    const relatedEmail =
+                                      r.application?.email &&
+                                      normalizeEmailKey(r.application.email) !== normalizeEmailKey(r.email)
+                                        ? r.application.email
+                                        : undefined
+                                    toggleStar(r.email, relatedEmail ? { relatedEmail } : undefined)
                                   }}
-                                  title={r.starred ? 'Unmark VIP' : 'Mark as VIP'}
-                                  aria-label={r.starred ? `Unmark ${r.displayName} as VIP` : `Mark ${r.displayName} as VIP`}
+                                  title={isVip ? 'Unmark VIP' : 'Mark as VIP'}
+                                  aria-label={isVip ? `Unmark ${r.displayName} as VIP` : `Mark ${r.displayName} as VIP`}
                                 >
                                   <svg viewBox="0 0 24 24" aria-hidden="true" className={styles.actionIconSvg}>
                                     <path
                                       d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
-                                      fill={r.starred ? 'currentColor' : 'none'}
+                                      fill={isVip ? 'currentColor' : 'none'}
                                       stroke="currentColor"
                                       strokeWidth="2"
                                       strokeLinecap="round"
@@ -624,7 +624,7 @@ export default function DirectoryPage() {
                                   className={`${styles.actionIconBtn} ${styles.actionIconStar} ${dirStyles.starSlot} ${dirStyles.starDisabledWrap}`}
                                   onMouseDown={e => e.stopPropagation()}
                                   onClick={e => e.stopPropagation()}
-                                  title="No application on file — VIP flag unavailable"
+                                  title="Email required for VIP flag"
                                   aria-hidden="true"
                                 >
                                   <svg viewBox="0 0 24 24" aria-hidden="true" className={styles.actionIconSvg}>
@@ -710,8 +710,10 @@ export default function DirectoryPage() {
         <PersonModal
           person={selectedPerson}
           fosterHistory={selectedFosterHistory}
+          notesRelatedEmail={selectedNotesRelatedEmail}
           onClose={() => {
             setSelectedPerson(null)
+            setSelectedNotesRelatedEmail(null)
             setSelectedFosterHistory(null)
           }}
         />

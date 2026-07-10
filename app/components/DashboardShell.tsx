@@ -8,6 +8,7 @@ import { useAuth } from '@/app/components/AuthProvider'
 import { SidebarGeneralSection } from '@/app/components/SidebarGeneralSection'
 import { SidebarAccountSection } from '@/app/components/SidebarAccountSection'
 import { SidebarProfile } from '@/app/components/SidebarProfile'
+import AppFooter from '@/app/components/AppFooter'
 import { prewarmDirectoryData } from '@/app/lib/directoryClientCache'
 import layoutStyles from '@/app/candidates/candidates.module.css'
 
@@ -162,7 +163,10 @@ function DashboardShellContent({ children, pathname }: DashboardShellContentProp
         <SidebarProfile user={user} role={role} signOut={signOut} />
       </aside>
 
-      <div className={layoutStyles.mainContent}>{children}</div>
+      <div className={layoutStyles.mainContent}>
+        <div className={layoutStyles.mainContentInner}>{children}</div>
+        <AppFooter />
+      </div>
     </div>
   )
 }

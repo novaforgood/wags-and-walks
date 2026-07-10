@@ -8,7 +8,7 @@ import {
   useRef,
   useState,
 } from 'react'
-import { auth } from '@/firebase'
+import { authFetch } from '@/app/lib/authFetch'
 
 type SyncContextValue = {
   syncing: boolean
@@ -32,11 +32,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
       setSyncing(true)
       setError(false)
       try {
-        const token = await auth.currentUser?.getIdToken()
-        if (!token) throw new Error('You must be signed in to sync')
-        const res = await fetch('/api/sync/all', {
-          headers: { Authorization: `Bearer ${token}` },
-        })
+        const res = await authFetch('/api/sync/all')
         if (!res.ok) throw new Error(`Sync failed with status ${res.status}`)
         setCompletedRunId(id => id + 1)
       } catch {
