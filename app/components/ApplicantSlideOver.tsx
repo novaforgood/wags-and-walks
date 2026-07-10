@@ -25,7 +25,7 @@ function sectionDomId(sectionTitle: string): string {
 }
 
 export default function ApplicantSlideOver({ person, onClose }: Props) {
-  const { toggleStar, people, overrides } = usePeople()
+  const { toggleStar, people, overrides, hydrateOverrides } = usePeople()
 
   const livePerson = useMemo((): Person | null => {
     if (!person) return null
@@ -36,6 +36,11 @@ export default function ApplicantSlideOver({ person, onClose }: Props) {
     const starred = resolveStarred(person.email, overrides, base)
     return { ...base, starred }
   }, [people, person, overrides])
+
+  useEffect(() => {
+    if (!person?.email?.trim()) return
+    void hydrateOverrides([person.email])
+  }, [person?.email, hydrateOverrides])
 
   useEffect(() => {
     if (!person) return

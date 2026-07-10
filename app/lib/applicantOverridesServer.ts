@@ -58,3 +58,29 @@ export function mergeApplicantOverrideIntoCache(
     expiresAt: Date.now() + TTL_MS,
   }
 }
+
+/** One Firestore read per email — safe alternative to loading the whole collection. */
+export async function loadApplicantOverridesByEmails(
+  emails: string[],
+): Promise<Record<string, ApplicantOverride>> {
+  const keys = [...new Set(emails.map(e => e.trim().toLowerCase()).filter(Boolean))]
+  if (keys.length === 0) return {}
+
+  const admin = resolveFirebaseAdminApp()
+  if (!admin.ok) return {}
+
+  const db = getFirestore(admin.app)
+  const map: Record<string, ApplicantOverride> = {}
+
+  await Promise.all(
+    keys.map(async key => {
+      const snap = await db.collection('applicantOverrides').doc(key).get()
+      if (snap.exists) {
+        map[key] = snap.data() as ApplicantOverride
+        mergeApplicantOverrideIntoCache(key, map[key])
+      }
+    }),
+  )
+
+  return map
+}

@@ -3,6 +3,7 @@ import { requireAllowedUser } from '@/app/lib/serverAuth'
 import { resolveFirebaseAdminApp } from '@/app/lib/firebaseAdmin'
 import type { ApplicantOverride } from '@/app/lib/applicantOverrides'
 import {
+  loadApplicantOverridesByEmails,
   mergeApplicantOverrideIntoCache,
 } from '@/app/lib/applicantOverridesServer'
 import type { PersonStatus } from '@/app/lib/peopleTypes'
@@ -41,9 +42,25 @@ function cleanFields(raw: unknown): Record<string, unknown> {
   return fields
 }
 
-export async function GET() {
-  // Bulk override reads disabled — use client localStorage + POST writes only.
-  return Response.json({ success: true, overrides: {} })
+export async function GET(request: Request) {
+  const auth = await requireAllowedUser(request)
+  if (!auth.ok) return auth.response
+
+  const url = new URL(request.url)
+  const emailsParam = url.searchParams.get('emails') ?? url.searchParams.get('email')
+  if (!emailsParam?.trim()) {
+    // No bulk collection reads — pass ?email= or ?emails=a,b,c for per-doc loads.
+    return Response.json({ success: true, overrides: {} })
+  }
+
+  const emails = emailsParam
+    .split(',')
+    .map(e => e.trim().toLowerCase())
+    .filter(Boolean)
+    .slice(0, 10)
+
+  const overrides = await loadApplicantOverridesByEmails(emails)
+  return Response.json({ success: true, overrides })
 }
 
 export async function POST(request: Request) {

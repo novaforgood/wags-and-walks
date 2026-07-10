@@ -82,6 +82,8 @@ type PeopleContextValue = {
   toggleStar: (email: string, options?: { relatedEmail?: string }) => void
   setSignedDocument: (email: string, value: 'Yes' | 'No') => Promise<void>
   setNotes: (email: string, content: string, options?: { relatedEmail?: string }) => Promise<void>
+  /** Fetch applicantOverrides for specific emails from Firestore (1 read per email). */
+  hydrateOverrides: (emails: string[]) => Promise<void>
   refresh: (options?: { suppressLoadingBar?: boolean }) => Promise<void>
 }
 
@@ -111,6 +113,8 @@ export function PeopleProvider({ children }: { children: React.ReactNode }) {
 
   const basePeopleRef = useRef<Person[]>([])
   const overridesRef = useRef<Record<string, ApplicantOverride>>({})
+  const hydratedKeysRef = useRef<Set<string>>(new Set())
+  const hydrateInFlightRef = useRef<Map<string, Promise<void>>>(new Map())
   const abortRef = useRef<AbortController | null>(null)
 
   function rebuildPeople(
@@ -173,9 +177,10 @@ export function PeopleProvider({ children }: { children: React.ReactNode }) {
       const newStarred = !currentStarred
 
       const next = { ...overridesRef.current }
-      for (const key of keys) {
-        next[key] = { ...next[key], starred: newStarred }
-      }
+    for (const key of keys) {
+      next[key] = { ...next[key], starred: newStarred }
+      hydratedKeysRef.current.add(key)
+    }
       applyOverrides(next)
 
       Promise.all(keys.map(key => saveOverride(key, { starred: newStarred }))).catch(err => {
@@ -198,6 +203,7 @@ export function PeopleProvider({ children }: { children: React.ReactNode }) {
     const next = { ...overridesRef.current }
     for (const key of keys) {
       next[key] = { ...next[key], notes: content, notesUpdatedAt }
+      hydratedKeysRef.current.add(key)
     }
     applyOverrides(next)
 
@@ -207,6 +213,54 @@ export function PeopleProvider({ children }: { children: React.ReactNode }) {
       console.error('Failed to save notes:', err)
       throw err
     }
+  }, [])
+
+  const hydrateOverrides = useCallback(async (emails: string[]) => {
+    const keys = [...new Set(
+      emails.flatMap(e => relatedOverrideEmails(e)).filter(Boolean),
+    )]
+    const needed = keys.filter(k => !hydratedKeysRef.current.has(k))
+    if (needed.length === 0) return
+
+    const batchKey = needed.slice().sort().join(',')
+    const existing = hydrateInFlightRef.current.get(batchKey)
+    if (existing) {
+      await existing
+      return
+    }
+
+    const promise = (async () => {
+      try {
+        const response = await authFetch(
+          `/api/applicant-overrides?emails=${encodeURIComponent(needed.join(','))}`,
+        )
+        const data = (await response.json()) as {
+          success?: boolean
+          overrides?: Record<string, ApplicantOverride>
+          error?: string
+        }
+        if (!response.ok || !data?.success) {
+          throw new Error(data?.error || `Failed to load overrides (${response.status})`)
+        }
+
+        const fetched = data.overrides ?? {}
+        const next = { ...overridesRef.current }
+        for (const key of needed) {
+          hydratedKeysRef.current.add(key)
+          if (fetched[key]) {
+            next[key] = { ...next[key], ...fetched[key] }
+          }
+        }
+        applyOverrides(next)
+      } catch (err) {
+        console.error('Failed to hydrate overrides:', err)
+      } finally {
+        hydrateInFlightRef.current.delete(batchKey)
+      }
+    })()
+
+    hydrateInFlightRef.current.set(batchKey, promise)
+    await promise
   }, [])
 
   const setSignedDocument = useCallback(async (email: string, value: 'Yes' | 'No') => {
@@ -277,6 +331,8 @@ export function PeopleProvider({ children }: { children: React.ReactNode }) {
       setPeople([])
       basePeopleRef.current = []
       overridesRef.current = {}
+      hydratedKeysRef.current = new Set()
+      hydrateInFlightRef.current = new Map()
       setOverrides({})
       clearCachedOverrides()
       setIsLoading(false)
@@ -323,9 +379,10 @@ export function PeopleProvider({ children }: { children: React.ReactNode }) {
       toggleStar,
       setSignedDocument,
       setNotes,
+      hydrateOverrides,
       refresh,
     }),
-    [people, overrides, isLoading, error, lastFetchedAt, setStatus, toggleStar, setSignedDocument, setNotes, refresh]
+    [people, overrides, isLoading, error, lastFetchedAt, setStatus, toggleStar, setSignedDocument, setNotes, hydrateOverrides, refresh]
   )
 
   return <PeopleContext.Provider value={value}>{children}</PeopleContext.Provider>
