@@ -34,9 +34,11 @@
 .pageWrapper {
     display: flex;
     height: 100vh;
+    height: 100dvh;
     background: #f3f7f7;
     font-family: 'Inter', sans-serif;
     align-items: stretch;
+    overflow: hidden;
 }
 
 /* ---- Sidebar ---- */
@@ -274,16 +276,19 @@
     flex-direction: column;
     min-width: 0;
     height: 100vh;
-    overflow: auto;
+    height: 100dvh;
+    overflow: hidden;
     transition: margin-left 0.2s ease;
 }
 
 .mainContentInner {
-    flex: 1;
+    flex: 1 1 auto;
     min-height: 0;
     display: flex;
     flex-direction: column;
     min-width: 0;
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
 }
 
 .topBar {
